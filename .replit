@@ -1,0 +1,16 @@
+run = "export PYTHONPATH=$HOME/.local/lib/python3.11/site-packages:$PYTHONPATH && python main.py"
+entrypoint = "main.py"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "export PYTHONPATH=$HOME/.local/lib/python3.11/site-packages:$PYTHONPATH && python main.py"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 8000
+externalPort = 80
+
+[agent]
+expertMode = true
