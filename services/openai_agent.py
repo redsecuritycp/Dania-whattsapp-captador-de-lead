@@ -214,6 +214,22 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
     Ejecuta una tool y retorna el resultado.
     """
     try:
+        # ═══════════════════════════════════════════════════════════════════
+        # MENSAJE DE ESPERA para tools de investigación
+        # ═══════════════════════════════════════════════════════════════════
+        if tool_name in ["extraer_datos_web_cliente", "buscar_redes_personales"]:
+            from services.whatsapp import send_whatsapp_message
+            phone = context.get("phone_whatsapp", "")
+            if phone:
+                try:
+                    await send_whatsapp_message(
+                        phone, 
+                        "Dame un momento mientras investigo tu empresa... 🔍"
+                    )
+                    logger.info(f"✓ Mensaje de espera enviado a {phone}")
+                except Exception as e:
+                    logger.warning(f"Error enviando mensaje de espera: {e}")
+        
         if tool_name == "extraer_datos_web_cliente":
             website = arguments.get("website", "")
             if not website:
