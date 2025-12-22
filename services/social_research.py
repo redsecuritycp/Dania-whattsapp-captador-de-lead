@@ -1,6 +1,6 @@
 """
 Servicio de investigación de redes sociales y noticias para DANIA/Fortia
-REPLICA FIEL del workflow n8n: Tool_Investigacion_redes_y_noticias v11.3
+RÉPLICA FIEL del workflow n8n: Tool_Investigacion_redes_y_noticias v11.3
 
 Flujo:
 1. Preparar datos y limpiar inputs
@@ -8,21 +8,24 @@ Flujo:
 3. Tavily: Buscar LinkedIn personal (site:linkedin.com/in)
 4. Google: Fallback LinkedIn personal
 5. Google: Buscar LinkedIn empresa
-6. Google: Buscar noticias
-7. Compilar resultados
+6. Apify: Crawler de noticias (Google News + Bing News)
+7. Google: Noticias fallback
+8. Compilar resultados
 """
 import logging
 import httpx
 import re
-from typing import Optional
+import asyncio
+from typing import Optional, List
 from urllib.parse import quote
 
-from config import TAVILY_API_KEY, GOOGLE_API_KEY, GOOGLE_SEARCH_CX
+from config import TAVILY_API_KEY, GOOGLE_API_KEY, GOOGLE_SEARCH_CX, APIFY_API_TOKEN
 
 logger = logging.getLogger(__name__)
 
 # Timeout para requests HTTP
 HTTP_TIMEOUT = 30.0
+APIFY_TIMEOUT = 120.0  # Apify puede tardar más
 
 
 async def research_person_and_company(
@@ -120,6 +123,7 @@ async def research_person_and_company(
                 partes = nombre_verificado.split()
                 results["primer_nombre"] = partes[0] if partes else primer_nombre
                 results["apellido"] = partes[-1] if len(partes) > 1 else apellido
+                logger.info(f"[TAVILY] ✓ Nombre verificado: {nombre_verificado}")
         
         # ═══════════════════════════════════════════════════════════════════
         # PASO 3: TAVILY - BUSCAR LINKEDIN PERSONAL (site:linkedin.com/in)
@@ -136,6 +140,7 @@ async def research_person_and_company(
                 results["linkedin_personal"] = linkedin_result.get("url", "No encontrado")
                 results["linkedin_personal_confianza"] = linkedin_result.get("confianza", 0)
                 results["linkedin_personal_source"] = "tavily"
+                logger.info(f"[TAVILY] ✓ LinkedIn: {results['linkedin_personal']} (conf: {results['linkedin_personal_confianza']})")
         
         # ═══════════════════════════════════════════════════════════════════
         # PASO 4: GOOGLE - FALLBACK LINKEDIN PERSONAL
@@ -154,6 +159,7 @@ async def research_person_and_company(
                 results["linkedin_personal"] = google_linkedin.get("url", results["linkedin_personal"])
                 results["linkedin_personal_confianza"] = google_linkedin.get("confianza", results["linkedin_personal_confianza"])
                 results["linkedin_personal_source"] = "google"
+                logger.info(f"[GOOGLE] ✓ LinkedIn: {results['linkedin_personal']}")
         
         # ═══════════════════════════════════════════════════════════════════
         # PASO 5: GOOGLE - BUSCAR LINKEDIN EMPRESA
@@ -166,38 +172,53 @@ async def research_person_and_company(
             if linkedin_empresa:
                 results["linkedin_empresa"] = linkedin_empresa
                 results["linkedin_empresa_source"] = "google"
+                logger.info(f"[GOOGLE] ✓ LinkedIn empresa: {linkedin_empresa}")
         
         # ═══════════════════════════════════════════════════════════════════
-        # PASO 6: GOOGLE - BUSCAR NOTICIAS
+        # PASO 6: APIFY - CRAWLER DE NOTICIAS (NUEVO)
         # ═══════════════════════════════════════════════════════════════════
-        if GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
-            logger.info(f"[GOOGLE] Buscando noticias...")
+        noticias = []
+        if APIFY_API_TOKEN:
+            logger.info(f"[APIFY] Buscando noticias con crawler...")
+            noticias = await apify_buscar_noticias(empresa_busqueda, ubicacion_query)
+            if noticias:
+                results["noticias_source"] = "apify"
+                logger.info(f"[APIFY] ✓ {len(noticias)} noticias encontradas")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 7: GOOGLE - NOTICIAS FALLBACK
+        # ═══════════════════════════════════════════════════════════════════
+        if not noticias and GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
+            logger.info(f"[GOOGLE] Fallback: buscando noticias...")
             noticias = await google_buscar_noticias(
                 empresa, empresa_busqueda, ubicacion_query
             )
             if noticias:
-                results["noticias_lista"] = noticias
-                results["noticias_count"] = len(noticias)
                 results["noticias_source"] = "google"
-                
-                # Formatear noticias para mostrar
-                noticias_texto = []
-                for n in noticias[:5]:
-                    linea = f"• {n.get('titulo', 'Sin título')}"
-                    if n.get('url'):
-                        linea += f"\n  {n['url']}"
-                    noticias_texto.append(linea)
-                
-                if noticias_texto:
-                    results["noticias_empresa"] = "\n\n".join(noticias_texto)
+        
+        # Procesar noticias encontradas
+        if noticias:
+            results["noticias_lista"] = noticias
+            results["noticias_count"] = len(noticias)
+            
+            # Formatear noticias para mostrar
+            noticias_texto = []
+            for n in noticias[:5]:
+                linea = f"• {n.get('titulo', 'Sin título')}"
+                if n.get('url'):
+                    linea += f"\n  {n['url']}"
+                noticias_texto.append(linea)
+            
+            if noticias_texto:
+                results["noticias_empresa"] = "\n\n".join(noticias_texto)
     
     except Exception as e:
         logger.error(f"[RESEARCH] Error en investigación: {e}", exc_info=True)
     
     logger.info(f"[RESEARCH] ========== Investigación completada ==========")
-    logger.info(f"[RESEARCH] LinkedIn personal: {results['linkedin_personal']} (confianza: {results['linkedin_personal_confianza']})")
+    logger.info(f"[RESEARCH] LinkedIn personal: {results['linkedin_personal']} (conf: {results['linkedin_personal_confianza']})")
     logger.info(f"[RESEARCH] LinkedIn empresa: {results['linkedin_empresa']}")
-    logger.info(f"[RESEARCH] Noticias encontradas: {results['noticias_count']}")
+    logger.info(f"[RESEARCH] Noticias: {results['noticias_count']} ({results['noticias_source']})")
     
     return results
 
@@ -211,6 +232,7 @@ async def tavily_verificar_nombre(website: str, primer_nombre: str, apellido: st
         return None
     
     try:
+        # Query EXACTO como n8n
         query = f'site:{website} "{primer_nombre}" OR "{apellido}" equipo nosotros about contacto'
         
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
@@ -234,11 +256,18 @@ async def tavily_verificar_nombre(website: str, primer_nombre: str, apellido: st
             primer_lower = primer_nombre.lower()
             apellido_lower = apellido.lower()
             
-            # Patrones para encontrar nombres completos
+            # 5 Patrones para encontrar nombres completos (como n8n)
             patrones = [
+                # Nombre + segundo nombre + apellido
                 re.compile(rf'{primer_lower}\s+[a-záéíóúñ]+\s+{apellido_lower}', re.IGNORECASE),
-                re.compile(rf'(?:ing\.?|dr\.?|lic\.?|arq\.?|sr\.?|sra\.?)\s*{primer_lower}\s+(?:[a-záéíóúñ]+\s+)?{apellido_lower}', re.IGNORECASE),
-                re.compile(rf'{primer_lower}\s+{apellido_lower}', re.IGNORECASE)
+                # Con título profesional
+                re.compile(rf'(?:ing\.?|dr\.?|lic\.?|arq\.?|sr\.?|sra\.?|cpa\.?|mba\.?)\s*{primer_lower}\s+(?:[a-záéíóúñ]+\s+)?{apellido_lower}', re.IGNORECASE),
+                # Nombre simple
+                re.compile(rf'{primer_lower}\s+{apellido_lower}', re.IGNORECASE),
+                # Apellido, Nombre
+                re.compile(rf'{apellido_lower},?\s+{primer_lower}', re.IGNORECASE),
+                # Con "de" o "del"
+                re.compile(rf'{primer_lower}\s+(?:de\s+|del\s+)?[a-záéíóúñ]+\s+{apellido_lower}', re.IGNORECASE)
             ]
             
             mejor_match = None
@@ -251,7 +280,7 @@ async def tavily_verificar_nombre(website: str, primer_nombre: str, apellido: st
                     matches = patron.findall(contenido)
                     for match in matches:
                         # Limpiar el match
-                        nombre_limpio = re.sub(r'^(ing\.?|dr\.?|lic\.?|arq\.?|sr\.?|sra\.?)\s*', '', match, flags=re.IGNORECASE)
+                        nombre_limpio = re.sub(r'^(ing\.?|dr\.?|lic\.?|arq\.?|sr\.?|sra\.?|cpa\.?|mba\.?)\s*', '', match, flags=re.IGNORECASE)
                         nombre_limpio = nombre_limpio.strip()
                         
                         # Capitalizar
@@ -319,7 +348,7 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 
                 score = 0
                 
-                # Scoring por nombre
+                # Scoring por nombre (como n8n)
                 if nombre_lower in texto:
                     score += 50
                 elif primer_lower in texto and apellido_lower in texto:
@@ -474,10 +503,8 @@ async def google_buscar_linkedin_empresa(empresa: str, empresa_busqueda: str) ->
                 match_directo = empresa_lower in texto or empresa_busqueda_lower in texto
                 
                 # Validación estricta: evitar empresas con nombres similares
-                # Extraer el nombre de la empresa del resultado
                 empresa_encontrada = titulo.replace(" | linkedin", "").replace(" - linkedin", "").strip()
                 
-                # Verificar que no tenga palabras extra significativas
                 if not validar_match_empresa(empresa_encontrada, empresa):
                     continue
                 
@@ -506,24 +533,17 @@ def validar_match_empresa(encontrada: str, esperada: str) -> bool:
     if encontrada_lower == esperada_lower:
         return True
     
-    # Palabras a ignorar en comparación
+    # Palabras a ignorar
     ignore_words = {'srl', 'sa', 'llc', 'inc', 'corp', 'company', 'co', 'ltd', 'the', 'argentina', 'ar'}
-    
-    # Prefijos de ubicación a ignorar
     location_prefixes = {'uk', 'us', 'usa', 'eu', 'la', 'latam'}
     
-    encontrada_words = set(encontrada_lower.split()) - ignore_words
+    encontrada_words = set(encontrada_lower.split()) - ignore_words - location_prefixes
     esperada_words = set(esperada_lower.split()) - ignore_words
     
-    # Remover prefijos de ubicación
-    encontrada_words = encontrada_words - location_prefixes
-    
-    # Si la encontrada tiene palabras significativas que NO están en la esperada, rechazar
-    palabras_extra = encontrada_words - esperada_words
-    
-    # Palabras que indican empresa diferente
+    # Palabras extra significativas que indican empresa diferente
     palabras_significativas = {'balloon', 'global', 'international', 'digital', 'tech', 'solutions', 'group', 'holding'}
     
+    palabras_extra = encontrada_words - esperada_words
     if palabras_extra & palabras_significativas:
         return False
     
@@ -532,15 +552,141 @@ def validar_match_empresa(encontrada: str, esperada: str) -> bool:
         return True
     
     # O compartir la mayoría
-    if len(esperada_words & encontrada_words) >= len(esperada_words) * 0.7:
+    if len(esperada_words) > 0 and len(esperada_words & encontrada_words) >= len(esperada_words) * 0.7:
         return True
     
     return False
 
 
-async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_query: str) -> list:
+async def apify_buscar_noticias(empresa_busqueda: str, ubicacion_query: str = "") -> List[dict]:
     """
-    Busca noticias relevantes de la empresa.
+    Busca noticias usando Apify website-content-crawler.
+    Réplica del nodo Crawler_Noticias en n8n.
+    """
+    if not APIFY_API_TOKEN:
+        return []
+    
+    try:
+        # URLs de búsqueda como en n8n
+        search_query = quote(f"{empresa_busqueda} noticias")
+        if ubicacion_query:
+            search_query = quote(f"{empresa_busqueda} {ubicacion_query} noticias")
+        
+        start_urls = [
+            {"url": f"https://news.google.com/search?q={search_query}&hl=es"},
+            {"url": f"https://www.bing.com/news/search?q={search_query}"}
+        ]
+        
+        logger.info(f"[APIFY] Iniciando crawler para: {empresa_busqueda}")
+        
+        # Usar el actor website-content-crawler
+        actor_id = "apify/website-content-crawler"
+        
+        run_input = {
+            "startUrls": start_urls,
+            "maxCrawlDepth": 2,
+            "maxCrawlPages": 20,
+            "crawlerType": "playwright:firefox",
+            "proxyConfiguration": {
+                "useApifyProxy": True
+            }
+        }
+        
+        async with httpx.AsyncClient(timeout=APIFY_TIMEOUT) as client:
+            # Iniciar el actor
+            run_response = await client.post(
+                f"https://api.apify.com/v2/acts/{actor_id}/runs",
+                headers={"Authorization": f"Bearer {APIFY_API_TOKEN}"},
+                json=run_input,
+                params={"waitForFinish": 60}  # Esperar hasta 60 segundos
+            )
+            
+            if run_response.status_code not in [200, 201]:
+                logger.warning(f"[APIFY] Error iniciando actor: {run_response.status_code}")
+                return []
+            
+            run_data = run_response.json()
+            run_id = run_data.get("data", {}).get("id")
+            
+            if not run_id:
+                logger.warning("[APIFY] No se obtuvo run_id")
+                return []
+            
+            # Esperar a que termine (polling)
+            for _ in range(12):  # Max 2 minutos
+                await asyncio.sleep(10)
+                
+                status_response = await client.get(
+                    f"https://api.apify.com/v2/actor-runs/{run_id}",
+                    headers={"Authorization": f"Bearer {APIFY_API_TOKEN}"}
+                )
+                
+                if status_response.status_code == 200:
+                    status_data = status_response.json()
+                    status = status_data.get("data", {}).get("status")
+                    
+                    if status == "SUCCEEDED":
+                        break
+                    elif status in ["FAILED", "ABORTED", "TIMED-OUT"]:
+                        logger.warning(f"[APIFY] Crawler terminó con status: {status}")
+                        return []
+            
+            # Obtener resultados
+            dataset_id = run_data.get("data", {}).get("defaultDatasetId")
+            if not dataset_id:
+                return []
+            
+            items_response = await client.get(
+                f"https://api.apify.com/v2/datasets/{dataset_id}/items",
+                headers={"Authorization": f"Bearer {APIFY_API_TOKEN}"},
+                params={"limit": 50}
+            )
+            
+            if items_response.status_code != 200:
+                return []
+            
+            items = items_response.json()
+            
+            # Procesar resultados
+            noticias = []
+            empresa_lower = empresa_busqueda.lower()
+            
+            for item in items:
+                url = item.get("url", "")
+                titulo = item.get("title", "") or item.get("metadata", {}).get("title", "")
+                texto = item.get("text", "") or item.get("content", "")
+                
+                # Filtrar
+                if es_red_social(url) or es_buscador(url):
+                    continue
+                if es_registro_legal(url, f"{titulo} {texto}"):
+                    continue
+                
+                texto_lower = f"{titulo} {texto}".lower()
+                
+                # Verificar relevancia
+                if empresa_lower in texto_lower or any(p in texto_lower for p in empresa_lower.split() if len(p) > 3):
+                    noticias.append({
+                        "titulo": titulo[:200] if titulo else "Sin título",
+                        "url": url,
+                        "resumen": texto[:300] if texto else "",
+                        "source": "apify"
+                    })
+            
+            logger.info(f"[APIFY] ✓ {len(noticias)} noticias procesadas")
+            return noticias[:10]
+            
+    except asyncio.TimeoutError:
+        logger.warning("[APIFY] Timeout esperando crawler")
+        return []
+    except Exception as e:
+        logger.error(f"[APIFY] Error: {e}")
+        return []
+
+
+async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_query: str) -> List[dict]:
+    """
+    Busca noticias relevantes de la empresa con Google.
     Equivalente a Google_Noticias_Fallback en n8n.
     """
     if not GOOGLE_API_KEY or not GOOGLE_SEARCH_CX:
@@ -599,7 +745,7 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_
                         "domain": link.split("/")[2] if "/" in link else ""
                     })
             
-            return noticias[:10]  # Máximo 10 noticias
+            return noticias[:10]
             
     except Exception as e:
         logger.error(f"[GOOGLE] Error buscando noticias: {e}")
@@ -608,13 +754,13 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_
 
 def es_red_social(url: str) -> bool:
     """Verifica si la URL es de una red social."""
-    redes = ['linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'youtube.com', 'tiktok.com']
+    redes = ['linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'youtube.com', 'tiktok.com', 'x.com']
     return any(red in url.lower() for red in redes)
 
 
 def es_buscador(url: str) -> bool:
     """Verifica si la URL es de un buscador."""
-    buscadores = ['google.com', 'bing.com', 'yahoo.com', 'duckduckgo.com']
+    buscadores = ['google.com/search', 'bing.com/search', 'yahoo.com/search', 'duckduckgo.com']
     return any(b in url.lower() for b in buscadores)
 
 
@@ -635,7 +781,8 @@ def es_registro_legal(url: str, texto: str) -> bool:
         'cesión de cuotas', 'cesion de cuotas',
         'constitución de sociedad', 'constitucion de sociedad',
         'designación de gerentes', 'designacion de gerentes',
-        'contrato social', 'expte.', 'expediente', 'autos caratulados'
+        'contrato social', 'expte.', 'expediente', 'autos caratulados',
+        'inscripción matrícula', 'inscripcion matricula'
     ]
     
     if any(kw in texto_lower for kw in keywords_legales):
@@ -644,13 +791,17 @@ def es_registro_legal(url: str, texto: str) -> bool:
     return False
 
 
-# Función para búsqueda simple (para backward compatibility)
+# Funciones wrapper para backward compatibility
 async def search_linkedin_company(business_name: str, website: str = "") -> Optional[str]:
     """Wrapper para búsqueda de LinkedIn empresa."""
     empresa_busqueda = website.replace("https://", "").replace("http://", "").replace("www.", "").rstrip("/") if website else business_name
     return await google_buscar_linkedin_empresa(business_name, empresa_busqueda)
 
 
-async def search_news(business_name: str, person_name: str = "", location: str = "") -> list:
+async def search_news(business_name: str, person_name: str = "", location: str = "") -> List[dict]:
     """Wrapper para búsqueda de noticias."""
+    if APIFY_API_TOKEN:
+        noticias = await apify_buscar_noticias(business_name, location)
+        if noticias:
+            return noticias
     return await google_buscar_noticias(business_name, business_name, location)

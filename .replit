@@ -1,11 +1,12 @@
-run = "export PYTHONPATH=$HOME/.local/lib/python3.11/site-packages:$PYTHONPATH && python main.py"
+run = "uvicorn main:app --host 0.0.0.0 --port 8000"
 entrypoint = "main.py"
+modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "export PYTHONPATH=$HOME/.local/lib/python3.11/site-packages:$PYTHONPATH && python main.py"]
+run = ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port 8000"]
 deploymentTarget = "cloudrun"
 
 [[ports]]
