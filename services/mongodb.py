@@ -3,7 +3,7 @@ Servicio de MongoDB para DANIA/Fortia
 Réplica fiel del workflow n8n: Tool__MongoDB_Manager
 """
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
@@ -368,46 +368,3 @@ def get_chat_history(session_id: str, limit: int = 20) -> list:
     except Exception as e:
         logger.error(f"Error inesperado obteniendo historial: {e}")
         return []
-
-
-def get_or_create_conversation(phone_whatsapp: str, timeout_hours: int = 24) -> str:
-    """
-    Obtiene la conversación activa o crea una nueva.
-    """
-    try:
-        db = get_database()
-        if db is None:
-            return f"conv_{phone_whatsapp}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-            
-        collection = db["conversations"]
-        
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=timeout_hours)
-        
-        active_conv = collection.find_one({
-            "phone_whatsapp": phone_whatsapp,
-            "last_message_at": {"$gte": cutoff_time},
-            "status": "active"
-        })
-        
-        if active_conv:
-            collection.update_one(
-                {"_id": active_conv["_id"]},
-                {"$set": {"last_message_at": datetime.now(timezone.utc)}}
-            )
-            return str(active_conv.get("conversation_id", active_conv["_id"]))
-        
-        conv_id = f"conv_{phone_whatsapp}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-        new_conv = {
-            "conversation_id": conv_id,
-            "phone_whatsapp": phone_whatsapp,
-            "status": "active",
-            "created_at": datetime.now(timezone.utc),
-            "last_message_at": datetime.now(timezone.utc)
-        }
-        collection.insert_one(new_conv)
-        logger.info(f"Nueva conversación creada: {conv_id}")
-        return conv_id
-        
-    except Exception as e:
-        logger.error(f"Error en get_or_create_conversation: {e}")
-        return f"conv_{phone_whatsapp}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"

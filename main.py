@@ -118,7 +118,7 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     try:
         body = await request.json()
-        logger.debug(f"Webhook recibido: {json.dumps(body, indent=2)}")
+        # logger.debug(f"Webhook recibido: {json.dumps(body, indent=2)}")  # Comentado: solo para debugging
         
         # Extraer datos del webhook
         entry_list = body.get("entry", [])
