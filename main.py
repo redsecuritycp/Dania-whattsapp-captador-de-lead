@@ -88,7 +88,7 @@ async def health():
 # WHATSAPP WEBHOOK
 # =============================================================================
 
-@app.get("/webhook/whatsapp")
+@app.get("/webhook")
 async def verify_webhook(request: Request):
     """
     Verificación del webhook de WhatsApp (GET).
@@ -110,7 +110,7 @@ async def verify_webhook(request: Request):
         raise HTTPException(status_code=403, detail="Verification failed")
 
 
-@app.post("/webhook/whatsapp")
+@app.post("/webhook")
 async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Recibe mensajes de WhatsApp (POST).
