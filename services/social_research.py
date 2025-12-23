@@ -201,12 +201,25 @@ async def research_person_and_company(
             results["noticias_lista"] = noticias
             results["noticias_count"] = len(noticias)
             
-            # Formatear noticias para mostrar
+            # Formatear noticias para mostrar (con [SOURCE] como n8n)
             noticias_texto = []
             for n in noticias[:5]:
-                linea = f"• {n.get('titulo', 'Sin título')}"
-                if n.get('url'):
-                    linea += f"\n  {n['url']}"
+                titulo = n.get('titulo', 'Sin título')
+                url = n.get('url', '')
+                source = n.get('source', '')
+                domain = n.get('domain', '')
+                
+                # Determinar source label
+                if source:
+                    source_label = source.upper()
+                elif domain:
+                    source_label = domain.replace('www.', '').split('/')[0].upper()
+                else:
+                    source_label = 'WEB'
+                
+                linea = f"• {titulo} [{source_label}]"
+                if url:
+                    linea += f"\n  {url}"
                 noticias_texto.append(linea)
             
             if noticias_texto:

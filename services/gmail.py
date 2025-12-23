@@ -1,6 +1,7 @@
 """
 Servicio Gmail para envío de notificaciones de leads
 Usa smtplib con App Password de Gmail
+Versión completa con todas las secciones como n8n
 """
 import os
 import smtplib
@@ -16,11 +17,14 @@ def generate_lead_email_html(lead_data: dict) -> str:
     """
     Genera el HTML del email de notificación de lead.
     Diseño elegante con CSS inline para compatibilidad.
+    Incluye TODAS las secciones como n8n.
     """
     # Extraer datos con fallback
     def get(key, default="No proporcionado"):
         val = lead_data.get(key, default)
-        return val if val and val != "undefined" else default
+        if val is None or val == "" or val == "undefined" or val == "null":
+            return default
+        return val
     
     phone_clean = get("phone_whatsapp", "").replace("+", "")
     nombre_simple = get("name", "").split()[0] if get("name") else ""
@@ -28,6 +32,11 @@ def generate_lead_email_html(lead_data: dict) -> str:
     # Generar links de contacto
     email_lead = get("email", "No proporcionado")
     wa_link = f"https://wa.me/{phone_clean}?text=Hola%20{quote(nombre_simple)},%20soy%20Pablo%20de%20Fortia"
+    
+    # Formatear noticias si existen
+    noticias_html = get("noticias_empresa", "No se encontraron noticias")
+    if noticias_html and noticias_html != "No se encontraron noticias":
+        noticias_html = noticias_html.replace('\n', '<br>')
     
     html = f'''<!DOCTYPE html>
 <html>
@@ -55,6 +64,7 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Email:</td><td style="padding:8px 0;">{get("email")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">WhatsApp:</td><td style="padding:8px 0;">{get("phone_whatsapp")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Cargo:</td><td style="padding:8px 0;">{get("role")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">LinkedIn Personal:</td><td style="padding:8px 0;">{get("linkedin_personal", "No encontrado")}</td></tr>
 </table>
 </div>
 
@@ -67,6 +77,8 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Descripción:</td><td style="padding:8px 0;">{get("business_description")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Servicios:</td><td style="padding:8px 0;">{get("services_text")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Sitio Web:</td><td style="padding:8px 0;">{get("website", "No tiene")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Tiene Web:</td><td style="padding:8px 0;">{get("has_website", "No especificado")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Modelo Negocio:</td><td style="padding:8px 0;">{get("business_model", "No especificado")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Tamaño Equipo:</td><td style="padding:8px 0;">{get("team_size")}</td></tr>
 </table>
 </div>
@@ -90,6 +102,7 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Provincia:</td><td style="padding:8px 0;">{get("province", "No encontrado")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">País:</td><td style="padding:8px 0;">{get("country_detected", "No detectado")} ({get("utc_offset", "UTC?")})</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Zona Horaria:</td><td style="padding:8px 0;">{get("timezone_detected", "No detectada")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Google Maps:</td><td style="padding:8px 0;">{get("google_maps_url", "No encontrado")}</td></tr>
 </table>
 </div>
 
@@ -101,6 +114,8 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">LinkedIn Empresa:</td><td style="padding:8px 0;">{get("linkedin_empresa", "No encontrado")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Instagram:</td><td style="padding:8px 0;">{get("instagram_empresa", "No encontrado")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Facebook:</td><td style="padding:8px 0;">{get("facebook_empresa", "No encontrado")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Twitter:</td><td style="padding:8px 0;">{get("twitter", "No encontrado")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">YouTube:</td><td style="padding:8px 0;">{get("youtube", "No encontrado")}</td></tr>
 </table>
 </div>
 
@@ -108,22 +123,38 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <div style="background:#f9f9f9;padding:20px;margin:20px 0;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
 <h3 style="margin:0 0 15px 0;color:#667eea;border-bottom:2px solid #667eea;padding-bottom:10px;">🎯 Cualificación del Lead</h3>
 <table style="width:100%;border-collapse:collapse;">
-<tr><td style="padding:8px 0;font-weight:bold;color:#666;width:180px;">Conocimiento IA:</td><td style="padding:8px 0;">{get("ai_knowledge")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;width:180px;">Tamaño Equipo:</td><td style="padding:8px 0;">{get("team_size")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Conocimiento IA:</td><td style="padding:8px 0;">{get("ai_knowledge")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Desafío Principal:</td><td style="padding:8px 0;">{get("main_challenge")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Intentos Previos:</td><td style="padding:8px 0;">{get("past_attempt")}</td></tr>
+</table>
+</div>
+
+<!-- Datos Legales (si existen) -->
+<div style="background:#f9f9f9;padding:20px;margin:20px 0;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+<h3 style="margin:0 0 15px 0;color:#667eea;border-bottom:2px solid #667eea;padding-bottom:10px;">📋 Datos Legales</h3>
+<table style="width:100%;border-collapse:collapse;">
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;width:180px;">CUIT/CUIL:</td><td style="padding:8px 0;">{get("cuit_cuil", "No encontrado")}</td></tr>
+<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Razón Social:</td><td style="padding:8px 0;">{get("razon_social", "No encontrado")}</td></tr>
 </table>
 </div>
 
 <!-- Noticias -->
 <div style="background:#f9f9f9;padding:20px;margin:20px 0;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
 <h3 style="margin:0 0 15px 0;color:#667eea;border-bottom:2px solid #667eea;padding-bottom:10px;">📰 Noticias de la Empresa</h3>
-<p style="margin:0;white-space:pre-line;">{get("noticias_empresa", "No se encontraron noticias")}</p>
+<p style="margin:0;white-space:pre-line;">{noticias_html}</p>
 </div>
 
 <!-- Botones CTA -->
 <div style="text-align:center;margin:30px 0;">
 <a href="mailto:{email_lead}" style="display:inline-block;padding:12px 30px;margin:10px;background:#667eea;color:white;text-decoration:none;border-radius:5px;font-weight:bold;">📧 Contactar por Email</a>
 <a href="{wa_link}" style="display:inline-block;padding:12px 30px;margin:10px;background:#25D366;color:white;text-decoration:none;border-radius:5px;font-weight:bold;">💬 WhatsApp</a>
+</div>
+
+<!-- Timestamps -->
+<div style="background:#e8e8e8;padding:15px;margin:20px 0;border-radius:8px;font-size:12px;color:#666;">
+<p style="margin:5px 0;"><strong>Fecha creación:</strong> {get("created_at", "No disponible")}</p>
+<p style="margin:5px 0;"><strong>Hora local cliente:</strong> {get("created_at_local", "No disponible")}</p>
 </div>
 
 </div>
@@ -152,7 +183,6 @@ def send_lead_notification(lead_data: dict) -> dict:
             logger.error("GMAIL_USER o GMAIL_APP_PASSWORD no configurados")
             return {"success": False, "error": "Credenciales Gmail no configuradas"}
         
-        # Crear mensaje
         msg = MIMEMultipart("alternative")
         
         business_name = lead_data.get("business_name", "Sin empresa")
@@ -168,20 +198,24 @@ Nuevo Lead: {name}
 Empresa: {business_name}
 WhatsApp: {lead_data.get('phone_whatsapp', 'N/A')}
 Email: {lead_data.get('email', 'N/A')}
+País: {lead_data.get('country_detected', 'N/A')}
+Actividad: {lead_data.get('business_activity', 'N/A')}
+Sitio Web: {lead_data.get('website', 'N/A')}
+Tamaño Equipo: {lead_data.get('team_size', 'N/A')}
+Conocimiento IA: {lead_data.get('ai_knowledge', 'N/A')}
+Desafío: {lead_data.get('main_challenge', 'N/A')}
 """
         
-        # Versión HTML
         html_content = generate_lead_email_html(lead_data)
         
         msg.attach(MIMEText(text_content, "plain"))
         msg.attach(MIMEText(html_content, "html"))
         
-        # Enviar
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(gmail_user, gmail_password)
             server.sendmail(gmail_user, notification_email, msg.as_string())
         
-        logger.info(f"Email enviado: {notification_email}")
+        logger.info(f"✓ Email enviado: {notification_email}")
         return {"success": True, "message": "Email enviado correctamente"}
     
     except smtplib.SMTPAuthenticationError:

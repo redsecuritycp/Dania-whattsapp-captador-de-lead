@@ -148,23 +148,28 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
         if message_type == "text":
             text_obj = message.get("text", {})
             text = text_obj.get("body", "") if isinstance(text_obj, dict) else ""
+            audio_id = ""
         elif message_type == "audio":
-            # TODO: Implementar transcripción de audio con Whisper
-            text = "[Audio recibido - transcripción no disponible aún]"
+            audio_obj = message.get("audio", {})
+            audio_id = audio_obj.get("id", "") if isinstance(audio_obj, dict) else ""
+            text = ""  # Se obtendrá por transcripción
         else:
             text = f"[Mensaje tipo {message_type} recibido]"
+            audio_id = ""
         
-        if not text or not from_number:
+        if (not text and not audio_id) or not from_number:
             return JSONResponse({"status": "ok"})
         
-        logger.info(f"📩 Mensaje de {from_number}: {text[:50]}...")
+        logger.info(f"📩 Mensaje de {from_number}: {text[:50] if text else '[AUDIO]'}...")
         
         # Procesar en background
         background_tasks.add_task(
             process_whatsapp_message,
             from_number,
             text,
-            message_id
+            message_id,
+            message_type,
+            audio_id
         )
         
         # Responder rápido a Meta
@@ -175,13 +180,40 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
         return JSONResponse({"status": "error", "message": str(e)})
 
 
-async def process_whatsapp_message(from_number: str, text: str, message_id: str):
+async def process_whatsapp_message(from_number: str, text: str, message_id: str, message_type: str = "text", audio_id: str = ""):
     """
     Procesa un mensaje de WhatsApp en background.
+    Soporta texto y audio.
     """
     try:
         # Marcar como leído
         await mark_as_read(message_id)
+        
+        # Si es audio, transcribir primero
+        if message_type == "audio" and audio_id:
+            from services.whatsapp import get_media_url, download_media, transcribe_audio
+            
+            logger.info(f"[AUDIO] Procesando audio de {from_number}...")
+            
+            # Paso 1: Obtener URL
+            media_url = await get_media_url(audio_id)
+            if not media_url:
+                await send_whatsapp_message(from_number, "No pude procesar el audio. ¿Podés escribirme el mensaje?")
+                return
+            
+            # Paso 2: Descargar
+            audio_bytes = await download_media(media_url)
+            if not audio_bytes:
+                await send_whatsapp_message(from_number, "No pude descargar el audio. ¿Podés intentar de nuevo?")
+                return
+            
+            # Paso 3: Transcribir
+            text = await transcribe_audio(audio_bytes)
+            if not text:
+                await send_whatsapp_message(from_number, "No pude transcribir el audio. ¿Podés escribirme el mensaje?")
+                return
+            
+            logger.info(f"[AUDIO] ✓ Transcrito: {text[:50]}...")
         
         # Detectar país y zona horaria
         phone_whatsapp = f"+{from_number}"
@@ -199,7 +231,6 @@ async def process_whatsapp_message(from_number: str, text: str, message_id: str)
         )
         
         if response is not None and response:
-            # Enviar respuesta por WhatsApp
             result = await send_whatsapp_message(from_number, response)
             
             if result.get("success"):
@@ -209,7 +240,6 @@ async def process_whatsapp_message(from_number: str, text: str, message_id: str)
     
     except Exception as e:
         logger.error(f"Error procesando mensaje: {e}")
-        # Intentar enviar mensaje de error
         try:
             await send_whatsapp_message(
                 from_number,
@@ -343,6 +373,45 @@ async def test_message(request: Request):
         raise
     except Exception as e:
         logger.error(f"Error en test: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/test/summary")
+async def test_summary(request: Request):
+    """
+    Endpoint de prueba para generar resumen de conversación.
+    Body: {"phone": "+5493401514509"}
+    """
+    try:
+        body = await request.json()
+        phone = body.get("phone", "")
+        
+        if not phone:
+            raise HTTPException(status_code=400, detail="Falta phone")
+        
+        from services.mongodb import get_chat_history
+        
+        history = get_chat_history(phone, limit=50)
+        
+        if not history:
+            return {"error": "No hay historial para este número", "phone": phone}
+        
+        # Construir texto
+        conversation_text = ""
+        for msg in history:
+            role = "Usuario" if msg.get("role") == "user" else "Asistente"
+            conversation_text += f"{role}: {msg.get('content', '')[:200]}...\n\n"
+        
+        return {
+            "phone": phone,
+            "message_count": len(history),
+            "preview": conversation_text[:2000]
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en test summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

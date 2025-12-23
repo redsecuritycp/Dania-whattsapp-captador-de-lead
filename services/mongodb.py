@@ -368,3 +368,36 @@ def get_chat_history(session_id: str, limit: int = 20) -> list:
     except Exception as e:
         logger.error(f"Error inesperado obteniendo historial: {e}")
         return []
+
+
+def update_lead_summary(phone_whatsapp: str, summary: str) -> dict:
+    """
+    Actualiza el resumen de conversación de un lead.
+    """
+    try:
+        db = get_database()
+        if db is None:
+            return {"success": False, "error": "No hay conexión a MongoDB"}
+        
+        collection = db["leads_fortia"]
+        
+        from datetime import datetime, timezone
+        
+        result = collection.update_one(
+            {"phone_whatsapp": phone_whatsapp},
+            {"$set": {
+                "conversation_summary": summary,
+                "summary_date": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"✓ Resumen actualizado para: {phone_whatsapp}")
+            return {"success": True, "message": "Resumen actualizado"}
+        else:
+            return {"success": False, "error": "Lead no encontrado"}
+    
+    except Exception as e:
+        logger.error(f"Error actualizando resumen: {e}")
+        return {"success": False, "error": str(e)}
