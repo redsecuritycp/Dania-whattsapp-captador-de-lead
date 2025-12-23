@@ -1,6 +1,6 @@
 """
 Servicio de extracción de datos web - RÉPLICA FIEL de n8n
-Pipeline: Jina AI (primero) → Tavily → HTTP Fetch → Regex (Extractor_v8) → GPT-4o → Merge
+Pipeline: Firecrawl (primero) → Jina AI (backup) → Tavily → Regex → GPT-4o → Merge
 """
 import os
 import re
@@ -10,7 +10,7 @@ import logging
 from typing import Optional
 from urllib.parse import urlparse
 
-from config import TAVILY_API_KEY, OPENAI_API_KEY, JINA_API_KEY
+from config import TAVILY_API_KEY, OPENAI_API_KEY, JINA_API_KEY, FIRECRAWL_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +26,68 @@ def clean_url(url: str) -> str:
     return url
 
 
+async def fetch_with_firecrawl(website: str) -> str:
+    """
+    Extrae contenido web usando Firecrawl (mejor JS rendering).
+    MÉTODO PRINCIPAL - ejecuta JavaScript completo como navegador real.
+    """
+    if not FIRECRAWL_API_KEY:
+        logger.warning("[FIRECRAWL] API key no configurada")
+        return ""
+    
+    try:
+        url = f"https://{website}" if not website.startswith("http") else website
+        
+        logger.info(f"[FIRECRAWL] Extrayendo: {url}")
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                "https://api.firecrawl.dev/v1/scrape",
+                headers={
+                    "Authorization": f"Bearer {FIRECRAWL_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "url": url,
+                    "formats": ["markdown", "links"],
+                    "onlyMainContent": False,
+                    "includeTags": ["a", "footer", "header", "nav"],
+                    "waitFor": 3000
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if not data.get("success"):
+                    logger.warning(f"[FIRECRAWL] Extracción fallida: {data.get('error', 'Unknown')}")
+                    return ""
+                
+                result_data = data.get("data", {})
+                content = result_data.get("markdown", "")
+                links = result_data.get("links", [])
+                
+                # Agregar links al final (como hace Jina con X-With-Links-Summary)
+                if links:
+                    content += "\n\n--- Links encontrados ---\n"
+                    for link in links[:50]:  # Limitar a 50 links
+                        content += f"- {link}\n"
+                
+                logger.info(f"[FIRECRAWL] ✓ {len(content)} caracteres extraídos, {len(links)} links")
+                return content
+            else:
+                logger.warning(f"[FIRECRAWL] Error {response.status_code}: {response.text[:200]}")
+                return ""
+                
+    except Exception as e:
+        logger.error(f"[FIRECRAWL] Error: {e}")
+        return ""
+
+
 async def fetch_with_jina(website: str) -> str:
     """
     Extrae contenido web usando Jina AI Reader.
-    MÉTODO PRINCIPAL (como en n8n Tool_Extractor_Web_INTELIGENTE).
+    MÉTODO BACKUP si Firecrawl falla.
     """
     try:
         url = f"https://r.jina.ai/{website}"
@@ -42,7 +100,7 @@ async def fetch_with_jina(website: str) -> str:
         if JINA_API_KEY:
             headers["Authorization"] = f"Bearer {JINA_API_KEY}"
         
-        logger.info(f"[JINA] Extrayendo: {website}")
+        logger.info(f"[JINA] Extrayendo (backup): {website}")
         
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=headers)
@@ -63,33 +121,19 @@ async def fetch_with_jina(website: str) -> str:
 
 async def fetch_html_direct(url: str) -> str:
     """
-    Fetch HTML directo como backup si Jina falla.
+    Fetch HTML directo como último recurso.
     """
     try:
-        if not url.startswith('http'):
-            url = f"https://{url}"
-        
-        logger.info(f"[HTTP] Fetching: {url}")
-        
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=True) as client:
             response = await client.get(url, headers=headers)
             
             if response.status_code == 200:
-                content = response.text
-                logger.info(f"[HTTP] ✓ {len(content)} caracteres obtenidos")
-                return content
-            else:
-                logger.warning(f"[HTTP] Error {response.status_code}")
-                return ""
+                return response.text[:50000]
+            return ""
     except Exception as e:
         logger.error(f"[HTTP] Error: {e}")
         return ""
@@ -97,120 +141,89 @@ async def fetch_html_direct(url: str) -> str:
 
 async def search_with_tavily(query: str) -> dict:
     """
-    Búsqueda web con Tavily.
+    Búsqueda web con Tavily para datos complementarios.
     """
+    if not TAVILY_API_KEY:
+        return {}
+    
     try:
-        if not TAVILY_API_KEY:
-            return {}
-        
-        logger.info(f"[TAVILY] Buscando: {query[:50]}...")
-        
-        payload = {
-            "api_key": TAVILY_API_KEY,
-            "query": query,
-            "search_depth": "advanced",
-            "max_results": 5,
-            "include_answer": True,
-            "include_raw_content": True
-        }
-        
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post("https://api.tavily.com/search", json=payload)
+            response = await client.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": TAVILY_API_KEY,
+                    "query": query,
+                    "search_depth": "advanced",
+                    "max_results": 5,
+                    "include_answer": True,
+                    "include_raw_content": True
+                }
+            )
             
             if response.status_code == 200:
-                data = response.json()
-                logger.info(f"[TAVILY] ✓ Respuesta recibida")
-                return data
-            else:
-                logger.warning(f"[TAVILY] Error {response.status_code}")
-                return {}
+                return response.json()
+            return {}
     except Exception as e:
         logger.error(f"[TAVILY] Error: {e}")
         return {}
 
 
-def clean_text(text: str) -> str:
-    """Limpia texto HTML."""
-    if not text:
-        return ""
-    text = re.sub(r'<[^>]+>', ' ', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text.strip()
-
-
-def extract_with_regex(all_content: str, website: str) -> dict:
+def extract_with_regex(all_content: str) -> dict:
     """
-    Extrae datos con regex del contenido.
-    Réplica COMPLETA del Extractor_v8 de n8n.
+    Extracción con regex - Extractor v8 de n8n.
     """
     regex_extract = {
         'emails': [],
         'phones': [],
         'whatsapp': '',
-        'linkedin': '',
         'instagram': '',
         'facebook': '',
+        'linkedin': '',
         'twitter': '',
         'youtube': '',
+        'google_maps_url': '',
         'address': '',
-        'city': '',
         'province': '',
         'horarios': '',
         'cuit_cuil': '',
-        'razon_social': '',
-        'google_maps_url': '',
-        'servicios': [],
-        'business_name': '',
         'business_activity': '',
-        'business_description': ''
+        'servicios': []
     }
     
-    if not all_content:
-        return regex_extract
-    
-    search_text = all_content.lower()
-    
     # ═══════════════════════════════════════════════════════════════════
-    # 1. EMAILS (filtrar inválidos)
+    # 1. EMAILS
     # ═══════════════════════════════════════════════════════════════════
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-    email_matches = re.findall(email_pattern, all_content, re.IGNORECASE)
+    emails_found = re.findall(email_pattern, all_content)
     
-    invalid_patterns = ['example', 'test', 'sentry', 'wix', 'wordpress', 
-                       'noreply', 'no-reply', '.png', '.jpg', '.gif', '.webp', '.svg']
-    
-    valid_emails = []
-    seen = set()
-    for email in email_matches:
+    # Filtrar emails basura
+    emails_filtered = []
+    for email in emails_found:
         email_lower = email.lower()
-        if email_lower not in seen and not any(inv in email_lower for inv in invalid_patterns):
-            valid_emails.append(email)
-            seen.add(email_lower)
+        if not any(x in email_lower for x in ['example', 'sentry', 'wixpress', '.png', '.jpg', 'website.com', 'domain.com']):
+            emails_filtered.append(email_lower)
     
-    regex_extract['emails'] = valid_emails[:5]
+    regex_extract['emails'] = list(set(emails_filtered))[:5]
     
     # ═══════════════════════════════════════════════════════════════════
     # 2. TELÉFONOS
     # ═══════════════════════════════════════════════════════════════════
     phone_patterns = [
-        r'\+54\s*9?\s*\d{2,4}\s*\d{3,4}\s*\d{4}',
-        r'\+54\s*\d{10,12}',
-        r'\(\d{2,5}\)\s*\d{3,4}[\s-]?\d{4}',
-        r'\d{4}[\s-]\d{4}',
-        r'\d{10,12}'
+        r'href=["\']tel:([^"\']+)',
+        r'\+\d{1,4}[\s.-]?\(?\d{1,5}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}[\s.-]?\d{0,4}',
+        r'\(\d{2,5}\)[\s.-]?\d{3,4}[\s.-]?\d{3,4}',
+        r'\b\d{4}[\s.-]\d{4}\b'
     ]
     
     phones = []
-    seen_phones = set()
     for pattern in phone_patterns:
-        matches = re.findall(pattern, all_content)
-        for match in matches:
-            cleaned = re.sub(r'[^\d+]', '', match)
-            if len(cleaned) >= 8 and cleaned not in seen_phones:
-                phones.append(match.strip())
-                seen_phones.add(cleaned)
+        matches = re.findall(pattern, all_content, re.IGNORECASE)
+        for m in matches:
+            phone = re.sub(r'[^\d+]', '', m) if isinstance(m, str) else m
+            if len(re.sub(r'\D', '', str(phone))) >= 7:
+                phones.append(m.strip() if isinstance(m, str) else m)
     
-    regex_extract['phones'] = phones[:5]
+    regex_extract['phones'] = list(set(phones))[:5]
     
     # ═══════════════════════════════════════════════════════════════════
     # 3. WHATSAPP
@@ -273,170 +286,102 @@ def extract_with_regex(all_content: str, website: str) -> dict:
         regex_extract['cuit_cuil'] = cuit_match.group(1)
     
     # ═══════════════════════════════════════════════════════════════════
-    # 7. SERVICIOS
+    # 7. DIRECCIONES (Argentina)
     # ═══════════════════════════════════════════════════════════════════
-    servicios = []
-    service_patterns = [
-        r'(?:servicios|ofrecemos|brindamos)[:\s]*([^.]{20,200})',
-        r'(?:nuestros servicios|qué hacemos)[:\s]*([^.]{20,200})'
+    direccion_patterns = [
+        r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+\s+\d{1,5}',
+        r'\d{1,5}\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+(?:,\s*[A-Za-z\s]+)?'
     ]
     
-    for pattern in service_patterns:
-        match = re.search(pattern, search_text, re.IGNORECASE)
-        if match:
-            text = match.group(1).strip()
-            if ',' in text:
-                servicios.extend([s.strip().capitalize() for s in text.split(',') if len(s.strip()) > 3])
-            else:
-                servicios.append(text.capitalize())
-    
-    regex_extract['servicios'] = servicios[:10]
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # 8. DIRECCIÓN Y UBICACIÓN
-    # ═══════════════════════════════════════════════════════════════════
-    address_patterns = [
-        r'(?:dirección|direccion|domicilio|ubicación|ubicacion)[:\s]*([^<\n]{10,100})',
-        r'(?:calle|av\.|avenida|bv\.|boulevard)\s+[^<\n]{5,80}',
-    ]
-    
-    for pattern in address_patterns:
-        match = re.search(pattern, search_text, re.IGNORECASE)
-        if match:
-            addr = clean_text(match.group(1) if match.lastindex else match.group(0))
-            if 10 < len(addr) < 150:
-                regex_extract['address'] = addr
-                break
+    for pattern in direccion_patterns:
+        match = re.search(pattern, all_content)
+        if match and len(match.group(0)) > 10:
+            regex_extract['address'] = match.group(0).strip()
+            break
     
     # Provincias argentinas
-    provincias = [
-        'Buenos Aires', 'CABA', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes',
-        'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones',
-        'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe',
-        'Santiago del Estero', 'Tierra del Fuego', 'Tucumán'
-    ]
+    provincias = ['Buenos Aires', 'Córdoba', 'Santa Fe', 'Mendoza', 'Tucumán', 'Entre Ríos', 
+                  'Salta', 'Misiones', 'Chaco', 'Corrientes', 'Santiago del Estero', 'San Juan',
+                  'Jujuy', 'Río Negro', 'Neuquén', 'Formosa', 'Chubut', 'San Luis', 'Catamarca',
+                  'La Rioja', 'La Pampa', 'Santa Cruz', 'Tierra del Fuego', 'CABA']
     
     for prov in provincias:
-        if prov.lower() in search_text:
+        if prov.lower() in all_content.lower():
             regex_extract['province'] = prov
             break
     
     # ═══════════════════════════════════════════════════════════════════
-    # 9. HORARIOS
+    # 8. HORARIOS
     # ═══════════════════════════════════════════════════════════════════
-    horario_patterns = [
-        r'(?:horario|atención|atencion)[s]?[:\s]*([^<\n]{10,100})',
-        r'(?:lunes\s+a\s+viernes|lun\s*-\s*vie)[:\s]*([^<\n]{5,50})',
-        r'\d{1,2}:\d{2}\s*(?:a|hs|-)\s*\d{1,2}:\d{2}\s*(?:hs)?'
+    horarios_patterns = [
+        r'(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom|L|M|X|J|V|S|D)[a-z]*[\s\-a]+(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom|L|M|X|J|V|S|D)[a-z]*[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm)?\s*[\-a]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm)?',
+        r'\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm)?\s*[\-a]+\s*\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm)?'
     ]
     
-    for pattern in horario_patterns:
-        match = re.search(pattern, search_text, re.IGNORECASE)
+    for pattern in horarios_patterns:
+        match = re.search(pattern, all_content, re.IGNORECASE)
         if match:
-            regex_extract['horarios'] = clean_text(match.group(1) if match.lastindex else match.group(0))
+            regex_extract['horarios'] = match.group(0).strip()
             break
     
     # ═══════════════════════════════════════════════════════════════════
-    # 10. BUSINESS ACTIVITY (nuevo - como n8n)
+    # 9. SERVICIOS (Keywords)
     # ═══════════════════════════════════════════════════════════════════
-    activity_patterns = [
-        r'(?:somos|empresa de|dedicados a|especializados en)\s+([^.]{10,100})',
-        r'(?:líder en|lider en|expertos en)\s+([^.]{10,80})'
+    servicios_keywords = [
+        'INFRAESTRUCTURA', 'WIRELESS', 'ISP', 'SEGURIDAD', 'NETWORKING',
+        'TELEFONÍA', 'TELEFONIA', 'IP TELEPHONY', 'SMART HOME', 'DOMÓTICA',
+        'SOFTWARE', 'HARDWARE', 'CLOUD', 'CONECTIVIDAD', 'REDES',
+        'CÁMARAS', 'CAMARAS', 'CCTV', 'ACCESS POINT', 'ROUTER', 'SWITCH',
+        'FIBRA ÓPTICA', 'FIBRA OPTICA', 'UPS', 'ENERGÍA', 'ENERGIA',
+        'MONITOREO', 'ALARMAS', 'RASTREO', 'GPS', 'VIGILANCIA'
     ]
     
-    for pattern in activity_patterns:
-        match = re.search(pattern, search_text, re.IGNORECASE)
-        if match:
-            activity = match.group(1).strip().capitalize()
-            if len(activity) > 10:
-                regex_extract['business_activity'] = activity
-                break
+    content_upper = all_content.upper()
+    servicios_encontrados = []
     
-    logger.info(f"[REGEX] Emails: {len(regex_extract['emails'])}, Phones: {len(regex_extract['phones'])}, Servicios: {len(regex_extract['servicios'])}")
+    for keyword in servicios_keywords:
+        if keyword in content_upper:
+            servicios_encontrados.append(keyword.title())
+    
+    regex_extract['servicios'] = list(set(servicios_encontrados))
     
     return regex_extract
 
 
-async def parse_with_gpt(web_content: str, website: str, regex_data: dict, tavily_answer: str) -> dict:
+async def extract_with_gpt(all_content: str, website: str) -> dict:
     """
-    Usa GPT-4o para extraer datos estructurados.
+    Usa GPT-4o-mini para extraer datos estructurados.
     """
+    if not OPENAI_API_KEY:
+        return {}
+    
+    prompt = f"""Extraé los siguientes datos del contenido de este sitio web ({website}).
+Respondé SOLO con JSON válido, sin explicaciones.
+Si no encontrás un dato, usá "No encontrado".
+
+DATOS A EXTRAER:
+- business_name: Nombre de la empresa
+- business_activity: Actividad/rubro principal
+- business_description: Descripción breve (máx 200 chars)
+- services: Lista de servicios/productos principales
+- email_principal: Email de contacto principal
+- phone_empresa: Teléfono principal
+- whatsapp_number: Número de WhatsApp (si hay)
+- address: Dirección física
+- city: Ciudad
+- province: Provincia
+- country: País (default Argentina)
+- horarios: Horarios de atención
+- linkedin_empresa: URL LinkedIn de la empresa
+- instagram_empresa: URL Instagram de la empresa  
+- facebook_empresa: URL Facebook de la empresa
+
+CONTENIDO DEL SITIO:
+{all_content[:15000]}
+
+JSON:"""
+
     try:
-        if not OPENAI_API_KEY:
-            return {}
-        
-        logger.info("[GPT] Procesando con GPT-4o...")
-        
-        regex_emails = regex_data.get('emails', [])
-        regex_phones = regex_data.get('phones', [])
-        
-        prompt = f"""Sos un experto extrayendo datos de sitios web empresariales.
-
-Sitio: {website}
-
-═══════════════════════════════════════════════════════════════════
-DATOS YA ENCONTRADOS (USAR DIRECTAMENTE SI SON VÁLIDOS):
-═══════════════════════════════════════════════════════════════════
-- Nombre empresa: {regex_data.get('business_name', '')}
-- Descripción: {regex_data.get('business_description', '')}
-- Actividad: {regex_data.get('business_activity', '')}
-- Emails: {regex_emails}
-- Teléfonos: {regex_phones}
-- WhatsApp: {regex_data.get('whatsapp', '')}
-- LinkedIn: {regex_data.get('linkedin', '')}
-- Instagram: {regex_data.get('instagram', '')}
-- Facebook: {regex_data.get('facebook', '')}
-- Twitter: {regex_data.get('twitter', '')}
-- YouTube: {regex_data.get('youtube', '')}
-- Dirección: {regex_data.get('address', '')}
-- Provincia: {regex_data.get('province', '')}
-- Horarios: {regex_data.get('horarios', '')}
-- CUIT/CUIL: {regex_data.get('cuit_cuil', '')}
-- Google Maps: {regex_data.get('google_maps_url', '')}
-- DESCRIPCIÓN TAVILY: {tavily_answer}
-
-═══════════════════════════════════════════════════════════════════
-CONTENIDO DEL SITIO (primeros 12000 chars):
-═══════════════════════════════════════════════════════════════════
-{web_content[:12000]}
-
-═══════════════════════════════════════════════════════════════════
-INSTRUCCIONES:
-═══════════════════════════════════════════════════════════════════
-1. USAR los datos ya encontrados arriba si son válidos
-2. COMPLETAR solo los campos que faltan buscando en el contenido
-3. Si hay DESCRIPCIÓN TAVILY → usarla como business_description
-4. Si un dato no existe → "No encontrado"
-5. NUNCA inventar datos
-
-RESPONDER SOLO JSON (sin ```, sin markdown):
-
-{{
-  "business_name": "",
-  "business_activity": "",
-  "business_description": "",
-  "services": [],
-  "email_principal": "",
-  "emails_adicionales": [],
-  "phone_empresa": "",
-  "phones_adicionales": [],
-  "whatsapp_number": "",
-  "website": "{website}",
-  "linkedin_empresa": "",
-  "instagram_empresa": "",
-  "facebook_empresa": "",
-  "twitter": "",
-  "youtube": "",
-  "google_maps_url": "",
-  "address": "",
-  "city": "",
-  "province": "",
-  "country": "Argentina",
-  "horarios": "",
-  "cuit_cuil": "",
-  "razon_social": ""
-}}"""
-
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -454,28 +399,25 @@ RESPONDER SOLO JSON (sin ```, sin markdown):
             
             if response.status_code == 200:
                 data = response.json()
-                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                content = data["choices"][0]["message"]["content"]
                 
-                if not content:
-                    return {}
-                
-                content = re.sub(r'```json\s*', '', content)
-                content = re.sub(r'```\s*', '', content)
+                # Limpiar respuesta
                 content = content.strip()
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.startswith("```"):
+                    content = content[3:]
+                if content.endswith("```"):
+                    content = content[:-3]
                 
-                start = content.find('{')
-                end = content.rfind('}')
-                if start != -1 and end != -1:
-                    content = content[start:end + 1]
-                
-                parsed = json.loads(content)
-                logger.info("[GPT] ✓ Datos extraídos correctamente")
-                return parsed
+                logger.info(f"[GPT] ✓ Datos extraídos correctamente")
+                return json.loads(content.strip())
             else:
                 logger.error(f"[GPT] Error {response.status_code}")
                 return {}
+                
     except json.JSONDecodeError as e:
-        logger.warning(f"[GPT] JSON inválido: {e}")
+        logger.error(f"[GPT] Error parseando JSON: {e}")
         return {}
     except Exception as e:
         logger.error(f"[GPT] Error: {e}")
@@ -484,7 +426,7 @@ RESPONDER SOLO JSON (sin ```, sin markdown):
 
 def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str) -> dict:
     """
-    Merge de resultados.
+    Combina resultados de GPT, Regex y Tavily.
     Prioridad: GPT > Regex > Tavily
     """
     resultado = gpt_data.copy() if gpt_data else {}
@@ -561,22 +503,27 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str) -> dict:
 async def extract_web_data(website: str) -> dict:
     """
     Pipeline completo de extracción web.
-    Orden corregido: Jina PRIMERO → Tavily → HTTP → Regex → GPT-4o → Merge
+    Orden: Firecrawl PRIMERO → Jina (backup) → Tavily → Regex → GPT-4o → Merge
     """
     logger.info(f"[EXTRACTOR] ========== Iniciando: {website} ==========")
     
     website_clean = clean_url(website)
     website_full = f"https://{website_clean}"
     
-    # 1. JINA AI PRIMERO (como n8n)
-    jina_content = await fetch_with_jina(website_clean)
+    # 1. FIRECRAWL PRIMERO (mejor JS rendering)
+    main_content = await fetch_with_firecrawl(website_clean)
     
-    # 2. Si Jina falló o trajo poco, intentar HTTP directo
-    html_content = ""
-    if len(jina_content) < 500:
-        html_content = await fetch_html_direct(website_full)
+    # 2. Si Firecrawl falló, usar JINA como backup
+    if len(main_content) < 500:
+        logger.info(f"[EXTRACTOR] Firecrawl insuficiente, usando Jina backup...")
+        main_content = await fetch_with_jina(website_clean)
     
-    # 3. Tavily para búsqueda complementaria y descripción
+    # 3. Si ambos fallaron, HTTP directo
+    if len(main_content) < 500:
+        logger.info(f"[EXTRACTOR] Usando HTTP directo como último recurso...")
+        main_content = await fetch_html_direct(website_full)
+    
+    # 4. Tavily para búsqueda complementaria y descripción
     tavily_query = f'"{website_clean}" contacto dirección teléfono email Argentina'
     tavily_data = await search_with_tavily(tavily_query)
     
@@ -587,12 +534,10 @@ async def extract_web_data(website: str) -> dict:
         if r.get('raw_content'):
             tavily_raw += r['raw_content'][:3000] + "\n"
     
-    # 4. Combinar todo el contenido (prioridad: Jina > HTTP > Tavily)
+    # 5. Combinar todo el contenido
     all_content = ""
-    if jina_content:
-        all_content += "=== SITIO WEB (JINA) ===\n" + jina_content + "\n\n"
-    if html_content:
-        all_content += "=== SITIO WEB (HTTP) ===\n" + html_content + "\n\n"
+    if main_content:
+        all_content += "=== SITIO WEB ===\n" + main_content + "\n\n"
     if tavily_raw:
         all_content += "=== DATOS ADICIONALES (TAVILY) ===\n" + tavily_raw
     
@@ -610,20 +555,19 @@ async def extract_web_data(website: str) -> dict:
     
     logger.info(f"[EXTRACTOR] Contenido total: {len(all_content)} chars")
     
-    # 5. Extracción con regex (Extractor_v8)
-    regex_data = extract_with_regex(all_content, website_clean)
+    # 6. Extracción Regex
+    logger.info(f"[EXTRACTOR] Aplicando regex...")
+    regex_data = extract_with_regex(all_content)
     
-    # 6. Parsing con GPT-4o
-    gpt_data = await parse_with_gpt(all_content, website_clean, regex_data, tavily_answer)
+    # 7. Extracción GPT
+    logger.info(f"[GPT] Extrayendo datos estructurados...")
+    gpt_data = await extract_with_gpt(all_content, website_clean)
     
-    # 7. Merge de resultados
-    final_data = merge_results(gpt_data, regex_data, tavily_answer)
-    
-    # Metadatos
-    final_data["website"] = website_full
-    final_data["extraction_status"] = "success"
-    final_data["source"] = "jina_tavily_regex_gpt4o"
+    # 8. Merge de resultados
+    resultado = merge_results(gpt_data, regex_data, tavily_answer)
+    resultado['website'] = website_full
+    resultado['extraction_status'] = 'success'
     
     logger.info(f"[EXTRACTOR] ========== Completado ==========")
     
-    return final_data
+    return resultado

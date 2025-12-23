@@ -34,6 +34,11 @@ TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 JINA_API_KEY = os.environ.get("JINA_API_KEY", "")
 
 # =============================================================================
+# FIRECRAWL (Extracción web avanzada)
+# =============================================================================
+FIRECRAWL_API_KEY = os.environ.get("FIRECRAWL_API_KEY", "")
+
+# =============================================================================
 # APIFY (Crawler de noticias)
 # =============================================================================
 APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "")
