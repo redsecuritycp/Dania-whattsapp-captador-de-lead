@@ -49,10 +49,11 @@ async def fetch_with_firecrawl(website: str) -> str:
                 },
                 json={
                     "url": url,
-                    "formats": ["markdown", "links"],
+                    "formats": ["markdown", "links", "html"],
                     "onlyMainContent": False,
-                    "includeTags": ["a", "footer", "header", "nav"],
-                    "waitFor": 3000
+                    "includeTags": ["a", "footer", "header", "nav", "div", "span", "p"],
+                    "waitFor": 5000,
+                    "timeout": 60000
                 }
             )
             
@@ -204,6 +205,7 @@ def extract_with_regex(all_content: str) -> dict:
             emails_filtered.append(email_lower)
     
     regex_extract['emails'] = list(set(emails_filtered))[:5]
+    logger.info(f"[REGEX] Emails encontrados: {regex_extract['emails']}")
     
     # ═══════════════════════════════════════════════════════════════════
     # 2. TELÉFONOS
@@ -510,18 +512,39 @@ async def extract_web_data(website: str) -> dict:
     website_clean = clean_url(website)
     website_full = f"https://{website_clean}"
     
-    # 1. FIRECRAWL PRIMERO (mejor JS rendering)
-    main_content = await fetch_with_firecrawl(website_clean)
+    # ═══════════════════════════════════════════════════════════════════
+    # EXTRACCIÓN TRIPLE: Firecrawl + Jina + HTTP (máxima cobertura)
+    # ═══════════════════════════════════════════════════════════════════
     
-    # 2. Si Firecrawl falló, usar JINA como backup
-    if len(main_content) < 500:
-        logger.info(f"[EXTRACTOR] Firecrawl insuficiente, usando Jina backup...")
-        main_content = await fetch_with_jina(website_clean)
+    # 1. FIRECRAWL (mejor JS rendering, contenido dinámico)
+    firecrawl_content = await fetch_with_firecrawl(website_clean)
+    logger.info(f"[FIRECRAWL] {len(firecrawl_content)} caracteres")
     
-    # 3. Si ambos fallaron, HTTP directo
-    if len(main_content) < 500:
-        logger.info(f"[EXTRACTOR] Usando HTTP directo como último recurso...")
-        main_content = await fetch_html_direct(website_full)
+    # 2. JINA (X-With-Links-Summary captura TODOS los links incluyendo mailto:)
+    jina_content = await fetch_with_jina(website_clean)
+    logger.info(f"[JINA] {len(jina_content)} caracteres")
+    
+    # 3. HTTP DIRECTO (HTML raw, a veces tiene datos que los otros no ven)
+    http_content = await fetch_html_direct(website_full)
+    logger.info(f"[HTTP] {len(http_content)} caracteres")
+    
+    # 4. COMBINAR TODO (el regex busca en los 3)
+    main_content = ""
+    if firecrawl_content:
+        main_content += "=== FIRECRAWL ===\n" + firecrawl_content + "\n\n"
+    if jina_content:
+        main_content += "=== JINA ===\n" + jina_content + "\n\n"
+    if http_content:
+        main_content += "=== HTTP ===\n" + http_content[:30000] + "\n\n"
+    
+    if not main_content:
+        logger.warning(f"[EXTRACTOR] Los 3 métodos fallaron para {website}")
+        return {
+            "business_name": "No encontrado",
+            "business_description": "No encontrado",
+            "website": website_full,
+            "extraction_status": "failed"
+        }
     
     # 4. Tavily para búsqueda complementaria y descripción
     tavily_query = f'"{website_clean}" contacto dirección teléfono email Argentina'

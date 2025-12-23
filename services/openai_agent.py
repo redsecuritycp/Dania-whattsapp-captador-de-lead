@@ -253,6 +253,17 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó website"}
             result = await extract_web_data(website)
+            
+            # Guardar datos importantes en context para pasarlos a buscar_redes_personales
+            if result:
+                context["linkedin_empresa"] = result.get("linkedin_empresa", "")
+                context["facebook_empresa"] = result.get("facebook_empresa", "")
+                context["instagram_empresa"] = result.get("instagram_empresa", "")
+                context["city"] = result.get("city", "")
+                context["province"] = result.get("province", "")
+                context["email_principal"] = result.get("email_principal", "")
+                logger.info(f"[CONTEXT] Datos guardados: LinkedIn={context.get('linkedin_empresa')}, FB={context.get('facebook_empresa')}, IG={context.get('instagram_empresa')}")
+            
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result if result else {"error": "No se pudo extraer datos"}
             
@@ -261,12 +272,32 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             nombre = arguments.get("nombre_persona", "")
             empresa = arguments.get("empresa", "")
             website = arguments.get("website", "")
-            if not nombre or not empresa:
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"error": "Faltan nombre_persona o empresa"}
-            result = await research_person_and_company(nombre, empresa, website)
+            
+            # Obtener datos del contexto para mejorar búsqueda
+            country = context.get("country_detected", "")
+            
+            # Obtener datos de extracción web si existen en context
+            linkedin_empresa = context.get("linkedin_empresa", "")
+            facebook_empresa = context.get("facebook_empresa", "")
+            instagram_empresa = context.get("instagram_empresa", "")
+            city = context.get("city", "")
+            province = context.get("province", "")
+            
+            logger.info(f"[RESEARCH] País detectado: {country}")
+            
+            result = await research_person_and_company(
+                nombre_persona=nombre,
+                empresa=empresa,
+                website=website,
+                linkedin_empresa_input=linkedin_empresa,
+                facebook_empresa_input=facebook_empresa,
+                instagram_empresa_input=instagram_empresa,
+                city=city,
+                province=province,
+                country=country
+            )
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-            return result if result else {"error": "No se encontraron resultados"}
+            return result if result else {"error": "No se pudo investigar"}
             
         elif tool_name == "buscar_web_tavily":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
