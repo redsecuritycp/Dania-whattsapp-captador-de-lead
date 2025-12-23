@@ -6,8 +6,10 @@ import os
 import sys
 import json
 import logging
+import time
 from datetime import datetime
 from contextlib import asynccontextmanager
+from collections import OrderedDict
 
 from fastapi import FastAPI, Request, Response, HTTPException, BackgroundTasks
 from fastapi.responses import PlainTextResponse, JSONResponse
@@ -36,6 +38,37 @@ for handler in logging.root.handlers:
     handler.flush()
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# DEDUPLICACIÓN DE WEBHOOKS (evita rate limit por retries de WhatsApp)
+# =============================================================================
+
+class MessageDeduplicator:
+    """Cache de message_ids procesados. TTL 5 minutos, max 1000 entries."""
+    def __init__(self, ttl_seconds: int = 300, max_size: int = 1000):
+        self._cache = OrderedDict()
+        self._ttl = ttl_seconds
+        self._max_size = max_size
+    
+    def is_duplicate(self, message_id: str) -> bool:
+        """Retorna True si el mensaje ya fue procesado (webhook duplicado)."""
+        self._cleanup()
+        if message_id in self._cache:
+            return True
+        self._cache[message_id] = time.time()
+        if len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
+        return False
+    
+    def _cleanup(self):
+        """Elimina entries expirados."""
+        now = time.time()
+        expired = [k for k, v in self._cache.items() if now - v > self._ttl]
+        for k in expired:
+            del self._cache[k]
+
+message_dedup = MessageDeduplicator()
+
 
 
 @asynccontextmanager
@@ -155,6 +188,12 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
         
         message = messages[0] if messages else {}
         message_id = message.get("id", "")
+        
+        # Deduplicación: ignorar webhooks duplicados (retries de WhatsApp)
+        if message_id and message_dedup.is_duplicate(message_id):
+            logger.debug(f"⏭️ Webhook duplicado ignorado: {message_id[:20]}...")
+            return JSONResponse({"status": "ok"})
+        
         from_number = message.get("from", "")
         message_type = message.get("type", "")
         
