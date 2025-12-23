@@ -15,6 +15,8 @@ from services.mongodb import (
 from services.web_extractor import extract_web_data
 from services.social_research import research_person_and_company
 from services.gmail import send_lead_notification
+from services.dania_knowledge import buscar_info_dania
+from services.tts import text_to_audio_response
 from tools.definitions import SYSTEM_PROMPT, TOOLS as TOOLS_DEFINITIONS
 from utils.text_cleaner import clean_markdown_formatting
 
@@ -39,7 +41,8 @@ async def process_message(
     timezone_detected: str = "",
     utc_offset: str = "",
     country_code: str = "",
-    emoji: str = ""
+    emoji: str = "",
+    original_message_type: str = "text"
 ) -> str:
     """
     Procesa un mensaje del usuario y genera respuesta usando el agente.
@@ -193,6 +196,16 @@ UTC: {utc_offset}
                         logger.error(f"Error guardando respuesta en historial: {e}")
                 
                 cleaned_response = clean_markdown_formatting(final_response) if final_response else "¿En qué puedo ayudarte?"
+                
+                # Si el mensaje original era audio, responder con TTS
+                if original_message_type == "audio":
+                    logger.info(f"[AGENT] Mensaje original era audio, enviando TTS...")
+                    tts_success = await text_to_audio_response(cleaned_response, phone_whatsapp)
+                    if tts_success:
+                        logger.info(f"[AGENT] ✓ Audio TTS enviado")
+                    # No retornamos texto al flujo de WhatsApp cuando era audio
+                    return cleaned_response
+                
                 return cleaned_response
         
         logger.warning(f"Límite de iteraciones alcanzado para {phone_whatsapp}")
@@ -397,69 +410,11 @@ RESUMEN (en español, máximo 500 palabras):"""
                 return {"error": str(e)}
             
         elif tool_name == "buscar_info_dania":
-            query = arguments.get("query", "").lower()
-            
-            # Información más completa sobre Dania/Fortia
-            info_base = """🏢 **SOBRE DANIA Y FORTIA**
-
-Dania es una empresa especializada en transformación digital e inteligencia artificial aplicada a negocios.
-
-Fortia es el partner autorizado de Dania, enfocado en implementación y soporte.
-
-🤖 **SERVICIOS PRINCIPALES:**
-
-1. **Automatización de Procesos con IA**
-   - Chatbots inteligentes para WhatsApp, web y redes sociales
-   - Automatización de tareas repetitivas
-   - Flujos de trabajo automatizados
-
-2. **Captación y Cualificación de Leads**
-   - Bots de atención 24/7
-   - Enriquecimiento automático de datos
-   - Integración con CRMs
-
-3. **Integración de Sistemas**
-   - Conexión de APIs y plataformas
-   - Sincronización de datos entre sistemas
-   - Webhooks y automatizaciones personalizadas
-
-4. **Análisis de Datos con IA**
-   - Reportes automatizados
-   - Insights de conversaciones
-   - Métricas de rendimiento
-
-5. **Transformación Digital**
-   - Consultoría estratégica
-   - Implementación de soluciones a medida
-   - Capacitación de equipos
-
-💼 **BENEFICIOS:**
-- Reducción de costos operativos
-- Atención al cliente 24/7
-- Mayor captación de leads
-- Datos enriquecidos automáticamente
-- Escalabilidad sin aumentar personal
-
-📅 **¿QUERÉS SABER MÁS?**
-Podés agendar una reunión con nuestro equipo para conocer cómo podemos ayudarte."""
-
-            # Respuestas específicas según query
-            if any(word in query for word in ["precio", "costo", "cuanto", "cuánto", "valor"]):
-                info = info_base + "\n\n💰 **PRECIOS:**\nLos precios varían según el proyecto y las necesidades específicas. Te recomiendo agendar una reunión para hacer un diagnóstico gratuito y darte un presupuesto personalizado."
-            
-            elif any(word in query for word in ["tiempo", "demora", "cuanto tarda", "implementar"]):
-                info = info_base + "\n\n⏱️ **TIEMPOS:**\nUna implementación básica puede estar lista en 1-2 semanas. Proyectos más complejos pueden tomar 4-8 semanas. Te damos un cronograma detallado después del diagnóstico inicial."
-            
-            elif any(word in query for word in ["reunion", "reunión", "agendar", "llamada", "demo"]):
-                info = "¡Perfecto! Para agendar una reunión, necesito tu email para enviarte la confirmación. ¿Cuál es tu email?"
-            
-            elif any(word in query for word in ["ejemplo", "caso", "cliente", "resultados"]):
-                info = info_base + "\n\n📊 **CASOS DE ÉXITO:**\nHemos ayudado a empresas a:\n- Reducir tiempo de respuesta de 24h a minutos\n- Aumentar captación de leads en 300%\n- Automatizar procesos que tomaban 8 horas diarias\n- Mejorar satisfacción del cliente en 40%"
-            
-            else:
-                info = info_base
-
-            return {"info": info, "query": query}
+            query = arguments.get("query", "")
+            if not query:
+                return {"error": "No se proporcionó query"}
+            result = await buscar_info_dania(query)
+            return result
             
         else:
             logger.warning(f"Tool no reconocida: {tool_name}")

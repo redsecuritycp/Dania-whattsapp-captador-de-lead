@@ -162,6 +162,8 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
         
         logger.info(f"📩 Mensaje de {from_number}: {text[:50] if text else '[AUDIO]'}...")
         
+        original_message_type = message_type
+        
         # Procesar en background
         background_tasks.add_task(
             process_whatsapp_message,
@@ -169,7 +171,8 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
             text,
             message_id,
             message_type,
-            audio_id
+            audio_id,
+            original_message_type
         )
         
         # Responder rápido a Meta
@@ -180,7 +183,7 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
         return JSONResponse({"status": "error", "message": str(e)})
 
 
-async def process_whatsapp_message(from_number: str, text: str, message_id: str, message_type: str = "text", audio_id: str = ""):
+async def process_whatsapp_message(from_number: str, text: str, message_id: str, message_type: str = "text", audio_id: str = "", original_message_type: str = "text"):
     """
     Procesa un mensaje de WhatsApp en background.
     Soporta texto y audio.
@@ -227,10 +230,11 @@ async def process_whatsapp_message(from_number: str, text: str, message_id: str,
             country_code=country_info.get("code", ""),
             timezone_detected=country_info.get("timezone", ""),
             utc_offset=country_info.get("utc", ""),
-            emoji=country_info.get("emoji", "")
+            emoji=country_info.get("emoji", ""),
+            original_message_type=original_message_type
         )
         
-        if response is not None and response:
+        if response is not None and response and original_message_type == "text":
             result = await send_whatsapp_message(from_number, response)
             
             if result.get("success"):
