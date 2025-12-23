@@ -128,6 +128,11 @@ UTC: {utc_offset}
                 logger.error("Message de OpenAI es None")
                 return "Hubo un error procesando tu mensaje. Por favor intentá de nuevo."
             
+            # DEBUG: Ver qué devuelve OpenAI
+            assistant_content_debug = getattr(assistant_message, 'content', None)
+            logger.info(f"[DEBUG] OpenAI content: {assistant_content_debug[:200] if assistant_content_debug else 'None'}...")
+            logger.info(f"[DEBUG] OpenAI tool_calls: {getattr(assistant_message, 'tool_calls', None)}")
+            
             tool_calls = getattr(assistant_message, 'tool_calls', None)
             
             if tool_calls and len(tool_calls) > 0:

@@ -287,7 +287,7 @@ async def tavily_verificar_nombre(website: str, primer_nombre: str, apellido: st
             mejor_longitud = 0
             
             for result in results:
-                contenido = (result.get("content", "") + " " + result.get("raw_content", "")).lower()
+                contenido = ((result.get("content") or "") + " " + (result.get("raw_content") or "")).lower()
                 
                 for patron in patrones:
                     matches = patron.findall(contenido)
