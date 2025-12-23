@@ -167,7 +167,7 @@ async def research_person_and_company(
         if results["buscar_linkedin_empresa"] and GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
             logger.info(f"[GOOGLE] Buscando LinkedIn empresa...")
             linkedin_empresa = await google_buscar_linkedin_empresa(
-                empresa, empresa_busqueda
+                empresa, empresa_busqueda, country
             )
             if linkedin_empresa:
                 results["linkedin_empresa"] = linkedin_empresa
@@ -476,17 +476,43 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         return None
 
 
-async def google_buscar_linkedin_empresa(empresa: str, empresa_busqueda: str) -> Optional[str]:
+async def google_buscar_linkedin_empresa(empresa: str, empresa_busqueda: str, country: str = "") -> Optional[str]:
     """
     Busca LinkedIn de la empresa con Google Custom Search.
-    Equivalente a Google_LinkedIn_Empresa en n8n.
+    Prioriza resultados del país del usuario.
     """
     if not GOOGLE_API_KEY or not GOOGLE_SEARCH_CX:
         return None
     
+    # Mapeo país -> código LinkedIn
+    country_linkedin_map = {
+        "Argentina": "ar",
+        "México": "mx",
+        "España": "es",
+        "Chile": "cl",
+        "Colombia": "co",
+        "Perú": "pe",
+        "Venezuela": "ve",
+        "Ecuador": "ec",
+        "Bolivia": "bo",
+        "Paraguay": "py",
+        "Uruguay": "uy",
+        "Brasil": "br",
+        "Estados Unidos": "us"
+    }
+    
+    country_code = country_linkedin_map.get(country, "")
+    
     try:
-        query = f"site:linkedin.com/company {empresa_busqueda}"
-        url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=5&key={GOOGLE_API_KEY}"
+        # Query con país si está disponible
+        if country and country != "Desconocido":
+            query = f'site:linkedin.com/company "{empresa_busqueda}" {country}'
+        else:
+            query = f'site:linkedin.com/company "{empresa_busqueda}"'
+        
+        url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=10&key={GOOGLE_API_KEY}"
+        
+        logger.info(f"[GOOGLE] Buscando LinkedIn empresa: {query}")
         
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(url)
@@ -498,9 +524,15 @@ async def google_buscar_linkedin_empresa(empresa: str, empresa_busqueda: str) ->
             data = response.json()
             items = data.get("items", [])
             
+            if not items:
+                logger.info(f"[GOOGLE] No se encontraron resultados para LinkedIn empresa")
+                return None
+            
             empresa_lower = empresa.lower()
-            empresa_busqueda_lower = empresa_busqueda.lower()
+            empresa_busqueda_lower = empresa_busqueda.lower().replace(".com.ar", "").replace(".com", "").replace("www.", "")
             palabras_clave = [p for p in empresa_lower.split() if len(p) > 2]
+            
+            candidatos = []
             
             for item in items:
                 link = item.get("link", "")
@@ -511,18 +543,51 @@ async def google_buscar_linkedin_empresa(empresa: str, empresa_busqueda: str) ->
                 if "linkedin.com/company/" not in link:
                     continue
                 
-                # Contar matches
-                matches = sum(1 for p in palabras_clave if p in texto)
-                match_directo = empresa_lower in texto or empresa_busqueda_lower in texto
+                score = 0
                 
-                # Validación estricta: evitar empresas con nombres similares
+                # BONUS: Si el link es del país correcto (ar.linkedin.com, mx.linkedin.com, etc)
+                if country_code and f"{country_code}.linkedin.com" in link:
+                    score += 50
+                    logger.info(f"[GOOGLE] Match país ({country_code}): {link}")
+                
+                # BONUS: Si menciona el país en el texto
+                if country and country.lower() in texto:
+                    score += 20
+                
+                # Contar matches de palabras clave
+                matches = sum(1 for p in palabras_clave if p in texto)
+                score += matches * 10
+                
+                # Match directo del nombre
+                if empresa_lower in texto or empresa_busqueda_lower in texto:
+                    score += 30
+                
+                # Validación: evitar empresas con nombres muy diferentes
                 empresa_encontrada = titulo.replace(" | linkedin", "").replace(" - linkedin", "").strip()
                 
-                if not validar_match_empresa(empresa_encontrada, empresa):
-                    continue
+                # Penalizar si el nombre es muy diferente
+                if empresa_lower not in empresa_encontrada and empresa_busqueda_lower not in empresa_encontrada:
+                    # Verificar si al menos 2 palabras coinciden
+                    palabras_encontradas = empresa_encontrada.split()
+                    coincidencias = sum(1 for p in palabras_clave if any(p in pf.lower() for pf in palabras_encontradas))
+                    if coincidencias < 1:
+                        continue  # Descartar si no hay coincidencia mínima
                 
-                if match_directo or matches >= 2:
-                    return link
+                if score >= 10:
+                    candidatos.append({
+                        "url": link.split("?")[0],
+                        "score": score,
+                        "titulo": titulo
+                    })
+                    logger.info(f"[GOOGLE] Candidato LinkedIn empresa: {link} (score: {score})")
+            
+            # Ordenar por score
+            candidatos.sort(key=lambda x: x["score"], reverse=True)
+            
+            if candidatos:
+                mejor = candidatos[0]
+                logger.info(f"[GOOGLE] ✓ Mejor LinkedIn empresa: {mejor['url']} (score: {mejor['score']})")
+                return mejor["url"]
             
             return None
             
