@@ -242,25 +242,33 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                         logger.warning(f"Error enviando mensaje de espera: {e}")
         
         if tool_name == "extraer_datos_web_cliente":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             website = arguments.get("website", "")
             if not website:
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó website"}
             result = await extract_web_data(website)
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result if result else {"error": "No se pudo extraer datos"}
             
         elif tool_name == "buscar_redes_personales":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             nombre = arguments.get("nombre_persona", "")
             empresa = arguments.get("empresa", "")
             website = arguments.get("website", "")
             if not nombre or not empresa:
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "Faltan nombre_persona o empresa"}
             result = await research_person_and_company(nombre, empresa, website)
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result if result else {"error": "No se encontraron resultados"}
             
         elif tool_name == "buscar_web_tavily":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             from services.web_extractor import search_with_tavily
             query = arguments.get("query", "")
             if not query:
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó query"}
             result = await search_with_tavily(query)
             if result and isinstance(result, dict):
@@ -270,10 +278,13 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 if results_list:
                     for r in results_list[:3]:
                         content += f"\n\n{r.get('title', '')}: {r.get('url', '')}\n{r.get('content', '')[:500]}"
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"content": content[:5000] if content else "No se encontraron resultados"}
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"content": "No se encontraron resultados"}
             
         elif tool_name == "guardar_lead_mongodb":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             lead_data = {}
             for key, value in arguments.items():
                 lead_data[key] = value
@@ -289,6 +300,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 save_result = save_lead(lead_data)
             except Exception as e:
                 logger.error(f"Error guardando lead: {e}")
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"operation_status": "error", "message": str(e)}
             
             email_result = {"success": False, "error": "No enviado"}
@@ -299,6 +311,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     logger.error(f"Error enviando email: {e}")
                     email_result = {"success": False, "error": str(e)}
             
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {
                 "operation_status": "success" if (save_result and save_result.get("success")) else "error",
                 "message": save_result.get("message", "") if save_result else "Error guardando",
@@ -307,6 +320,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             }
             
         elif tool_name == "gestionar_calcom":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             action = arguments.get("action", "")
             phone = arguments.get("phone_whatsapp") or context.get("phone_whatsapp", "")
             
@@ -314,17 +328,21 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 email_calcom = arguments.get("email_calcom", "")
                 name = arguments.get("name", "")
                 if not email_calcom:
+                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                     return {"error": "No se proporcionó email_calcom"}
                 try:
                     result = update_lead_calcom_email(phone, email_calcom, name)
+                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                     return result if result else {"error": "Error guardando email"}
                 except Exception as e:
+                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                     return {"error": str(e)}
                 
             elif action == "buscar_reserva":
                 try:
                     lead = find_lead_by_phone(phone)
                     if lead and lead.get("booking_uid"):
+                        logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                         return {
                             "found": True,
                             "booking_uid": lead.get("booking_uid", ""),
@@ -334,17 +352,22 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                             "reschedule_link": lead.get("booking_reschedule_link", "")
                         }
                     else:
+                        logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                         return {"found": False, "message": "No se encontró reserva"}
                 except Exception as e:
+                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                     return {"error": str(e)}
             
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"error": f"Acción no reconocida: {action}"}
             
         elif tool_name == "resumir_conversacion":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             phone = arguments.get("phone_whatsapp") or context.get("phone_whatsapp", "")
             incluir_en_lead = arguments.get("incluir_en_lead", False)
             
             if not phone:
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó phone_whatsapp"}
             
             try:
@@ -352,6 +375,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 history = get_chat_history(phone, limit=50)
                 
                 if not history or len(history) < 2:
+                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                     return {"summary": "Conversación muy corta para resumir", "message_count": len(history) if history else 0}
                 
                 # Construir texto de conversación
@@ -399,6 +423,7 @@ RESUMEN (en español, máximo 500 palabras):"""
                         )
                         logger.info(f"✓ Resumen guardado para {phone}")
                 
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {
                     "summary": summary,
                     "message_count": len(history),
@@ -407,13 +432,17 @@ RESUMEN (en español, máximo 500 palabras):"""
                 
             except Exception as e:
                 logger.error(f"Error resumiendo conversación: {e}")
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": str(e)}
             
         elif tool_name == "buscar_info_dania":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             query = arguments.get("query", "")
             if not query:
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó query"}
             result = await buscar_info_dania(query)
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result
             
         else:

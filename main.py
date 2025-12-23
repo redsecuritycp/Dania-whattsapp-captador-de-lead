@@ -3,6 +3,7 @@ DANIA/Fortia WhatsApp Bot - Main Application
 FastAPI con webhooks para WhatsApp y Cal.com
 """
 import os
+import sys
 import json
 import logging
 from datetime import datetime
@@ -16,11 +17,24 @@ from services.whatsapp import send_whatsapp_message, mark_as_read
 from services.openai_agent import process_message
 from services.mongodb import update_lead_booking, get_database
 
-# Configurar logging
+# Configurar buffering para logs inmediatos
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+# Configurar logging con flush inmediato
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ],
+    force=True
 )
+
+# Forzar flush en cada log
+for handler in logging.root.handlers:
+    handler.flush()
+
 logger = logging.getLogger(__name__)
 
 

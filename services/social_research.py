@@ -598,11 +598,36 @@ async def apify_buscar_noticias(empresa_busqueda: str, ubicacion_query: str = ""
         run_input = {
             "startUrls": start_urls,
             "maxCrawlDepth": 2,
-            "maxCrawlPages": 20,
-            "crawlerType": "playwright:firefox",
+            "maxCrawlPages": 30,
+            "maxResultsPerCrawl": 30,
             "proxyConfiguration": {
-                "useApifyProxy": True
-            }
+                "useApifyProxy": True,
+                "apifyProxyGroups": ["RESIDENTIAL"]
+            },
+            "crawlerType": "cheerio",
+            "includeUrlGlobs": [
+                "*noticia*",
+                "*news*",
+                "*prensa*",
+                "*actualidad*",
+                "*local*",
+                "*municipal*",
+                "*regional*",
+                "*diario*",
+                "*periodico*",
+                "*article*"
+            ],
+            "excludeUrlGlobs": [
+                "*facebook.com*",
+                "*instagram.com*",
+                "*linkedin.com*",
+                "*youtube.com*",
+                "*twitter.com*",
+                "*boletinoficial*",
+                "*boletin-oficial*"
+            ],
+            "maxRequestRetries": 2,
+            "requestTimeoutSecs": 30
         }
         
         async with httpx.AsyncClient(timeout=APIFY_TIMEOUT) as client:
@@ -611,7 +636,7 @@ async def apify_buscar_noticias(empresa_busqueda: str, ubicacion_query: str = ""
                 f"https://api.apify.com/v2/acts/{actor_id}/runs",
                 headers={"Authorization": f"Bearer {APIFY_API_TOKEN}"},
                 json=run_input,
-                params={"waitForFinish": 60}  # Esperar hasta 60 segundos
+                params={"waitForFinish": 180}  # Esperar hasta 180 segundos
             )
             
             if run_response.status_code not in [200, 201]:
