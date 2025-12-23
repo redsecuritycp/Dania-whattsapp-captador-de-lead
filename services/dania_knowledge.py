@@ -115,3 +115,4 @@ async def buscar_info_dania(query: str) -> Dict:
     except Exception as e:
         return {"response": "Hubo un error buscando información de Dania.", "source": "error", "query": query, "error": str(e)}
 
+

@@ -234,7 +234,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     try:
                         await send_whatsapp_message(
                             phone, 
-                            "Dame un momento mientras investigo tu empresa... 🔍"
+                            "Dame un momento por favor 🔍"
                         )
                         context["wait_message_sent"] = True  # Marcar como enviado
                         logger.info(f"✓ Mensaje de espera enviado a {phone}")
