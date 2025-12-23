@@ -372,7 +372,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             
             try:
                 # Obtener historial
-                history = get_chat_history(phone, limit=50)
+                history = get_chat_history(phone, limit=100)
                 
                 if not history or len(history) < 2:
                     logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")

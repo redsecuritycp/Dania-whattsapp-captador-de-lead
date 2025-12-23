@@ -445,7 +445,7 @@ RESPONDER SOLO JSON (sin ```, sin markdown):
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "gpt-4o",
+                    "model": "gpt-4o-mini",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1,
                     "max_tokens": 1500
@@ -596,8 +596,8 @@ async def extract_web_data(website: str) -> dict:
     if tavily_raw:
         all_content += "=== DATOS ADICIONALES (TAVILY) ===\n" + tavily_raw
     
-    if len(all_content) > 25000:
-        all_content = all_content[:25000]
+    if len(all_content) > 20000:
+        all_content = all_content[:20000]
     
     if not all_content:
         logger.warning(f"[EXTRACTOR] No se pudo obtener contenido de {website}")

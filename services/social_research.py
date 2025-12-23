@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Timeout para requests HTTP
 HTTP_TIMEOUT = 30.0
-APIFY_TIMEOUT = 120.0  # Apify puede tardar más
+APIFY_TIMEOUT = 200.0  # Apify puede tardar más
 
 
 async def research_person_and_company(
@@ -321,7 +321,7 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
     try:
         query = f'"{nombre}" "{empresa_busqueda}" site:linkedin.com/in'
         
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             response = await client.post(
                 "https://api.tavily.com/search",
                 json={
@@ -411,7 +411,7 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         query = f"site:linkedin.com/in {nombre} {empresa_busqueda}"
         url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=10&key={GOOGLE_API_KEY}"
         
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(url)
             
             if response.status_code != 200:
@@ -488,7 +488,7 @@ async def google_buscar_linkedin_empresa(empresa: str, empresa_busqueda: str) ->
         query = f"site:linkedin.com/company {empresa_busqueda}"
         url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=5&key={GOOGLE_API_KEY}"
         
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(url)
             
             if response.status_code != 200:
@@ -740,7 +740,7 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_
         query = " ".join(query_parts)
         url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=10&key={GOOGLE_API_KEY}"
         
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(url)
             
             if response.status_code != 200:
