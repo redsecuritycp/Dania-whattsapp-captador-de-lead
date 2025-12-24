@@ -102,7 +102,6 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Provincia:</td><td style="padding:8px 0;">{get("province", "No encontrado")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">País:</td><td style="padding:8px 0;">{get("country_detected", "No detectado")} ({get("utc_offset", "UTC?")})</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Zona Horaria:</td><td style="padding:8px 0;">{get("timezone_detected", "No detectada")}</td></tr>
-<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Google Maps:</td><td style="padding:8px 0;">{get("google_maps_url", "No encontrado")}</td></tr>
 </table>
 </div>
 
@@ -114,8 +113,6 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">LinkedIn Empresa:</td><td style="padding:8px 0;">{get("linkedin_empresa", "No encontrado")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Instagram:</td><td style="padding:8px 0;">{get("instagram_empresa", "No encontrado")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Facebook:</td><td style="padding:8px 0;">{get("facebook_empresa", "No encontrado")}</td></tr>
-<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Twitter:</td><td style="padding:8px 0;">{get("twitter", "No encontrado")}</td></tr>
-<tr><td style="padding:8px 0;font-weight:bold;color:#666;">YouTube:</td><td style="padding:8px 0;">{get("youtube", "No encontrado")}</td></tr>
 </table>
 </div>
 
@@ -127,15 +124,6 @@ def generate_lead_email_html(lead_data: dict) -> str:
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Conocimiento IA:</td><td style="padding:8px 0;">{get("ai_knowledge")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Desafío Principal:</td><td style="padding:8px 0;">{get("main_challenge")}</td></tr>
 <tr><td style="padding:8px 0;font-weight:bold;color:#666;">Intentos Previos:</td><td style="padding:8px 0;">{get("past_attempt")}</td></tr>
-</table>
-</div>
-
-<!-- Datos Legales (si existen) -->
-<div style="background:#f9f9f9;padding:20px;margin:20px 0;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-<h3 style="margin:0 0 15px 0;color:#667eea;border-bottom:2px solid #667eea;padding-bottom:10px;">📋 Datos Legales</h3>
-<table style="width:100%;border-collapse:collapse;">
-<tr><td style="padding:8px 0;font-weight:bold;color:#666;width:180px;">CUIT/CUIL:</td><td style="padding:8px 0;">{get("cuit_cuil", "No encontrado")}</td></tr>
-<tr><td style="padding:8px 0;font-weight:bold;color:#666;">Razón Social:</td><td style="padding:8px 0;">{get("razon_social", "No encontrado")}</td></tr>
 </table>
 </div>
 
