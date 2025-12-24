@@ -18,6 +18,9 @@ pymongo==4.6.1
 python-dotenv==1.0.0
 pytz==2024.1
 
+# Scheduler para recordatorios
+apscheduler==3.10.4
+
 # Email (incluido en stdlib, pero por si acaso)
 # smtplib - built-in
 # email - built-in

@@ -1,6 +1,7 @@
 """
 DANIA/Fortia WhatsApp Bot - Main Application
 FastAPI con webhooks para WhatsApp y Cal.com
+Incluye scheduler para recordatorios automáticos
 """
 import os
 import sys
@@ -11,13 +12,22 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from collections import OrderedDict
 
+import pytz
 from fastapi import FastAPI, Request, Response, HTTPException, BackgroundTasks
 from fastapi.responses import PlainTextResponse, JSONResponse
 
 from config import detect_country, WHATSAPP_VERIFY_TOKEN
 from services.whatsapp import send_whatsapp_message, mark_as_read
 from services.openai_agent import process_message
-from services.mongodb import update_lead_booking, get_database
+from services.mongodb import update_lead_booking, get_database, find_lead_by_email_calcom
+from services.reminders import (
+    init_scheduler, 
+    shutdown_scheduler,
+    send_booking_confirmation,
+    send_booking_cancellation,
+    send_booking_rescheduled,
+    reset_reminders_for_lead
+)
 
 # Configurar buffering para logs inmediatos
 sys.stdout.reconfigure(line_buffering=True)
@@ -70,7 +80,6 @@ class MessageDeduplicator:
 message_dedup = MessageDeduplicator()
 
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup y shutdown de la aplicación."""
@@ -92,16 +101,27 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("✅ Variables de entorno configuradas")
     
+    # Iniciar scheduler de recordatorios
+    try:
+        init_scheduler()
+        logger.info("✅ Scheduler de recordatorios iniciado")
+    except Exception as e:
+        logger.error(f"⚠️ Error iniciando scheduler: {e}")
+    
     yield
     
     # Shutdown
     logger.info("👋 Cerrando aplicación...")
+    try:
+        shutdown_scheduler()
+    except:
+        pass
 
 
 app = FastAPI(
     title="DANIA/Fortia WhatsApp Bot",
     description="Bot de WhatsApp para captación y cualificación de leads con IA",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -116,6 +136,7 @@ async def root():
     return {
         "status": "online",
         "service": "DANIA/Fortia WhatsApp Bot",
+        "version": "2.0.0",
         "timestamp": datetime.utcnow().isoformat()
     }
 
@@ -127,6 +148,7 @@ async def health():
     return {
         "status": "healthy",
         "mongodb": "connected" if db is not None else "disconnected",
+        "scheduler": "running",
         "timestamp": datetime.utcnow().isoformat()
     }
 
@@ -165,7 +187,6 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     try:
         body = await request.json()
-        # logger.debug(f"Webhook recibido: {json.dumps(body, indent=2)}")  # Comentado: solo para debugging
         
         # Extraer datos del webhook
         entry_list = body.get("entry", [])
@@ -307,14 +328,15 @@ async def process_whatsapp_message(from_number: str, text: str, message_id: str,
 
 
 # =============================================================================
-# CAL.COM WEBHOOK
+# CAL.COM WEBHOOK - MEJORADO CON NOTIFICACIONES WHATSAPP
 # =============================================================================
 
 @app.post("/webhook/calcom")
-async def calcom_webhook(request: Request):
+async def calcom_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Recibe webhooks de Cal.com para actualizar reservas.
     Eventos: BOOKING.CREATED, BOOKING.CANCELLED, BOOKING.RESCHEDULED
+    Ahora envía notificaciones por WhatsApp.
     """
     try:
         body = await request.json()
@@ -348,22 +370,86 @@ async def calcom_webhook(request: Request):
         elif "RESCHEDULED" in trigger_event:
             status = "rescheduled"
         
-        # Hora Argentina
-        now = datetime.utcnow()
-        hora_arg = now.strftime("%d/%m/%Y, %H:%M")
+        # Hora Argentina para timestamp
+        try:
+            tz_arg = pytz.timezone('America/Argentina/Buenos_Aires')
+            now = datetime.now(tz_arg)
+            hora_arg = now.strftime("%d/%m/%Y, %H:%M")
+        except:
+            hora_arg = datetime.utcnow().strftime("%d/%m/%Y, %H:%M")
+        
+        # Links de cancelar/modificar
+        cancel_link = f"https://cal.com/booking/{uid}?cancel=true"
+        reschedule_link = f"https://cal.com/reschedule/{uid}"
         
         # Actualizar en MongoDB
         booking_data = {
             "booking_uid": uid,
             "booking_status": status,
             "booking_start_time": start_time,
-            "booking_cancel_link": f"https://cal.com/booking/{uid}?cancel=true",
-            "booking_reschedule_link": f"https://cal.com/reschedule/{uid}",
+            "booking_cancel_link": cancel_link,
+            "booking_reschedule_link": reschedule_link,
             "booking_zoom_url": zoom_url,
             "booking_updated_at": hora_arg
         }
         
         result = update_lead_booking(email_calcom, booking_data)
+        
+        # Buscar el lead para obtener phone_whatsapp y timezone
+        lead = find_lead_by_email_calcom(email_calcom)
+        
+        if lead:
+            phone_whatsapp = lead.get("phone_whatsapp", "")
+            lead_name = lead.get("name", attendee_name)
+            lead_tz = lead.get("timezone_detected", "America/Argentina/Buenos_Aires")
+            lead_country = lead.get("country_detected", "tu país")
+            
+            # Formatear fecha/hora en timezone del lead
+            fecha_str, hora_str = _format_booking_datetime(start_time, lead_tz)
+            
+            if phone_whatsapp:
+                # Enviar notificación por WhatsApp según el evento
+                if status == "created":
+                    # Resetear recordatorios anteriores si existían
+                    reset_reminders_for_lead(phone_whatsapp)
+                    
+                    background_tasks.add_task(
+                        send_booking_confirmation,
+                        phone_whatsapp,
+                        lead_name,
+                        fecha_str,
+                        hora_str,
+                        lead_country,
+                        zoom_url,
+                        cancel_link,
+                        reschedule_link
+                    )
+                    logger.info(f"📱 Confirmación programada para {phone_whatsapp}")
+                
+                elif status == "cancelled":
+                    background_tasks.add_task(
+                        send_booking_cancellation,
+                        phone_whatsapp,
+                        lead_name,
+                        fecha_str,
+                        reschedule_link
+                    )
+                    logger.info(f"📱 Cancelación programada para {phone_whatsapp}")
+                
+                elif status == "rescheduled":
+                    # Resetear recordatorios para la nueva fecha
+                    reset_reminders_for_lead(phone_whatsapp)
+                    
+                    background_tasks.add_task(
+                        send_booking_rescheduled,
+                        phone_whatsapp,
+                        lead_name,
+                        fecha_str,
+                        hora_str,
+                        lead_country,
+                        zoom_url
+                    )
+                    logger.info(f"📱 Reprogramación programada para {phone_whatsapp}")
         
         if result.get("success"):
             logger.info(f"✅ Booking actualizado: {email_calcom} - {status}")
@@ -373,12 +459,42 @@ async def calcom_webhook(request: Request):
         return JSONResponse({
             "status": "processed",
             "booking_uid": uid,
-            "booking_status": status
+            "booking_status": status,
+            "whatsapp_notification": "scheduled" if lead else "no_phone"
         })
     
     except Exception as e:
         logger.error(f"Error en webhook Cal.com: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
+
+
+def _format_booking_datetime(start_time: str, timezone_str: str) -> tuple:
+    """
+    Formatea la fecha/hora del booking en el timezone del lead.
+    Returns: (fecha_str, hora_str)
+    """
+    try:
+        # Parsear ISO datetime
+        if start_time.endswith('Z'):
+            start_time = start_time[:-1] + '+00:00'
+        
+        dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        
+        # Convertir a timezone del lead
+        try:
+            tz = pytz.timezone(timezone_str)
+            dt_local = dt.astimezone(tz)
+        except:
+            dt_local = dt
+        
+        fecha_str = dt_local.strftime("%d/%m/%Y")
+        hora_str = dt_local.strftime("%H:%M")
+        
+        return fecha_str, hora_str
+        
+    except Exception as e:
+        logger.warning(f"Error formateando fecha: {e}")
+        return start_time[:10] if start_time else "fecha", "hora"
 
 
 # =============================================================================
@@ -389,7 +505,6 @@ async def calcom_webhook(request: Request):
 async def test_message(request: Request):
     """
     Endpoint de prueba para simular un mensaje de WhatsApp.
-    Body: {"phone": "+5493401514509", "message": "Hola"}
     """
     try:
         body = await request.json()
@@ -397,19 +512,15 @@ async def test_message(request: Request):
         message = body.get("message", "")
         
         if not phone or not message:
-            raise HTTPException(status_code=400, detail="Faltan phone o message")
+            return JSONResponse({"error": "phone y message son requeridos"}, status_code=400)
         
-        # Limpiar phone
-        phone_clean = phone.lstrip("+")
-        phone_whatsapp = f"+{phone_clean}"
-        
-        # Detectar país
+        # Simular procesamiento
+        phone_clean = phone.lstrip('+')
         country_info = detect_country(phone_clean)
         
-        # Procesar con el agente
         response = await process_message(
             user_message=message,
-            phone_whatsapp=phone_whatsapp,
+            phone_whatsapp=phone,
             country_detected=country_info.get("country", ""),
             country_code=country_info.get("code", ""),
             timezone_detected=country_info.get("timezone", ""),
@@ -417,66 +528,86 @@ async def test_message(request: Request):
             emoji=country_info.get("emoji", "")
         )
         
-        return {
-            "input": {
-                "phone": phone_whatsapp,
-                "message": message,
-                "country": country_info
-            },
-            "response": response
-        }
+        return JSONResponse({
+            "status": "success",
+            "phone": phone,
+            "message_received": message,
+            "response": response,
+            "country_detected": country_info
+        })
     
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error en test: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error en test/message: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
-@app.post("/test/summary")
-async def test_summary(request: Request):
+@app.post("/test/reminder")
+async def test_reminder(request: Request):
     """
-    Endpoint de prueba para generar resumen de conversación.
-    Body: {"phone": "+5493401514509"}
+    Endpoint de prueba para enviar un recordatorio manualmente.
     """
     try:
         body = await request.json()
         phone = body.get("phone", "")
+        reminder_type = body.get("type", "confirmation")  # confirmation, 24hr, 1hr, 15min, at_time
         
         if not phone:
-            raise HTTPException(status_code=400, detail="Falta phone")
+            return JSONResponse({"error": "phone es requerido"}, status_code=400)
         
-        from services.mongodb import get_chat_history
-        
-        history = get_chat_history(phone, limit=50)
-        
-        if not history:
-            return {"error": "No hay historial para este número", "phone": phone}
-        
-        # Construir texto
-        conversation_text = ""
-        for msg in history:
-            role = "Usuario" if msg.get("role") == "user" else "Asistente"
-            conversation_text += f"{role}: {msg.get('content', '')[:200]}...\n\n"
-        
-        return {
-            "phone": phone,
-            "message_count": len(history),
-            "preview": conversation_text[:2000]
+        # Datos de prueba
+        test_data = {
+            "name": "Test User",
+            "fecha": "25/12/2025",
+            "hora": "15:00",
+            "pais": "Argentina",
+            "zoom_url": "https://zoom.us/j/test123"
         }
+        
+        phone_clean = phone.lstrip('+')
+        
+        if reminder_type == "confirmation":
+            result = await send_booking_confirmation(
+                phone, test_data["name"], test_data["fecha"], 
+                test_data["hora"], test_data["pais"], test_data["zoom_url"]
+            )
+        elif reminder_type == "cancellation":
+            result = await send_booking_cancellation(
+                phone, test_data["name"], test_data["fecha"]
+            )
+        else:
+            result = await send_whatsapp_message(phone_clean, f"Test reminder: {reminder_type}")
+        
+        return JSONResponse({
+            "status": "sent" if result else "failed",
+            "phone": phone,
+            "type": reminder_type
+        })
     
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error en test summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error en test/reminder: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
-# =============================================================================
-# RUN
-# =============================================================================
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+@app.get("/scheduler/status")
+async def scheduler_status():
+    """Verifica el estado del scheduler."""
+    from services.reminders import scheduler
+    
+    if scheduler and scheduler.running:
+        jobs = []
+        for job in scheduler.get_jobs():
+            jobs.append({
+                "id": job.id,
+                "name": job.name,
+                "next_run": str(job.next_run_time) if job.next_run_time else None
+            })
+        
+        return JSONResponse({
+            "status": "running",
+            "jobs": jobs
+        })
+    else:
+        return JSONResponse({
+            "status": "stopped",
+            "jobs": []
+        })

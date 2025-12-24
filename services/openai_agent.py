@@ -1,6 +1,6 @@
 """
 Agente de OpenAI con function calling para DANIA/Fortia
-Versión con fix de mensaje de espera único
+Versión 2.0 - Incluye tool de investigación de desafíos
 """
 import logging
 import json
@@ -10,13 +10,14 @@ from openai import OpenAI
 from config import OPENAI_API_KEY, OPENAI_MODEL
 from services.mongodb import (
     save_lead, find_lead_by_phone, update_lead_calcom_email,
-    save_chat_message, get_chat_history
+    save_chat_message, get_chat_history, update_lead_summary
 )
 from services.web_extractor import extract_web_data
 from services.social_research import research_person_and_company
 from services.gmail import send_lead_notification
 from services.dania_knowledge import buscar_info_dania
 from services.tts import text_to_audio_response
+from services.challenges_research import investigar_desafios_empresa, calcular_qualification_tier
 from tools.definitions import SYSTEM_PROMPT, TOOLS as TOOLS_DEFINITIONS
 from utils.text_cleaner import clean_markdown_formatting
 
@@ -121,86 +122,22 @@ UTC: {utc_offset}
                 logger.error("Respuesta de OpenAI sin choices")
                 return "Hubo un error procesando tu mensaje. Por favor intentá de nuevo."
             
-            first_choice = choices[0]
-            assistant_message = getattr(first_choice, 'message', None)
+            choice = choices[0]
+            message = choice.message
             
-            if assistant_message is None:
-                logger.error("Message de OpenAI es None")
-                return "Hubo un error procesando tu mensaje. Por favor intentá de nuevo."
-            
-            # DEBUG: Ver qué devuelve OpenAI
-            assistant_content_debug = getattr(assistant_message, 'content', None)
-            logger.info(f"[DEBUG] OpenAI content: {assistant_content_debug[:200] if assistant_content_debug else 'None'}...")
-            logger.info(f"[DEBUG] OpenAI tool_calls: {getattr(assistant_message, 'tool_calls', None)}")
-            
-            tool_calls = getattr(assistant_message, 'tool_calls', None)
-            
-            if tool_calls and len(tool_calls) > 0:
-                assistant_content = getattr(assistant_message, 'content', None) or ""
+            # Si no hay tool calls, retornar la respuesta
+            if not message.tool_calls:
+                content = message.content or ""
                 
-                tool_calls_list = []
-                for tc in tool_calls:
-                    tc_id = getattr(tc, 'id', '')
-                    tc_function = getattr(tc, 'function', None)
-                    if tc_function:
-                        tc_name = getattr(tc_function, 'name', '')
-                        tc_args = getattr(tc_function, 'arguments', '{}')
-                    else:
-                        tc_name = ''
-                        tc_args = '{}'
-                    
-                    tool_calls_list.append({
-                        "id": tc_id,
-                        "type": "function",
-                        "function": {
-                            "name": tc_name,
-                            "arguments": tc_args
-                        }
-                    })
-                
-                messages.append({
-                    "role": "assistant",
-                    "content": assistant_content,
-                    "tool_calls": tool_calls_list
-                })
-                
-                for tc in tool_calls:
-                    tc_id = getattr(tc, 'id', '')
-                    tc_function = getattr(tc, 'function', None)
-                    
-                    if tc_function:
-                        tool_name = getattr(tc_function, 'name', '')
-                        tool_args_str = getattr(tc_function, 'arguments', '{}')
-                    else:
-                        tool_name = ''
-                        tool_args_str = '{}'
-                    
+                # Guardar respuesta en historial
+                if content:
                     try:
-                        tool_args = json.loads(tool_args_str)
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Error parseando argumentos de tool: {e}")
-                        tool_args = {}
-                    
-                    logger.info(f"Ejecutando tool: {tool_name}")
-                    
-                    # Ejecutar tool (pasando context mutable)
-                    tool_result = await execute_tool(tool_name, tool_args, context)
-                    
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc_id,
-                        "content": json.dumps(tool_result, ensure_ascii=False, default=str)
-                    })
-            else:
-                final_response = getattr(assistant_message, 'content', None) or ""
-                
-                if final_response:
-                    try:
-                        save_chat_message(phone_whatsapp, "ai", final_response)
+                        save_chat_message(phone_whatsapp, "ai", content)
                     except Exception as e:
                         logger.error(f"Error guardando respuesta en historial: {e}")
                 
-                cleaned_response = clean_markdown_formatting(final_response) if final_response else "¿En qué puedo ayudarte?"
+                # Limpiar formato Markdown para WhatsApp
+                cleaned_response = clean_markdown_formatting(content)
                 
                 # Si el mensaje original era audio, responder con TTS
                 if original_message_type == "audio":
@@ -212,6 +149,29 @@ UTC: {utc_offset}
                     return cleaned_response
                 
                 return cleaned_response
+            
+            # Procesar tool calls
+            messages.append(message)
+            
+            for tool_call in message.tool_calls:
+                tool_name = tool_call.function.name
+                
+                try:
+                    arguments = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+                
+                logger.info(f"[AGENT] Ejecutando tool: {tool_name}")
+                
+                # Ejecutar la tool
+                tool_result = await execute_tool(tool_name, arguments, context)
+                
+                # Agregar resultado al mensaje
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(tool_result, ensure_ascii=False)
+                })
         
         logger.warning(f"Límite de iteraciones alcanzado para {phone_whatsapp}")
         return "Disculpá, hubo un problema procesando tu mensaje. ¿Podés intentar de nuevo?"
@@ -230,7 +190,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
         # ═══════════════════════════════════════════════════════════════════
         # MENSAJE DE ESPERA ÚNICO para tools de investigación
         # ═══════════════════════════════════════════════════════════════════
-        if tool_name in ["extraer_datos_web_cliente", "buscar_redes_personales"]:
+        if tool_name in ["extraer_datos_web_cliente", "buscar_redes_personales", "investigar_desafios_empresa"]:
             # Solo enviar si no se envió antes en esta sesión
             if not context.get("wait_message_sent", False):
                 from services.whatsapp import send_whatsapp_message
@@ -246,6 +206,9 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     except Exception as e:
                         logger.warning(f"Error enviando mensaje de espera: {e}")
         
+        # ═══════════════════════════════════════════════════════════════════
+        # EXTRAER DATOS WEB
+        # ═══════════════════════════════════════════════════════════════════
         if tool_name == "extraer_datos_web_cliente":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             website = arguments.get("website", "")
@@ -262,28 +225,28 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 context["city"] = result.get("city", "")
                 context["province"] = result.get("province", "")
                 context["email_principal"] = result.get("email_principal", "")
-                logger.info(f"[CONTEXT] Datos guardados: LinkedIn={context.get('linkedin_empresa')}, FB={context.get('facebook_empresa')}, IG={context.get('instagram_empresa')}")
+                context["business_activity"] = result.get("business_activity", "")
+                context["business_name"] = result.get("business_name", "")
+                logger.info(f"[CONTEXT] Datos guardados: LinkedIn={context.get('linkedin_empresa')}, Rubro={context.get('business_activity')}")
             
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-            return result if result else {"error": "No se pudo extraer datos"}
-            
+            return result or {"error": "No se pudo extraer datos"}
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # BUSCAR REDES PERSONALES
+        # ═══════════════════════════════════════════════════════════════════
         elif tool_name == "buscar_redes_personales":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             nombre = arguments.get("nombre_persona", "")
             empresa = arguments.get("empresa", "")
             website = arguments.get("website", "")
             
-            # Obtener datos del contexto para mejorar búsqueda
-            country = context.get("country_detected", "")
-            
-            # Obtener datos de extracción web si existen en context
             linkedin_empresa = context.get("linkedin_empresa", "")
             facebook_empresa = context.get("facebook_empresa", "")
             instagram_empresa = context.get("instagram_empresa", "")
             city = context.get("city", "")
             province = context.get("province", "")
-            
-            logger.info(f"[RESEARCH] País detectado: {country}")
+            country = context.get("country_detected", "")
             
             result = await research_person_and_company(
                 nombre_persona=nombre,
@@ -297,16 +260,43 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 country=country
             )
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-            return result if result else {"error": "No se pudo investigar"}
+            return result or {"error": "No se pudieron encontrar redes"}
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # INVESTIGAR DESAFÍOS EMPRESA (NUEVO)
+        # ═══════════════════════════════════════════════════════════════════
+        elif tool_name == "investigar_desafios_empresa":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
+            rubro = arguments.get("rubro", "") or context.get("business_activity", "")
+            pais = arguments.get("pais", "") or context.get("country_detected", "")
+            team_size = arguments.get("team_size", "")
+            business_description = arguments.get("business_description", "")
             
+            if not rubro:
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+                return {"error": "No se proporcionó rubro/actividad de la empresa"}
+            
+            result = await investigar_desafios_empresa(
+                rubro=rubro,
+                pais=pais,
+                team_size=team_size,
+                business_description=business_description
+            )
+            
+            # Guardar en context
+            context["challenges_detected"] = result.get("desafios", [])
+            
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+            return result
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # BUSCAR WEB TAVILY
+        # ═══════════════════════════════════════════════════════════════════
         elif tool_name == "buscar_web_tavily":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
-            from services.web_extractor import search_with_tavily
+            from services.tavily_search import search_tavily
             query = arguments.get("query", "")
-            if not query:
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"error": "No se proporcionó query"}
-            result = await search_with_tavily(query)
+            result = await search_tavily(query)
             if result and isinstance(result, dict):
                 answer = result.get("answer", "")
                 results_list = result.get("results", [])
@@ -318,19 +308,27 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 return {"content": content[:5000] if content else "No se encontraron resultados"}
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"content": "No se encontraron resultados"}
-            
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # GUARDAR LEAD MONGODB
+        # ═══════════════════════════════════════════════════════════════════
         elif tool_name == "guardar_lead_mongodb":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             lead_data = {}
             for key, value in arguments.items():
                 lead_data[key] = value
             
+            # Usar datos del context si no vienen en arguments
             lead_data["phone_whatsapp"] = context.get("phone_whatsapp") or lead_data.get("phone_whatsapp", "")
             lead_data["country_detected"] = context.get("country_detected") or lead_data.get("country_detected", "")
             lead_data["timezone_detected"] = context.get("timezone_detected") or lead_data.get("timezone_detected", "")
             lead_data["utc_offset"] = context.get("utc_offset") or lead_data.get("utc_offset", "")
             lead_data["country_code"] = context.get("country_code") or lead_data.get("country_code", "")
             lead_data["emoji"] = context.get("emoji") or lead_data.get("emoji", "")
+            
+            # Agregar challenges_detected del context si existe
+            if context.get("challenges_detected") and not lead_data.get("challenges_detected"):
+                lead_data["challenges_detected"] = ", ".join(context["challenges_detected"][:3])
             
             try:
                 save_result = save_lead(lead_data)
@@ -344,146 +342,109 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 try:
                     email_result = send_lead_notification(lead_data)
                 except Exception as e:
-                    logger.error(f"Error enviando email: {e}")
-                    email_result = {"success": False, "error": str(e)}
+                    logger.error(f"Error enviando notificación: {e}")
             
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {
-                "operation_status": "success" if (save_result and save_result.get("success")) else "error",
-                "message": save_result.get("message", "") if save_result else "Error guardando",
-                "email_sent": email_result.get("success", False) if email_result else False,
-                "email_error": email_result.get("error", "") if email_result else ""
+                "operation_status": "success" if save_result.get("success") else "error",
+                "message": save_result.get("message", ""),
+                "email_sent": email_result.get("success", False)
             }
-            
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # GESTIONAR CAL.COM
+        # ═══════════════════════════════════════════════════════════════════
         elif tool_name == "gestionar_calcom":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             action = arguments.get("action", "")
-            phone = arguments.get("phone_whatsapp") or context.get("phone_whatsapp", "")
+            phone = arguments.get("phone_whatsapp", "") or context.get("phone_whatsapp", "")
             
             if action == "guardar_email_calcom":
-                email_calcom = arguments.get("email_calcom", "")
+                email = arguments.get("email_calcom", "")
                 name = arguments.get("name", "")
-                if not email_calcom:
-                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                    return {"error": "No se proporcionó email_calcom"}
-                try:
-                    result = update_lead_calcom_email(phone, email_calcom, name)
-                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                    return result if result else {"error": "Error guardando email"}
-                except Exception as e:
-                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                    return {"error": str(e)}
                 
-            elif action == "buscar_reserva":
-                try:
-                    lead = find_lead_by_phone(phone)
-                    if lead and lead.get("booking_uid"):
-                        logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                        return {
-                            "found": True,
-                            "booking_uid": lead.get("booking_uid", ""),
-                            "booking_status": lead.get("booking_status", ""),
-                            "booking_start_time": lead.get("booking_start_time", ""),
-                            "cancel_link": lead.get("booking_cancel_link", ""),
-                            "reschedule_link": lead.get("booking_reschedule_link", "")
-                        }
-                    else:
-                        logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                        return {"found": False, "message": "No se encontró reserva"}
-                except Exception as e:
+                if not email:
                     logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                    return {"error": str(e)}
+                    return {"error": "No se proporcionó email"}
+                
+                result = update_lead_calcom_email(phone, email, name)
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+                return result
+            
+            elif action == "buscar_reserva":
+                lead = find_lead_by_phone(phone)
+                if lead and lead.get("booking_uid"):
+                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+                    return {
+                        "found": True,
+                        "booking_uid": lead.get("booking_uid"),
+                        "booking_status": lead.get("booking_status"),
+                        "booking_start_time": lead.get("booking_start_time"),
+                        "booking_cancel_link": lead.get("booking_cancel_link"),
+                        "booking_reschedule_link": lead.get("booking_reschedule_link"),
+                        "booking_zoom_url": lead.get("booking_zoom_url")
+                    }
+                else:
+                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+                    return {"found": False, "message": "No se encontró reserva"}
             
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"error": f"Acción no reconocida: {action}"}
-            
-        elif tool_name == "resumir_conversacion":
-            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
-            phone = arguments.get("phone_whatsapp") or context.get("phone_whatsapp", "")
-            incluir_en_lead = arguments.get("incluir_en_lead", False)
-            
-            if not phone:
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"error": "No se proporcionó phone_whatsapp"}
-            
-            try:
-                # Obtener historial
-                history = get_chat_history(phone, limit=100)
-                
-                if not history or len(history) < 2:
-                    logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                    return {"summary": "Conversación muy corta para resumir", "message_count": len(history) if history else 0}
-                
-                # Construir texto de conversación
-                conversation_text = ""
-                for msg in history:
-                    role = "Usuario" if msg.get("role") == "user" else "Asistente"
-                    content = msg.get("content", "")[:500]  # Limitar cada mensaje
-                    conversation_text += f"{role}: {content}\n\n"
-                
-                # Llamar a GPT para resumir
-                summary_prompt = f"""Resumí esta conversación en máximo 3 párrafos cortos.
-Incluí:
-- Datos clave del lead (nombre, empresa, web)
-- Temas principales discutidos
-- Próximos pasos acordados (si los hay)
-
-CONVERSACIÓN:
-{conversation_text[:8000]}
-
-RESUMEN (en español, máximo 500 palabras):"""
-
-                summary_response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": summary_prompt}],
-                    temperature=0.3,
-                    max_tokens=600
-                )
-                
-                summary = summary_response.choices[0].message.content if summary_response.choices else "No se pudo generar resumen"
-                
-                # Guardar en lead si se solicita
-                if incluir_en_lead:
-                    from datetime import datetime, timezone
-                    from services.mongodb import get_database
-                    
-                    db = get_database()
-                    if db:
-                        db["leads_fortia"].update_one(
-                            {"phone_whatsapp": phone},
-                            {"$set": {
-                                "conversation_summary": summary,
-                                "summary_date": datetime.now(timezone.utc).isoformat()
-                            }},
-                            upsert=False
-                        )
-                        logger.info(f"✓ Resumen guardado para {phone}")
-                
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {
-                    "summary": summary,
-                    "message_count": len(history),
-                    "saved_to_lead": incluir_en_lead
-                }
-                
-            except Exception as e:
-                logger.error(f"Error resumiendo conversación: {e}")
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"error": str(e)}
-            
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # BUSCAR INFO DANIA
+        # ═══════════════════════════════════════════════════════════════════
         elif tool_name == "buscar_info_dania":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             query = arguments.get("query", "")
-            if not query:
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"error": "No se proporcionó query"}
-            result = await buscar_info_dania(query)
+            result = buscar_info_dania(query)
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-            return result
+            return {"content": result}
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # RESUMIR CONVERSACIÓN
+        # ═══════════════════════════════════════════════════════════════════
+        elif tool_name == "resumir_conversacion":
+            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
+            phone = arguments.get("phone_whatsapp", "") or context.get("phone_whatsapp", "")
+            incluir_en_lead = arguments.get("incluir_en_lead", False)
             
+            # Obtener historial
+            history = get_chat_history(phone, limit=50)
+            
+            if not history:
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+                return {"summary": "No hay historial para resumir"}
+            
+            # Generar resumen con GPT
+            try:
+                summary_response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "Resumí esta conversación en español en máximo 200 palabras, destacando: datos del lead, empresa, desafíos mencionados, y cualquier compromiso o siguiente paso."},
+                        {"role": "user", "content": json.dumps(history, ensure_ascii=False)}
+                    ],
+                    temperature=0.3,
+                    max_tokens=500
+                )
+                summary = summary_response.choices[0].message.content
+            except Exception as e:
+                logger.error(f"Error generando resumen: {e}")
+                summary = "Error generando resumen"
+            
+            # Guardar en lead si se solicita
+            if incluir_en_lead and phone:
+                update_lead_summary(phone, summary)
+            
+            logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+            return {"summary": summary}
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # TOOL NO RECONOCIDA
+        # ═══════════════════════════════════════════════════════════════════
         else:
             logger.warning(f"Tool no reconocida: {tool_name}")
-            return {"error": f"Tool no implementada: {tool_name}"}
+            return {"error": f"Tool no reconocida: {tool_name}"}
             
     except Exception as e:
         logger.error(f"Error ejecutando tool {tool_name}: {e}", exc_info=True)
