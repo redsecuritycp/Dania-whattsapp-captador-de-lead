@@ -163,7 +163,7 @@ async def research_person_and_company(
                 empresa_busqueda,
                 results["primer_nombre"],
                 results["apellido"],
-                city  # Agregar ciudad para mayor precisión
+                ubicacion_completa  # Usar ubicacion_completa en vez de solo city
             )
             if linkedin_result:
                 results["linkedin_personal"] = linkedin_result.get("url", "No encontrado")
@@ -183,7 +183,7 @@ async def research_person_and_company(
                 results["primer_nombre"],
                 results["apellido"],
                 results["linkedin_personal_confianza"],
-                city  # Agregar ciudad para mayor precisión
+                ubicacion_completa  # Usar ubicacion_completa en vez de solo city
             )
             if google_linkedin:
                 results["linkedin_personal"] = google_linkedin.get("url", results["linkedin_personal"])
@@ -341,7 +341,7 @@ async def tavily_verificar_nombre(website: str, primer_nombre: str, apellido: st
         return None
 
 
-async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str, ciudad: str = "") -> Optional[dict]:
+async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str, ubicacion: str = "") -> Optional[dict]:
     """
     Busca LinkedIn personal usando Tavily con site:linkedin.com/in.
     Equivalente a Tavily_LinkedIn_Personal en n8n.
@@ -350,9 +350,9 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         return None
     
     try:
-        # Agregar ciudad para mayor precisión si está disponible
-        if ciudad and ciudad != "No encontrado":
-            query = f'"{nombre}" "{empresa_busqueda}" "{ciudad}" site:linkedin.com/in'
+        # Agregar ubicación para mayor precisión si está disponible
+        if ubicacion and ubicacion != "No encontrado":
+            query = f'"{nombre}" "{empresa_busqueda}" "{ubicacion}" site:linkedin.com/in'
         else:
             query = f'"{nombre}" "{empresa_busqueda}" site:linkedin.com/in'
         
@@ -440,16 +440,9 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                     logger.info(f"[TAVILY] Candidato descartado (rubro incompatible): {url}")
                     continue
                 
-                # NUEVA LÓGICA DE ACEPTACIÓN
-                aceptar = False
-                if tiene_match_nombre and tiene_match_empresa:
-                    # Caso ideal: nombre + empresa → score >= 50
-                    aceptar = score >= 50
-                elif tiene_match_nombre and not tiene_match_empresa:
-                    # Sin empresa → más estricto, score >= 80
-                    aceptar = score >= 80
-                
-                if aceptar:
+                # LÓGICA DE ACEPTACIÓN: tiene_match_nombre obligatorio + score >= 50
+                # Bonus de empresa (+30) ya prioriza, pero no bloquea
+                if tiene_match_nombre and score >= 50:
                     logger.info(f"[TAVILY] Candidato: {url} (nombre: {tiene_match_nombre}, empresa: {tiene_match_empresa}, score: {score})")
                     candidatos.append({
                         "url": url.split("?")[0],  # Limpiar parámetros
@@ -469,7 +462,7 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         return None
 
 
-async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str, confianza_actual: int, ciudad: str = "") -> Optional[dict]:
+async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str, confianza_actual: int, ubicacion: str = "") -> Optional[dict]:
     """
     Busca LinkedIn personal con Google Custom Search como fallback.
     Equivalente a Google_LinkedIn_Personal en n8n.
@@ -478,9 +471,9 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         return None
     
     try:
-        # Agregar ciudad para mayor precisión si está disponible
-        if ciudad and ciudad != "No encontrado":
-            query = f"site:linkedin.com/in {nombre} {empresa_busqueda} {ciudad}"
+        # Agregar ubicación para mayor precisión si está disponible
+        if ubicacion and ubicacion != "No encontrado":
+            query = f"site:linkedin.com/in {nombre} {empresa_busqueda} {ubicacion}"
         else:
             query = f"site:linkedin.com/in {nombre} {empresa_busqueda}"
         url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=10&key={GOOGLE_API_KEY}"
@@ -557,16 +550,9 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                     logger.info(f"[GOOGLE] Candidato descartado (rubro incompatible): {link}")
                     continue
                 
-                # NUEVA LÓGICA DE ACEPTACIÓN
-                aceptar = False
-                if tiene_match_nombre and tiene_match_empresa:
-                    # Caso ideal: nombre + empresa → score >= 50
-                    aceptar = score >= 50
-                elif tiene_match_nombre and not tiene_match_empresa:
-                    # Sin empresa → más estricto, score >= 80
-                    aceptar = score >= 80
-                
-                if aceptar:
+                # LÓGICA DE ACEPTACIÓN: tiene_match_nombre obligatorio + score >= 50
+                # Bonus de empresa (+30) ya prioriza, pero no bloquea
+                if tiene_match_nombre and score >= 50:
                     logger.info(f"[GOOGLE] Candidato: {link} (nombre: {tiene_match_nombre}, empresa: {tiene_match_empresa}, score: {score})")
                     candidatos.append({"url": link, "score": score})
             

@@ -380,6 +380,16 @@ async def calcular_qualification_tier(
     except:
         team_num = 0
     
+    # Premium automático por tamaño de equipo
+    if team_num >= 50:
+        return {
+            "tier": "premium",
+            "reason": f"Empresa grande ({team_num} empleados)",
+            "estimated_potential": "alto",
+            "recommended_product": "Consultoría Personalizada",
+            "recommended_url": "Cal.com"
+        }
+    
     social_metrics = social_metrics or {}
     
     # Indicadores de inversión/potencial
@@ -428,9 +438,9 @@ async def calcular_qualification_tier(
             break
     
     # Lógica de clasificación
-    if team_num >= 10 and tiene_inversion:
+    if team_num >= 10 and (tiene_inversion or team_num >= 20):
         result["tier"] = "premium"
-        result["reason"] = f"Equipo de {team_num} personas + {', '.join(razones_premium[:2])}"
+        result["reason"] = f"Equipo de {team_num} personas" + (f" + {', '.join(razones_premium[:2])}" if razones_premium else "")
         result["estimated_potential"] = "alto"
         result["recommended_product"] = "Consultoría Personalizada"
         result["recommended_url"] = "Cal.com"  # Se reemplaza por link real
