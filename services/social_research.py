@@ -94,7 +94,7 @@ async def research_person_and_company(
         # LinkedIn empresa
         "linkedin_empresa": linkedin_empresa_input or "No encontrado",
         "linkedin_empresa_source": "web_cliente" if linkedin_empresa_input else "ninguno",
-        "buscar_linkedin_empresa": not linkedin_empresa_input,
+        "buscar_linkedin_empresa": not linkedin_empresa_input or linkedin_empresa_input == "No encontrado",
         
         # Otras redes (SOLO de la web del cliente, NO se buscan)
         "facebook_empresa": facebook_empresa_input or "No encontrado",
@@ -164,6 +164,7 @@ async def research_person_and_company(
         # ═══════════════════════════════════════════════════════════════════
         # PASO 5: GOOGLE - BUSCAR LINKEDIN EMPRESA
         # ═══════════════════════════════════════════════════════════════════
+        logger.info(f"[RESEARCH] buscar_linkedin_empresa={results['buscar_linkedin_empresa']}, input={linkedin_empresa_input}")
         if results["buscar_linkedin_empresa"] and GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
             logger.info(f"[GOOGLE] Buscando LinkedIn empresa...")
             linkedin_empresa = await google_buscar_linkedin_empresa(

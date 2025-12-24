@@ -426,7 +426,7 @@ JSON:"""
         return {}
 
 
-def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str) -> dict:
+def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str, website: str = "") -> dict:
     """
     Combina resultados de GPT, Regex y Tavily.
     Prioridad: GPT > Regex > Tavily
@@ -444,12 +444,30 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str) -> dict:
     if not resultado.get('services') and regex_data.get('servicios'):
         resultado['services'] = regex_data['servicios']
     
-    # Email
-    if not resultado.get('email_principal') or resultado.get('email_principal') == 'No encontrado':
-        if regex_data.get('emails'):
-            resultado['email_principal'] = regex_data['emails'][0]
-            if len(regex_data['emails']) > 1:
-                resultado['emails_adicionales'] = regex_data['emails'][1:]
+    # Emails - Priorizar email del dominio del sitio
+    gpt_email = resultado.get('email_principal', '')
+    regex_emails = regex_data.get('emails', [])
+    website_domain = website.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
+    
+    # Buscar email que coincida con el dominio del sitio
+    domain_email = None
+    other_emails = []
+    for email in regex_emails:
+        email_domain = email.split("@")[1] if "@" in email else ""
+        if website_domain in email_domain or email_domain in website_domain:
+            domain_email = email
+            break
+        else:
+            other_emails.append(email)
+    
+    # Prioridad: 1) Email del dominio, 2) GPT, 3) Otros emails
+    if domain_email:
+        resultado['email_principal'] = domain_email
+        logger.info(f"[MERGE] Email del dominio: {domain_email}")
+    elif not gpt_email or gpt_email == "No encontrado":
+        if other_emails:
+            resultado['email_principal'] = other_emails[0]
+            logger.info(f"[MERGE] Email alternativo: {other_emails[0]}")
     
     # Teléfono
     if not resultado.get('phone_empresa') or resultado.get('phone_empresa') == 'No encontrado':
@@ -587,7 +605,7 @@ async def extract_web_data(website: str) -> dict:
     gpt_data = await extract_with_gpt(all_content, website_clean)
     
     # 8. Merge de resultados
-    resultado = merge_results(gpt_data, regex_data, tavily_answer)
+    resultado = merge_results(gpt_data, regex_data, tavily_answer, website_full)
     resultado['website'] = website_full
     resultado['extraction_status'] = 'success'
     
