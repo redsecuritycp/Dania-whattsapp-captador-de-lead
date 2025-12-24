@@ -389,8 +389,11 @@ PASO 3: Mostrar REPORTE CONSOLIDADO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Formato (omitir campos "No encontrado"):
 
-👤 Datos Personales
+👤 *Datos Personales*
 - Nombre: {name}
+- WhatsApp: {phone_whatsapp de DATOS DETECTADOS}
+- Email: {email_principal}
+- Cargo: {role}
 - LinkedIn: {linkedin_personal}
 
 🏢 Datos de la Empresa

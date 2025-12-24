@@ -134,7 +134,8 @@ async def research_person_and_company(
                 results["nombre"],
                 empresa_busqueda,
                 results["primer_nombre"],
-                results["apellido"]
+                results["apellido"],
+                city  # Agregar ciudad para mayor precisión
             )
             if linkedin_result:
                 results["linkedin_personal"] = linkedin_result.get("url", "No encontrado")
@@ -153,7 +154,8 @@ async def research_person_and_company(
                 empresa_busqueda,
                 results["primer_nombre"],
                 results["apellido"],
-                results["linkedin_personal_confianza"]
+                results["linkedin_personal_confianza"],
+                city  # Agregar ciudad para mayor precisión
             )
             if google_linkedin:
                 results["linkedin_personal"] = google_linkedin.get("url", results["linkedin_personal"])
@@ -311,7 +313,7 @@ async def tavily_verificar_nombre(website: str, primer_nombre: str, apellido: st
         return None
 
 
-async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str) -> Optional[dict]:
+async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str, ciudad: str = "") -> Optional[dict]:
     """
     Busca LinkedIn personal usando Tavily con site:linkedin.com/in.
     Equivalente a Tavily_LinkedIn_Personal en n8n.
@@ -320,7 +322,11 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         return None
     
     try:
-        query = f'"{nombre}" "{empresa_busqueda}" site:linkedin.com/in'
+        # Agregar ciudad para mayor precisión si está disponible
+        if ciudad and ciudad != "No encontrado":
+            query = f'"{nombre}" "{empresa_busqueda}" "{ciudad}" site:linkedin.com/in'
+        else:
+            query = f'"{nombre}" "{empresa_busqueda}" site:linkedin.com/in'
         
         async with httpx.AsyncClient(timeout=25.0) as client:
             response = await client.post(
@@ -400,7 +406,7 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         return None
 
 
-async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str, confianza_actual: int) -> Optional[dict]:
+async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, primer_nombre: str, apellido: str, confianza_actual: int, ciudad: str = "") -> Optional[dict]:
     """
     Busca LinkedIn personal con Google Custom Search como fallback.
     Equivalente a Google_LinkedIn_Personal en n8n.
@@ -409,7 +415,11 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
         return None
     
     try:
-        query = f"site:linkedin.com/in {nombre} {empresa_busqueda}"
+        # Agregar ciudad para mayor precisión si está disponible
+        if ciudad and ciudad != "No encontrado":
+            query = f"site:linkedin.com/in {nombre} {empresa_busqueda} {ciudad}"
+        else:
+            query = f"site:linkedin.com/in {nombre} {empresa_busqueda}"
         url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=10&key={GOOGLE_API_KEY}"
         
         async with httpx.AsyncClient(timeout=15.0) as client:
