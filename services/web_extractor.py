@@ -140,6 +140,37 @@ async def fetch_html_direct(url: str) -> str:
         return ""
 
 
+async def fetch_with_tavily(website: str) -> str:
+    """Fallback usando Tavily cuando otros métodos fallan por DNS."""
+    if not TAVILY_API_KEY:
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": TAVILY_API_KEY,
+                    "query": f"site:{website} empresa servicios contacto nosotros",
+                    "search_depth": "advanced",
+                    "include_raw_content": True,
+                    "max_results": 5
+                }
+            )
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get("results", [])
+                content_parts = []
+                for r in results:
+                    if r.get("raw_content"):
+                        content_parts.append(r["raw_content"])
+                    elif r.get("content"):
+                        content_parts.append(r["content"])
+                return "\n\n".join(content_parts)
+    except Exception as e:
+        logger.error(f"[TAVILY] Error: {e}")
+    return ""
+
+
 async def search_with_tavily(query: str) -> dict:
     """
     Búsqueda web con Tavily para datos complementarios.
@@ -523,7 +554,7 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str, website:
 async def extract_web_data(website: str) -> dict:
     """
     Pipeline completo de extracción web.
-    Orden: Firecrawl PRIMERO → Jina (backup) → Tavily → Regex → GPT-4o → Merge
+    Orden: Firecrawl → Jina → HTTP directo → Tavily (fallback) → Regex → GPT-4o → Merge
     """
     logger.info(f"[EXTRACTOR] ========== Iniciando: {website} ==========")
     
@@ -531,7 +562,7 @@ async def extract_web_data(website: str) -> dict:
     website_full = f"https://{website_clean}"
     
     # ═══════════════════════════════════════════════════════════════════
-    # EXTRACCIÓN TRIPLE: Firecrawl + Jina + HTTP (máxima cobertura)
+    # EXTRACCIÓN MÚLTIPLE: Firecrawl → Jina → HTTP → Tavily (máxima cobertura)
     # ═══════════════════════════════════════════════════════════════════
     
     # 1. FIRECRAWL (mejor JS rendering, contenido dinámico)
@@ -546,7 +577,7 @@ async def extract_web_data(website: str) -> dict:
     http_content = await fetch_html_direct(website_full)
     logger.info(f"[HTTP] {len(http_content)} caracteres")
     
-    # 4. COMBINAR TODO (el regex busca en los 3)
+    # 4. COMBINAR TODO (el regex busca en los 3 métodos)
     main_content = ""
     if firecrawl_content:
         main_content += "=== FIRECRAWL ===\n" + firecrawl_content + "\n\n"
@@ -555,16 +586,7 @@ async def extract_web_data(website: str) -> dict:
     if http_content:
         main_content += "=== HTTP ===\n" + http_content[:30000] + "\n\n"
     
-    if not main_content:
-        logger.warning(f"[EXTRACTOR] Los 3 métodos fallaron para {website}")
-        return {
-            "business_name": "No encontrado",
-            "business_description": "No encontrado",
-            "website": website_full,
-            "extraction_status": "failed"
-        }
-    
-    # 4. Tavily para búsqueda complementaria y descripción
+    # 5. Tavily para búsqueda complementaria y descripción
     tavily_query = f'"{website_clean}" contacto dirección teléfono email Argentina'
     tavily_data = await search_with_tavily(tavily_query)
     
@@ -575,7 +597,7 @@ async def extract_web_data(website: str) -> dict:
         if r.get('raw_content'):
             tavily_raw += r['raw_content'][:3000] + "\n"
     
-    # 5. Combinar todo el contenido
+    # 7. Combinar todo el contenido
     all_content = ""
     if main_content:
         all_content += "=== SITIO WEB ===\n" + main_content + "\n\n"
@@ -585,8 +607,16 @@ async def extract_web_data(website: str) -> dict:
     if len(all_content) > 20000:
         all_content = all_content[:20000]
     
+    # Fallback 4: Tavily
     if not all_content:
-        logger.warning(f"[EXTRACTOR] No se pudo obtener contenido de {website}")
+        logger.info(f"[TAVILY] Fallback: extrayendo {website}...")
+        tavily_content = await fetch_with_tavily(website_clean)
+        if tavily_content:
+            all_content = tavily_content
+            logger.info(f"[TAVILY] ✓ {len(tavily_content)} caracteres extraídos")
+    
+    if not all_content:
+        logger.warning(f"[EXTRACTOR] Los 4 métodos fallaron para {website}")
         return {
             "business_name": "No encontrado",
             "business_description": tavily_answer or "No encontrado",
@@ -596,15 +626,15 @@ async def extract_web_data(website: str) -> dict:
     
     logger.info(f"[EXTRACTOR] Contenido total: {len(all_content)} chars")
     
-    # 6. Extracción Regex
+    # 8. Extracción Regex
     logger.info(f"[EXTRACTOR] Aplicando regex...")
     regex_data = extract_with_regex(all_content)
     
-    # 7. Extracción GPT
+    # 9. Extracción GPT
     logger.info(f"[GPT] Extrayendo datos estructurados...")
     gpt_data = await extract_with_gpt(all_content, website_clean)
     
-    # 8. Merge de resultados
+    # 10. Merge de resultados
     resultado = merge_results(gpt_data, regex_data, tavily_answer, website_full)
     resultado['website'] = website_full
     resultado['extraction_status'] = 'success'

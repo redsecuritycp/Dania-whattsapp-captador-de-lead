@@ -373,24 +373,20 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 if nombre_lower in texto:
                     score += 50
                     tiene_match_nombre = True
-                # Match primer_nombre AND apellido en texto
+                # Match primer_nombre AND apellido en texto (AMBOS requeridos)
                 elif primer_lower in texto and apellido_lower in texto:
                     score += 45
                     tiene_match_nombre = True
-                # Match solo primer_nombre OR apellido en texto
-                elif primer_lower in texto or apellido_lower in texto:
-                    score += 20
-                    tiene_match_nombre = True
                 
-                # Scoring por URL slug
+                # Scoring por URL slug (más confiable que texto)
                 url_slug = url.split("/in/")[1].split("/")[0].split("?")[0] if "/in/" in url else ""
                 url_slug_clean = url_slug.lower().replace("-", " ")
                 
-                # Match nombre completo en URL slug
+                # Match nombre completo en URL slug (primer_nombre AND apellido)
                 if primer_lower in url_slug_clean and apellido_lower in url_slug_clean:
                     score += 40
                     tiene_match_nombre = True
-                # Match apellido en URL slug
+                # Match apellido en URL slug (más confiable porque apellidos suelen ser únicos)
                 elif apellido_lower in url_slug_clean:
                     score += 25
                     tiene_match_nombre = True
@@ -468,16 +464,12 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 if nombre_lower in texto:
                     score += 40
                     tiene_match_nombre = True
-                # Match primer_nombre AND apellido en texto
+                # Match primer_nombre AND apellido en texto (AMBOS requeridos)
                 elif primer_lower in texto and apellido_lower in texto:
                     score += 35
                     tiene_match_nombre = True
-                # Match solo primer_nombre OR apellido en texto
-                elif primer_lower in texto or apellido_lower in texto:
-                    score += 20
-                    tiene_match_nombre = True
                 
-                # Scoring por URL slug
+                # Scoring por URL slug (más confiable que texto)
                 url_slug = link.split("/in/")[1].split("/")[0].split("?")[0] if "/in/" in link else ""
                 url_slug_lower = url_slug.lower().replace("-", "")
                 
@@ -485,7 +477,7 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 if primer_lower in url_slug_lower and apellido_lower in url_slug_lower:
                     score += 30
                     tiene_match_nombre = True
-                # Match apellido en URL slug
+                # Match apellido en URL slug (más confiable porque apellidos suelen ser únicos)
                 elif apellido_lower in url_slug_lower:
                     score += 15
                     tiene_match_nombre = True
