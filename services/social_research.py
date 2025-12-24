@@ -28,6 +28,34 @@ HTTP_TIMEOUT = 30.0
 APIFY_TIMEOUT = 200.0  # Apify puede tardar más
 
 
+def es_url_valida_noticia(url: str, texto: str, empresa: str) -> bool:
+    """Valida si una URL es una noticia real y relevante."""
+    url_lower = url.lower()
+    texto_lower = texto.lower()
+    empresa_lower = empresa.lower()
+    
+    # DESCARTAR: PDFs
+    if url_lower.endswith('.pdf'):
+        return False
+    
+    # DESCARTAR: Dominios basura
+    dominios_basura = [
+        'pdfcoffee', 'scribd', 'academia.edu', 'slideshare', 'coursehero',
+        'repositorio', 'bitstream', 'handle/', 'thesis', 'tesis',
+        'icj-cij.org', 'cancilleria.gob', 'boletinoficial'
+    ]
+    if any(d in url_lower for d in dominios_basura):
+        return False
+    
+    # DESCARTAR: Si empresa no aparece en texto
+    palabras_empresa = [p for p in empresa_lower.split() if len(p) > 3]
+    matches = sum(1 for p in palabras_empresa if p in texto_lower)
+    if matches < 1:
+        return False
+    
+    return True
+
+
 async def research_person_and_company(
     nombre_persona: str,
     empresa: str,
@@ -352,6 +380,9 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
             apellido_lower = apellido.lower()
             empresa_lower = empresa_busqueda.lower()
             
+            # Rubros incompatibles (si aparece y NO aparece empresa → descartar)
+            rubros_incompatibles = ['pinturas', 'pintura', 'inmobiliaria', 'real estate', 'abogado', 'lawyer', 'médico', 'doctor', 'dentist']
+            
             candidatos = []
             
             for result in results:
@@ -368,6 +399,7 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 
                 score = 0
                 tiene_match_nombre = False
+                tiene_match_empresa = False
                 
                 # Scoring por nombre completo en texto
                 if nombre_lower in texto:
@@ -391,12 +423,34 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                     score += 25
                     tiene_match_nombre = True
                 
-                # Scoring por empresa (BONUS, no activa tiene_match_nombre)
+                # Detectar match de empresa
                 if empresa_lower in texto:
-                    score += 35
+                    tiene_match_empresa = True
+                    score += 30
                 
-                # SOLO agregar candidatos si tiene_match_nombre AND score >= 50
-                if tiene_match_nombre and score >= 50:
+                # Detectar rubros incompatibles
+                tiene_rubro_incompatible = False
+                for rubro in rubros_incompatibles:
+                    if rubro in texto and not tiene_match_empresa:
+                        tiene_rubro_incompatible = True
+                        break
+                
+                # Descartar si tiene rubro incompatible sin empresa
+                if tiene_rubro_incompatible:
+                    logger.info(f"[TAVILY] Candidato descartado (rubro incompatible): {url}")
+                    continue
+                
+                # NUEVA LÓGICA DE ACEPTACIÓN
+                aceptar = False
+                if tiene_match_nombre and tiene_match_empresa:
+                    # Caso ideal: nombre + empresa → score >= 50
+                    aceptar = score >= 50
+                elif tiene_match_nombre and not tiene_match_empresa:
+                    # Sin empresa → más estricto, score >= 80
+                    aceptar = score >= 80
+                
+                if aceptar:
+                    logger.info(f"[TAVILY] Candidato: {url} (nombre: {tiene_match_nombre}, empresa: {tiene_match_empresa}, score: {score})")
                     candidatos.append({
                         "url": url.split("?")[0],  # Limpiar parámetros
                         "confianza": min(score, 100)
@@ -446,6 +500,9 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
             apellido_lower = apellido.lower()
             empresa_lower = empresa_busqueda.lower()
             
+            # Rubros incompatibles (si aparece y NO aparece empresa → descartar)
+            rubros_incompatibles = ['pinturas', 'pintura', 'inmobiliaria', 'real estate', 'abogado', 'lawyer', 'médico', 'doctor', 'dentist']
+            
             candidatos = []
             
             for item in items:
@@ -459,6 +516,7 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 
                 score = 0
                 tiene_match_nombre = False
+                tiene_match_empresa = False
                 
                 # Scoring por nombre completo en texto
                 if nombre_lower in texto:
@@ -482,12 +540,34 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                     score += 15
                     tiene_match_nombre = True
                 
-                # Scoring por empresa (BONUS, no activa tiene_match_nombre)
+                # Detectar match de empresa
                 if empresa_lower in texto:
-                    score += 25
+                    tiene_match_empresa = True
+                    score += 30
                 
-                # SOLO agregar candidatos si tiene_match_nombre AND score >= 30
-                if tiene_match_nombre and score >= 30:
+                # Detectar rubros incompatibles
+                tiene_rubro_incompatible = False
+                for rubro in rubros_incompatibles:
+                    if rubro in texto and not tiene_match_empresa:
+                        tiene_rubro_incompatible = True
+                        break
+                
+                # Descartar si tiene rubro incompatible sin empresa
+                if tiene_rubro_incompatible:
+                    logger.info(f"[GOOGLE] Candidato descartado (rubro incompatible): {link}")
+                    continue
+                
+                # NUEVA LÓGICA DE ACEPTACIÓN
+                aceptar = False
+                if tiene_match_nombre and tiene_match_empresa:
+                    # Caso ideal: nombre + empresa → score >= 50
+                    aceptar = score >= 50
+                elif tiene_match_nombre and not tiene_match_empresa:
+                    # Sin empresa → más estricto, score >= 80
+                    aceptar = score >= 80
+                
+                if aceptar:
+                    logger.info(f"[GOOGLE] Candidato: {link} (nombre: {tiene_match_nombre}, empresa: {tiene_match_empresa}, score: {score})")
                     candidatos.append({"url": link, "score": score})
             
             candidatos.sort(key=lambda x: x["score"], reverse=True)
@@ -783,32 +863,49 @@ async def apify_buscar_noticias(empresa_busqueda: str, ubicacion_query: str = ""
             
             # Procesar resultados
             noticias = []
+            noticias_redes_sociales = []  # Prioridad alta
             empresa_lower = empresa_busqueda.lower()
             
             for item in items:
                 url = item.get("url", "")
                 titulo = item.get("title", "") or item.get("metadata", {}).get("title", "")
                 texto = item.get("text", "") or item.get("content", "")
+                texto_lower = f"{titulo} {texto}".lower()
                 
-                # Filtrar
-                if es_red_social(url) or es_buscador(url):
+                # PRIORIDAD ALTA: Permitir Facebook/Instagram si empresa está en texto
+                es_red_social_empresa = (('facebook.com' in url.lower() or 'instagram.com' in url.lower()) and empresa_lower in texto_lower)
+                
+                # Filtrar redes sociales (excepto Facebook/Instagram de la empresa)
+                if not es_red_social_empresa and (es_red_social(url) or es_buscador(url)):
                     continue
                 if es_registro_legal(url, f"{titulo} {texto}"):
                     continue
                 
-                texto_lower = f"{titulo} {texto}".lower()
+                # Validar URL
+                if not es_url_valida_noticia(url, f"{titulo} {texto}", empresa_busqueda):
+                    logger.debug(f"[NOTICIAS] Descartado: {url[:50]}...")
+                    continue
                 
                 # Verificar relevancia
                 if empresa_lower in texto_lower or any(p in texto_lower for p in empresa_lower.split() if len(p) > 3):
-                    noticias.append({
+                    noticia = {
                         "titulo": titulo[:200] if titulo else "Sin título",
                         "url": url,
                         "resumen": texto[:300] if texto else "",
                         "source": "apify"
-                    })
+                    }
+                    
+                    # PRIORIDAD ALTA: Redes sociales de empresa
+                    if es_red_social_empresa:
+                        noticias_redes_sociales.append(noticia)
+                    else:
+                        noticias.append(noticia)
             
-            logger.info(f"[APIFY] ✓ {len(noticias)} noticias procesadas")
-            return noticias[:10]
+            # Combinar: redes sociales primero, luego resto
+            noticias_finales = noticias_redes_sociales + noticias
+            
+            logger.info(f"[APIFY] ✓ {len(noticias_finales)} noticias procesadas")
+            return noticias_finales[:10]
             
     except asyncio.TimeoutError:
         logger.warning("[APIFY] Timeout esperando crawler")
@@ -851,35 +948,52 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_
             palabras_clave = [p for p in empresa_lower.split() if len(p) > 2]
             
             noticias = []
+            noticias_redes_sociales = []  # Prioridad alta
             
             for item in items:
                 link = item.get("link", "")
                 titulo = item.get("title", "")
                 snippet = item.get("snippet", "")
+                texto_lower = f"{titulo} {snippet}".lower()
                 
-                # Filtrar redes sociales y buscadores
-                if es_red_social(link) or es_buscador(link):
+                # PRIORIDAD ALTA: Permitir Facebook/Instagram si empresa está en texto
+                es_red_social_empresa = (('facebook.com' in link.lower() or 'instagram.com' in link.lower()) and empresa_lower in texto_lower)
+                
+                # Filtrar redes sociales y buscadores (excepto Facebook/Instagram de la empresa)
+                if not es_red_social_empresa and (es_red_social(link) or es_buscador(link)):
                     continue
                 
                 # Filtrar registros legales/boletines
                 if es_registro_legal(link, f"{titulo} {snippet}"):
                     continue
                 
-                texto_lower = f"{titulo} {snippet}".lower()
+                # Validar URL
+                if not es_url_valida_noticia(link, f"{titulo} {snippet}", empresa_busqueda):
+                    logger.debug(f"[NOTICIAS] Descartado: {link[:50]}...")
+                    continue
                 
                 # Contar matches
                 matches = sum(1 for p in palabras_clave if p in texto_lower)
                 
                 if matches >= 2 or empresa_lower in texto_lower or empresa_busqueda_lower in texto_lower:
-                    noticias.append({
+                    noticia = {
                         "titulo": titulo,
                         "url": link,
                         "resumen": snippet[:150] if snippet else "",
                         "source": "google",
                         "domain": link.split("/")[2] if "/" in link else ""
-                    })
+                    }
+                    
+                    # PRIORIDAD ALTA: Redes sociales de empresa
+                    if es_red_social_empresa:
+                        noticias_redes_sociales.append(noticia)
+                    else:
+                        noticias.append(noticia)
             
-            return noticias[:10]
+            # Combinar: redes sociales primero, luego resto
+            noticias_finales = noticias_redes_sociales + noticias
+            
+            return noticias_finales[:10]
             
     except Exception as e:
         logger.error(f"[GOOGLE] Error buscando noticias: {e}")
