@@ -398,6 +398,7 @@ Formato (omitir campos "No encontrado"):
 - Actividad: {business_activity}
 - Descripción: {business_description}
 - Servicios: {services_text}
+- Email: {email_principal}
 - Teléfono: {phone_empresa}
 - WhatsApp Empresa: {whatsapp_empresa}
 - Sitio Web: {website}
