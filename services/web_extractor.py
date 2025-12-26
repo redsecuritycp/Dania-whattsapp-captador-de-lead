@@ -261,6 +261,12 @@ def extract_with_regex(all_content: str) -> dict:
     # ═══════════════════════════════════════════════════════════════════
     # 3. WHATSAPP - Búsqueda genérica multipaís
     # ═══════════════════════════════════════════════════════════════════
+    # DEBUG: Ver si el contenido tiene telephone
+    if 'telephone' in all_content.lower():
+        logger.info(f"[REGEX] ✓ Contenido tiene 'telephone'")
+    else:
+        logger.info(f"[REGEX] ✗ Contenido NO tiene 'telephone'")
+    
     wa_patterns = [
         r'wa\.me/(\d+)',
         r'api\.whatsapp\.com/send\?phone=(\d+)',
