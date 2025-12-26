@@ -222,7 +222,7 @@ async def research_person_and_company(
         if not noticias and GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
             logger.info(f"[GOOGLE] Fallback: buscando noticias...")
             noticias = await google_buscar_noticias(
-                empresa, empresa_busqueda, ubicacion_query
+                empresa, website_limpio, ubicacion_query
             )
             if noticias:
                 results["noticias_source"] = "google"
@@ -455,14 +455,27 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                     logger.info(f"[TAVILY] Candidato: {url} (nombre: {tiene_match_nombre}, empresa: {tiene_match_empresa}, score: {score})")
                     candidatos.append({
                         "url": url.split("?")[0],  # Limpiar parámetros
-                        "confianza": min(score, 100)
+                        "confianza": min(score, 100),
+                        "score": score  # Guardar score original para el cálculo final
                     })
             
             # Ordenar por confianza
             candidatos.sort(key=lambda x: x["confianza"], reverse=True)
             
             if candidatos:
-                return candidatos[0]
+                # Retornar hasta 3 mejores candidatos
+                resultados = []
+                for c in candidatos[:3]:
+                    conf = min(95, 55 + c["score"])
+                    resultados.append({"url": c["url"], "confianza": conf})
+                
+                if len(resultados) == 1:
+                    return resultados[0]
+                else:
+                    # Múltiples candidatos: unir URLs
+                    urls = [r["url"] for r in resultados]
+                    mejor_conf = resultados[0]["confianza"]
+                    return {"url": "\n".join(urls), "confianza": mejor_conf}
             
             return None
             
@@ -577,12 +590,23 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
             candidatos.sort(key=lambda x: x["score"], reverse=True)
             
             if candidatos:
-                mejor = candidatos[0]
-                nueva_confianza = min(95, 55 + mejor["score"])
+                # Retornar hasta 3 mejores candidatos
+                resultados = []
+                for c in candidatos[:3]:
+                    conf = min(95, 55 + c["score"])
+                    resultados.append({"url": c["url"], "confianza": conf})
                 
-                # Solo actualizar si es mejor que la actual
-                if mejor["score"] >= 30 and nueva_confianza > confianza_actual:
-                    return {"url": mejor["url"], "confianza": nueva_confianza}
+                if len(resultados) == 1:
+                    # Solo actualizar si es mejor que la actual
+                    if candidatos[0]["score"] >= 30 and resultados[0]["confianza"] > confianza_actual:
+                        return resultados[0]
+                else:
+                    # Múltiples candidatos: unir URLs
+                    urls = [r["url"] for r in resultados]
+                    mejor_conf = resultados[0]["confianza"]
+                    # Solo actualizar si es mejor que la actual
+                    if candidatos[0]["score"] >= 30 and mejor_conf > confianza_actual:
+                        return {"url": "\n".join(urls), "confianza": mejor_conf}
             
             return None
             
@@ -919,7 +943,7 @@ async def apify_buscar_noticias(empresa_busqueda: str, ubicacion_query: str = ""
         return []
 
 
-async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_query: str) -> List[dict]:
+async def google_buscar_noticias(empresa: str, website: str, ubicacion_query: str) -> List[dict]:
     """
     Busca noticias relevantes de la empresa con Google.
     Equivalente a Google_Noticias_Fallback en n8n.
@@ -932,8 +956,8 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_
         query_parts = []
         if empresa:
             query_parts.append(f'"{empresa}"')
-        if empresa_busqueda and empresa_busqueda != empresa:
-            query_parts.append(f'OR "{empresa_busqueda}"')
+        if website:
+            query_parts.append(f'OR "{website}"')
         query_parts.append("noticias OR prensa OR nota")
         # Quitar ubicación - muy restrictivo
         
