@@ -262,17 +262,14 @@ def extract_with_regex(all_content: str) -> dict:
     # 3. WHATSAPP - Búsqueda genérica multipaís
     # ═══════════════════════════════════════════════════════════════════
     wa_patterns = [
-        # Links directos
         r'wa\.me/(\d+)',
         r'api\.whatsapp\.com/send\?phone=(\d+)',
         r'href="whatsapp://send\?phone=(\d+)"',
-        # Atributos data
         r'data-phone="(\d+)"',
         r'data-whatsapp="(\d+)"',
         r'"telephone"[:\s]*"(\d{10,15})"',
         r'"phone"[:\s]*"(\d{10,15})"',
         r"'phone'[:\s]*'(\d{10,15})'",
-        # Número cerca de palabra clave
         r'(?:whatsapp|wsp|wa)[:\s]*\+?(\d[\d\s-]{9,})',
     ]
     
@@ -521,8 +518,8 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str, website:
                 resultado['phones_adicionales'] = regex_data['phones'][1:]
     
     # WhatsApp
-    if not resultado.get('whatsapp_number') and regex_data.get('whatsapp'):
-        resultado['whatsapp_number'] = regex_data['whatsapp']
+    if not resultado.get('whatsapp_empresa') and regex_data.get('whatsapp'):
+        resultado['whatsapp_empresa'] = regex_data['whatsapp']
     
     # Redes sociales
     if not resultado.get('linkedin_empresa') and regex_data.get('linkedin'):
