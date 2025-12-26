@@ -48,7 +48,8 @@ def es_url_valida_noticia(url: str, texto: str, empresa: str) -> bool:
         return False
     
     # DESCARTAR: Si empresa no aparece en texto
-    palabras_empresa = [p for p in empresa_lower.split() if len(p) > 3]
+    # Usar palabras de 2+ caracteres (menos restrictivo)
+    palabras_empresa = [p for p in empresa_lower.split() if len(p) > 2]
     matches = sum(1 for p in palabras_empresa if p in texto_lower)
     if matches < 1:
         return False
@@ -1006,7 +1007,8 @@ async def google_buscar_noticias(empresa: str, website: str, ubicacion_query: st
                 # Contar matches
                 matches = sum(1 for p in palabras_clave if p in texto_lower)
                 
-                if matches >= 2 or empresa_lower in texto_lower or website_lower in texto_lower:
+                # Menos restrictivo: 1 match es suficiente, o nombre completo, o website
+                if matches >= 1 or empresa_lower in texto_lower or (website_lower and website_lower in texto_lower):
                     noticia = {
                         "titulo": titulo,
                         "url": link,
