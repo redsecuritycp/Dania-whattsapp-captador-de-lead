@@ -412,8 +412,7 @@ DATOS A EXTRAER:
 - services: Lista de servicios/productos principales
 - email_principal: Email de contacto principal
 - phone_empresa: Teléfono principal
-- whatsapp_number: Número de WhatsApp (si hay)
-- whatsapp_empresa: Número WhatsApp (buscar en widgets, botones flotantes, data-settings, o cerca de palabras "whatsapp", "chat", "contactanos". Formato: solo números con código país)
+- whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets flotantes, botones de chat, atributos data-settings, data-phone, telephone, o cerca de palabras whatsapp/chat/contacto. Solo números con código país, ej: 5493416469327)
 - address: Dirección física
 - city: Ciudad
 - province: Provincia

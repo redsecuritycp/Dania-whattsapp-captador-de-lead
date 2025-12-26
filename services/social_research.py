@@ -928,11 +928,14 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str, ubicacion_
         return []
     
     try:
-        # Query de búsqueda
-        query_parts = [f'"{empresa_busqueda}"']
-        if ubicacion_query:
-            query_parts.append(f'"{ubicacion_query}"')
-        query_parts.append("noticias OR inauguró OR anunció OR expansión -boletinoficial")
+        # Buscar con nombre empresa Y dominio (más cobertura)
+        query_parts = []
+        if empresa:
+            query_parts.append(f'"{empresa}"')
+        if empresa_busqueda and empresa_busqueda != empresa:
+            query_parts.append(f'OR "{empresa_busqueda}"')
+        query_parts.append("noticias OR prensa OR nota")
+        # Quitar ubicación - muy restrictivo
         
         query = " ".join(query_parts)
         url = f"https://www.googleapis.com/customsearch/v1?cx={GOOGLE_SEARCH_CX}&q={quote(query)}&num=10&key={GOOGLE_API_KEY}"
