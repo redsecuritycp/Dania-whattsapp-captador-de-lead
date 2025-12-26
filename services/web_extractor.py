@@ -11,10 +11,6 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from config import TAVILY_API_KEY, OPENAI_API_KEY, JINA_API_KEY, FIRECRAWL_API_KEY
-from services.playwright_extractor import (
-    fetch_with_playwright, 
-    extract_whatsapp_from_html
-)
 
 logger = logging.getLogger(__name__)
 
@@ -596,17 +592,6 @@ async def extract_web_data(website: str) -> dict:
     # 3. HTTP DIRECTO (HTML raw, a veces tiene datos que los otros no ven)
     http_content = await fetch_html_direct(website_full)
     logger.info(f"[HTTP] {len(http_content)} caracteres")
-    
-    # 3.5 PLAYWRIGHT - Solo si no encontramos telephone
-    if 'telephone' not in (firecrawl_content + jina_content + http_content).lower():
-        logger.info("[PLAYWRIGHT] Buscando widgets JS...")
-        pw_html = await fetch_with_playwright(website_full)
-        if pw_html:
-            wa_from_pw = extract_whatsapp_from_html(pw_html)
-            if wa_from_pw:
-                logger.info(f"[PLAYWRIGHT] ✓ WhatsApp: {wa_from_pw}")
-                # Agregar al contenido para que merge lo capture
-                http_content += f'\n"telephone":"{wa_from_pw[1:]}"'
     
     # 4. COMBINAR TODO (el regex busca en los 3 métodos)
     main_content = ""

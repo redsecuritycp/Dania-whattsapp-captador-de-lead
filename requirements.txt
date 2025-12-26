@@ -21,9 +21,6 @@ pytz==2024.1
 # Scheduler para recordatorios
 apscheduler==3.10.4
 
-# Browser automation para widgets JS
-playwright==1.40.0
-
 # Email (incluido en stdlib, pero por si acaso)
 # smtplib - built-in
 # email - built-in
