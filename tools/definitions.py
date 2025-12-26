@@ -413,6 +413,9 @@ Formato (omitir campos "No encontrado"):
 - Email: {email_principal}
 - Cargo: {role}
 - LinkedIn: {linkedin_personal}
+(Si tiene " | " son múltiples, mostrar con bullets:
+• url1
+• url2)
 
 🏢 Datos de la Empresa
 - Empresa: {business_name}

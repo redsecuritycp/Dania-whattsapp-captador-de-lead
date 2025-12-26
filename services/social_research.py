@@ -476,8 +476,7 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                     # Múltiples candidatos: unir URLs
                     urls = [r["url"] for r in resultados]
                     mejor_conf = resultados[0]["confianza"]
-                    urls_formateadas = "\n• ".join(urls)
-                    return {"url": f"• {urls_formateadas}", "confianza": mejor_conf}
+                    return {"url": " | ".join(urls), "confianza": mejor_conf}
             
             return None
             
@@ -608,8 +607,7 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                     mejor_conf = resultados[0]["confianza"]
                     # Solo actualizar si es mejor que la actual
                     if candidatos[0]["score"] >= 30 and mejor_conf > confianza_actual:
-                        urls_formateadas = "\n• ".join(urls)
-                        return {"url": f"• {urls_formateadas}", "confianza": mejor_conf}
+                        return {"url": " | ".join(urls), "confianza": mejor_conf}
             
             return None
             
