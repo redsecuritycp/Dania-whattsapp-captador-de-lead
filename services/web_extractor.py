@@ -263,8 +263,15 @@ def extract_with_regex(all_content: str) -> dict:
     # ═══════════════════════════════════════════════════════════════════
     wa_patterns = [
         r'wa\.me/(\d+)',
+        r'api\.whatsapp\.com/send\?phone=(\d+)',
         r'whatsapp[:\s]*\+?(\d[\d\s-]{8,})',
-        r'api\.whatsapp\.com/send\?phone=(\d+)'
+        r'data-phone="(\d+)"',
+        r'data-whatsapp="(\d+)"',
+        r'href="whatsapp://send\?phone=(\d+)"',
+        r'"phone":"(\d{10,15})"',
+        r"'phone':'(\d{10,15})'",
+        r'wa_phone["\s:=]+["\']?(\d{10,15})',
+        r'whatsapp_number["\s:=]+["\']?(\d{10,15})'
     ]
     
     for pattern in wa_patterns:
@@ -300,9 +307,23 @@ def extract_with_regex(all_content: str) -> dict:
         regex_extract['twitter'] = f"https://twitter.com/{tw_match.group(1)}"
     
     # YouTube
-    yt_match = re.search(r'(?:https?://)?(?:www\.)?youtube\.com/(?:channel/|c/|@)([a-zA-Z0-9_-]+)', all_content, re.IGNORECASE)
-    if yt_match:
-        regex_extract['youtube'] = f"https://youtube.com/{yt_match.group(1)}"
+    yt_patterns = [
+        r'(https?://(?:www\.)?youtube\.com/'
+        r'(?:channel|c|user)/[a-zA-Z0-9_-]+)',
+        r'(https?://(?:www\.)?youtube\.com/'
+        r'@[a-zA-Z0-9_-]+)',
+        r'href=["\']?(https?://(?:www\.)?'
+        r'youtube\.com/[^"\'>\s]+)["\']?'
+    ]
+
+    for pattern in yt_patterns:
+        yt_match = re.search(pattern, all_content, re.IGNORECASE)
+        if yt_match:
+            yt_url = yt_match.group(1).split('?')[0]
+            yt_url = yt_url.split('#')[0]
+            if '/watch' not in yt_url and '/embed' not in yt_url:
+                regex_extract['youtube'] = yt_url
+                break
     
     # ═══════════════════════════════════════════════════════════════════
     # 5. GOOGLE MAPS
