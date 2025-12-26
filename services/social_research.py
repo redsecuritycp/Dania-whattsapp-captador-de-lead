@@ -975,7 +975,7 @@ async def google_buscar_noticias(empresa: str, website: str, ubicacion_query: st
             items = data.get("items", [])
             
             empresa_lower = empresa.lower()
-            empresa_busqueda_lower = empresa_busqueda.lower()
+            website_lower = website.lower() if website else ""
             palabras_clave = [p for p in empresa_lower.split() if len(p) > 2]
             
             noticias = []
@@ -999,14 +999,14 @@ async def google_buscar_noticias(empresa: str, website: str, ubicacion_query: st
                     continue
                 
                 # Validar URL
-                if not es_url_valida_noticia(link, f"{titulo} {snippet}", empresa_busqueda):
+                if not es_url_valida_noticia(link, f"{titulo} {snippet}", empresa if empresa else website):
                     logger.debug(f"[NOTICIAS] Descartado: {link[:50]}...")
                     continue
                 
                 # Contar matches
                 matches = sum(1 for p in palabras_clave if p in texto_lower)
                 
-                if matches >= 2 or empresa_lower in texto_lower or empresa_busqueda_lower in texto_lower:
+                if matches >= 2 or empresa_lower in texto_lower or website_lower in texto_lower:
                     noticia = {
                         "titulo": titulo,
                         "url": link,
