@@ -86,8 +86,8 @@ async def research_person_and_company(
     website_limpio = website.replace("https://", "").replace("http://", "").replace("www.", "").rstrip("/")
     tiene_website = bool(website_limpio)
     
-    # empresa_busqueda usa WEBSITE cuando existe (FIX v11.3)
-    empresa_busqueda = website_limpio if website_limpio else empresa
+    # empresa_busqueda prioriza EMPRESA sobre website (para buscar LinkedIn personal)
+    empresa_busqueda = empresa if empresa else website_limpio
     
     # Ubicación
     ubicacion_query = city or province or country or ""
@@ -418,10 +418,19 @@ async def tavily_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 if primer_lower in url_slug_clean and apellido_lower in url_slug_clean:
                     score += 40
                     tiene_match_nombre = True
-                # Match apellido en URL slug (más confiable porque apellidos suelen ser únicos)
+                # Solo apellido en URL NO es suficiente
+                # Necesita primer nombre en texto O url
                 elif apellido_lower in url_slug_clean:
                     score += 25
+                    # NO activar tiene_match_nombre solo con apellido
+                
+                # Match apellido + primer nombre en texto = válido
+                if apellido_lower in texto and primer_lower in texto:
                     tiene_match_nombre = True
+                    score += 10
+                
+                # Solo apellido sin primer nombre = NO válido
+                # Evita matchear "Eduardo Driuzzi" para "Rafael Driuzzi"
                 
                 # Detectar match de empresa
                 if empresa_lower in texto:
@@ -528,10 +537,19 @@ async def google_buscar_linkedin_personal(nombre: str, empresa_busqueda: str, pr
                 if primer_lower in url_slug_lower and apellido_lower in url_slug_lower:
                     score += 30
                     tiene_match_nombre = True
-                # Match apellido en URL slug (más confiable porque apellidos suelen ser únicos)
+                # Solo apellido en URL NO es suficiente
+                # Necesita primer nombre en texto O url
                 elif apellido_lower in url_slug_lower:
                     score += 15
+                    # NO activar tiene_match_nombre solo con apellido
+                
+                # Match apellido + primer nombre en texto = válido
+                if apellido_lower in texto and primer_lower in texto:
                     tiene_match_nombre = True
+                    score += 10
+                
+                # Solo apellido sin primer nombre = NO válido
+                # Evita matchear "Eduardo Driuzzi" para "Rafael Driuzzi"
                 
                 # Detectar match de empresa
                 if empresa_lower in texto:

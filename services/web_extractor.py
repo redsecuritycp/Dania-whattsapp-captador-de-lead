@@ -259,26 +259,28 @@ def extract_with_regex(all_content: str) -> dict:
     regex_extract['phones'] = list(set(phones))[:5]
     
     # ═══════════════════════════════════════════════════════════════════
-    # 3. WHATSAPP
+    # 3. WHATSAPP - Búsqueda genérica multipaís
     # ═══════════════════════════════════════════════════════════════════
     wa_patterns = [
+        # Links directos
         r'wa\.me/(\d+)',
         r'api\.whatsapp\.com/send\?phone=(\d+)',
-        r'whatsapp[:\s]*\+?(\d[\d\s-]{8,})',
+        r'href="whatsapp://send\?phone=(\d+)"',
+        # Atributos data
         r'data-phone="(\d+)"',
         r'data-whatsapp="(\d+)"',
-        r'href="whatsapp://send\?phone=(\d+)"',
-        r'"phone":"(\d{10,15})"',
-        r"'phone':'(\d{10,15})'",
-        r'wa_phone["\s:=]+["\']?(\d{10,15})',
-        r'whatsapp_number["\s:=]+["\']?(\d{10,15})'
+        r'"telephone"[:\s]*"(\d{10,15})"',
+        r'"phone"[:\s]*"(\d{10,15})"',
+        r"'phone'[:\s]*'(\d{10,15})'",
+        # Número cerca de palabra clave
+        r'(?:whatsapp|wsp|wa)[:\s]*\+?(\d[\d\s-]{9,})',
     ]
     
     for pattern in wa_patterns:
         match = re.search(pattern, all_content, re.IGNORECASE)
         if match:
             wa_num = re.sub(r'[^\d]', '', match.group(1))
-            if len(wa_num) >= 10:
+            if len(wa_num) >= 10 and len(wa_num) <= 15:
                 regex_extract['whatsapp'] = '+' + wa_num
                 break
     
@@ -306,24 +308,14 @@ def extract_with_regex(all_content: str) -> dict:
     if tw_match and tw_match.group(1) not in ['share', 'intent', 'home']:
         regex_extract['twitter'] = f"https://twitter.com/{tw_match.group(1)}"
     
-    # YouTube
-    yt_patterns = [
-        r'(https?://(?:www\.)?youtube\.com/'
-        r'(?:channel|c|user)/[a-zA-Z0-9_-]+)',
-        r'(https?://(?:www\.)?youtube\.com/'
-        r'@[a-zA-Z0-9_-]+)',
-        r'href=["\']?(https?://(?:www\.)?'
-        r'youtube\.com/[^"\'>\s]+)["\']?'
-    ]
-
-    for pattern in yt_patterns:
-        yt_match = re.search(pattern, all_content, re.IGNORECASE)
-        if yt_match:
-            yt_url = yt_match.group(1).split('?')[0]
-            yt_url = yt_url.split('#')[0]
-            if '/watch' not in yt_url and '/embed' not in yt_url:
-                regex_extract['youtube'] = yt_url
-                break
+    # YouTube - solo URLs completas verificables
+    regex_extract['youtube'] = ''
+    yt_pattern = r'href=["\']?(https?://(?:www\.)?youtube\.com/(?:channel|c|user|@)[^"\'>\s]+)["\']?'
+    yt_match = re.search(yt_pattern, all_content, re.IGNORECASE)
+    if yt_match:
+        yt_url = yt_match.group(1).split('?')[0].split('#')[0]
+        if '/watch' not in yt_url and '/embed' not in yt_url:
+            regex_extract['youtube'] = yt_url
     
     # ═══════════════════════════════════════════════════════════════════
     # 5. GOOGLE MAPS
@@ -421,6 +413,7 @@ DATOS A EXTRAER:
 - email_principal: Email de contacto principal
 - phone_empresa: Teléfono principal
 - whatsapp_number: Número de WhatsApp (si hay)
+- whatsapp_empresa: Número WhatsApp (buscar en widgets, botones flotantes, data-settings, o cerca de palabras "whatsapp", "chat", "contactanos". Formato: solo números con código país)
 - address: Dirección física
 - city: Ciudad
 - province: Provincia
