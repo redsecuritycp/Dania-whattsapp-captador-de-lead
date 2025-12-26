@@ -445,6 +445,28 @@ PASO 4: Preguntar confirmación
 Decir: "¿Está todo correcto o necesitás corregir algo?"
 ⛔ ESPERAR respuesta del usuario antes de continuar.
 
+PASO 4B: SI EL USUARIO CORRIGE ALGO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SI CORRIGE NOMBRE/APELLIDO:
+- Actualizar nombre internamente
+- NO extraer web de nuevo
+- Llamar buscar_redes_personales con nombre corregido
+- Decir: "Actualicé tu nombre. Busco tu LinkedIn..."
+
+SI CORRIGE DATOS EMPRESA:
+- Actualizar el dato internamente  
+- NO extraer web de nuevo
+- Decir: "Corregido."
+- Continuar a PASO 5
+
+SI CAMBIÓ LA WEB:
+- Pedir URL correcta
+- Llamar extraer_datos_web_cliente
+- Volver a PASO 1
+
+⛔ NUNCA decir "Estoy extrayendo..." sin llamar tool
+⛔ NO re-extraer web solo por nombre corregido
+
 PASO 5: INVESTIGAR DESAFÍOS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Después de confirmar datos, llamar: investigar_desafios_empresa
