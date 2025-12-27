@@ -455,7 +455,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
         elif tool_name == "buscar_info_dania":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
             query = arguments.get("query", "")
-            result = buscar_info_dania(query)
+            result = await buscar_info_dania(query)
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"content": result}
 
