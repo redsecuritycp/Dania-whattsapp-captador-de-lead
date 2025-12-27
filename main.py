@@ -305,6 +305,8 @@ async def process_whatsapp_message(from_number: str, text: str, message_id: str,
             timezone_detected=country_info.get("timezone", ""),
             utc_offset=country_info.get("utc", ""),
             emoji=country_info.get("emoji", ""),
+            city_detected=country_info.get("city", ""),
+            province_detected=country_info.get("province", ""),
             original_message_type=original_message_type
         )
         
@@ -525,7 +527,9 @@ async def test_message(request: Request):
             country_code=country_info.get("code", ""),
             timezone_detected=country_info.get("timezone", ""),
             utc_offset=country_info.get("utc", ""),
-            emoji=country_info.get("emoji", "")
+            emoji=country_info.get("emoji", ""),
+            city_detected=country_info.get("city", ""),
+            province_detected=country_info.get("province", "")
         )
         
         return JSONResponse({

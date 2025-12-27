@@ -43,6 +43,8 @@ async def process_message(
     utc_offset: str = "",
     country_code: str = "",
     emoji: str = "",
+    city_detected: str = "",
+    province_detected: str = "",
     original_message_type: str = "text"
 ) -> str:
     """
@@ -69,6 +71,8 @@ async def process_message(
         # Construir el mensaje con DATOS DETECTADOS (como hace n8n)
         mensaje_con_datos = f"""[DATOS DETECTADOS]
 País: {country_detected}
+Ciudad: {city_detected if city_detected else "No detectada"}
+Provincia: {province_detected if province_detected else "No detectada"}
 WhatsApp: {phone_whatsapp}
 Zona horaria: {timezone_detected}
 UTC: {utc_offset}
@@ -89,6 +93,8 @@ UTC: {utc_offset}
             "utc_offset": utc_offset,
             "country_code": country_code,
             "emoji": emoji,
+            "city": city_detected,
+            "province": province_detected,
             "wait_message_sent": False  # FLAG para mensaje de espera único
         }
         
