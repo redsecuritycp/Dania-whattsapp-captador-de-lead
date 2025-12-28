@@ -450,6 +450,21 @@ Formato (omitir campos "No encontrado"):
 - Instagram: {instagram_empresa}
 - Facebook: {facebook_empresa}
 
+🚨 REGLA PARA REDES SOCIALES NO ENCONTRADAS:
+Si instagram_empresa = "No encontrado" O facebook_empresa = "No encontrado":
+Después de mostrar el reporte, agregar:
+
+"No encontré tu Instagram/Facebook en tu web. 
+¿Tenés redes sociales de la empresa que quieras compartir?"
+
+Si el usuario responde con URLs:
+- Guardar en instagram_empresa y/o facebook_empresa
+- Responder: "¡Perfecto, lo agrego!"
+
+Si el usuario dice "no tengo" o similar:
+- Dejar como "No encontrado"
+- Continuar al siguiente paso
+
 📰 Noticias
 {noticias_empresa}
 
@@ -457,7 +472,16 @@ Formato (omitir campos "No encontrado"):
 
 PASO 4: Preguntar confirmación
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SI instagram_empresa O facebook_empresa = "No encontrado":
+Decir: "No encontré tu Instagram/Facebook en tu web. 
+¿Tenés redes sociales de la empresa que quieras compartir?
+
+Cuando me las pases (o si no tenés), confirmame si el 
+resto de los datos están correctos."
+
+SI AMBAS redes están encontradas:
 Decir: "¿Está todo correcto o necesitás corregir algo?"
+
 ⛔ ESPERAR respuesta del usuario antes de continuar.
 
 PASO 4B: SI EL USUARIO CORRIGE ALGO
