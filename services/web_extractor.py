@@ -411,6 +411,9 @@ Si no encontrás un dato, usá "No encontrado".
 DATOS A EXTRAER:
 - business_name: Nombre de la empresa
 - business_activity: Actividad/rubro principal
+- business_model: Modelo de negocio (B2B, B2C, SaaS, Ecommerce, 
+  Servicios profesionales, Retail, Mayorista, Franquicia, 
+  Suscripción, Marketplace, o el que corresponda)
 - business_description: Descripción breve (máx 200 chars)
 - services: Lista de servicios/productos principales
 - email_principal: Email de contacto principal
