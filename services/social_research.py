@@ -65,12 +65,30 @@ def es_red_social(url: str) -> bool:
 
 
 def es_buscador(url: str) -> bool:
-    """Verifica si la URL es de un buscador."""
-    buscadores = [
-        'google.com/search', 'bing.com/search', 'yahoo.com/search',
-        'duckduckgo.com'
+    """Verifica si la URL es de un buscador o página de resultados."""
+    url_lower = url.lower()
+    
+    # Patrones de buscadores y páginas de resultados
+    patrones_buscador = [
+        'google.com/search',
+        'bing.com/search',
+        'bing.com/news/search',
+        'yahoo.com/search',
+        'duckduckgo.com',
+        'news.google.com/search',
+        'search?q=',
+        '/search?',
     ]
-    return any(b in url.lower() for b in buscadores)
+    
+    # Detectar URLs que son páginas de búsqueda
+    if any(p in url_lower for p in patrones_buscador):
+        return True
+    
+    # Detectar news.google.com (cualquier path)
+    if 'news.google.com' in url_lower and '/articles/' not in url_lower:
+        return True
+    
+    return False
 
 
 def es_registro_legal(url: str, texto: str) -> bool:
@@ -470,17 +488,28 @@ async def _tavily_buscar_linkedin_interno(
     Función interna de búsqueda LinkedIn con Tavily.
     """
     try:
-        # Construir query
+        # Construir ubicación simplificada (solo provincia + país)
+        ubicacion_simple = ""
+        if province and province != "No encontrado":
+            ubicacion_simple = province
+            if country and country != "No encontrado":
+                ubicacion_simple += f", {country}"
+        elif country and country != "No encontrado":
+            ubicacion_simple = country
+        
+        # Construir query - usar ubicación simplificada, no completa
         if incluir_empresa and empresa_busqueda:
-            if ubicacion and ubicacion != "No encontrado":
+            if ubicacion_simple:
                 query = (f'"{nombre}" "{empresa_busqueda}" '
-                         f'"{ubicacion}" site:linkedin.com/in')
+                         f'{ubicacion_simple} site:linkedin.com/in')
             else:
-                query = f'"{nombre}" "{empresa_busqueda}" site:linkedin.com/in'
+                query = (f'"{nombre}" "{empresa_busqueda}" '
+                         f'site:linkedin.com/in')
         else:
-            # Sin empresa, usar ubicación más prominente
-            if ubicacion and ubicacion != "No encontrado":
-                query = f'"{nombre}" "{ubicacion}" site:linkedin.com/in'
+            # Sin empresa, usar ubicación
+            if ubicacion_simple:
+                query = (f'"{nombre}" {ubicacion_simple} '
+                         f'site:linkedin.com/in')
             else:
                 query = f'"{nombre}" site:linkedin.com/in'
 
@@ -696,16 +725,25 @@ async def _google_buscar_linkedin_interno(
     Función interna de búsqueda LinkedIn con Google.
     """
     try:
-        # Construir query
+        # Construir ubicación simplificada (solo provincia + país)
+        ubicacion_simple = ""
+        if province and province != "No encontrado":
+            ubicacion_simple = province
+            if country and country != "No encontrado":
+                ubicacion_simple += f" {country}"
+        elif country and country != "No encontrado":
+            ubicacion_simple = country
+        
+        # Construir query con ubicación simplificada
         if incluir_empresa and empresa_busqueda:
-            if ubicacion and ubicacion != "No encontrado":
+            if ubicacion_simple:
                 query = (f"site:linkedin.com/in {nombre} "
-                         f"{empresa_busqueda} {ubicacion}")
+                         f"{empresa_busqueda} {ubicacion_simple}")
             else:
                 query = f"site:linkedin.com/in {nombre} {empresa_busqueda}"
         else:
-            if ubicacion and ubicacion != "No encontrado":
-                query = f"site:linkedin.com/in {nombre} {ubicacion}"
+            if ubicacion_simple:
+                query = f"site:linkedin.com/in {nombre} {ubicacion_simple}"
             else:
                 query = f"site:linkedin.com/in {nombre}"
 

@@ -243,9 +243,11 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 context["business_activity"] = result.get(
                     "business_activity", "")
                 context["business_name"] = result.get("business_name", "")
+                context["business_model"] = result.get("business_model", "")
                 logger.info(f"[CONTEXT] Datos guardados: "
                             f"LinkedIn={context.get('linkedin_empresa')}, "
-                            f"Rubro={context.get('business_activity')}")
+                            f"Rubro={context.get('business_activity')}, "
+                            f"Modelo={context.get('business_model')}")
 
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result or {"error": "No se pudo extraer datos"}
