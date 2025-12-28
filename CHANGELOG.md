@@ -34,6 +34,21 @@ Formato: Fecha | Descripción | Archivo(s) afectado(s)
 
 ---
 
+## ✅ PUNTO ESTABLE - 27/12/2024
+**Si algo falla, volver a este commit.**
+Commit: `d86158785aea41eb64a3703f80acb91f8795a885`
+
+Todo funcionando correctamente:
+- Bot WhatsApp operativo
+- Extracción web (Firecrawl + Jina + Tavily)
+- Búsqueda LinkedIn y noticias
+- Guardado en MongoDB
+- Envío de emails
+- Scheduler de recordatorios
+- Webhooks Cal.com
+
+---
+
 ## Instrucciones
 
 Cuando hagas cambios desde Cursor, avisame con:
