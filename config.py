@@ -2225,3 +2225,30 @@ def detect_country(phone_raw: str) -> dict:
                 break
     
     return country_data
+
+
+# ============================================================
+# TRADUCCIÓN DE MESES
+# ============================================================
+MESES_ES = {
+    'January': 'enero',
+    'February': 'febrero',
+    'March': 'marzo',
+    'April': 'abril',
+    'May': 'mayo',
+    'June': 'junio',
+    'July': 'julio',
+    'August': 'agosto',
+    'September': 'septiembre',
+    'October': 'octubre',
+    'November': 'noviembre',
+    'December': 'diciembre'
+}
+
+
+def format_fecha_es(dt) -> str:
+    """Formatea fecha en español: '29 de diciembre'"""
+    dia = dt.strftime("%d").lstrip('0')
+    mes_en = dt.strftime("%B")
+    mes_es = MESES_ES.get(mes_en, mes_en)
+    return f"{dia} de {mes_es}"

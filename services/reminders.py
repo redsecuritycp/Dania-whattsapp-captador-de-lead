@@ -10,7 +10,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from services.mongodb import get_database
-from services.whatsapp import send_whatsapp_message
+from services.whatsapp import send_whatsapp_message, send_template_reminder_24h
+from config import format_fecha_es
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +138,7 @@ async def process_lead_reminders(lead: dict, now: datetime):
     except:
         booking_local = booking_start
 
-    fecha_str = booking_local.strftime("%d/%m/%Y")
+    fecha_str = format_fecha_es(booking_local)
     hora_str = booking_local.strftime("%H:%M")
     pais = lead.get("country_detected", "tu país")
 
@@ -161,10 +162,41 @@ async def process_lead_reminders(lead: dict, now: datetime):
         reminder_to_send = ("5hr",
                             _get_message_5hr(fecha_str, hora_str, zoom_url))
 
-    # 24 horas antes (entre 1435 y 1445 minutos = 23h55m a 24h05m)
+    # 24 horas antes - USA PLANTILLA (funciona fuera de ventana 24hs)
     elif 1435 <= minutes_until <= 1445 and "24hr" not in reminders_sent:
-        reminder_to_send = ("24hr",
-                            _get_message_24hr(name, fecha_str, hora_str, pais))
+        # Usar plantilla en vez de mensaje normal
+        link_modificar = lead.get(
+            "booking_reschedule_link", 
+            lead.get("booking_cancel_link", "")
+        )
+        
+        template_sent = await send_template_reminder_24h(
+            phone=phone,
+            nombre=name if name else "usuario",
+            hora=hora_str,
+            fecha=fecha_str,
+            link_modificar=link_modificar if link_modificar else "N/A"
+        )
+        
+        if template_sent:
+            # Marcar como enviado
+            db = get_database()
+            if db is not None:
+                db["leads_fortia"].update_one(
+                    {"phone_whatsapp": phone},
+                    {"$push": {
+                        "reminders_sent": "24hr"
+                    }})
+            logger.info(
+                f"[REMINDERS] ✓ Template 24hr enviado a {phone}"
+            )
+        else:
+            logger.error(
+                f"[REMINDERS] ✗ Error enviando template 24hr a {phone}"
+            )
+        
+        # No seguir con el flujo normal de envío
+        return
 
     # Enviar recordatorio si corresponde
     if reminder_to_send:

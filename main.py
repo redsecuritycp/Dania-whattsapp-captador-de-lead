@@ -16,7 +16,7 @@ import pytz
 from fastapi import FastAPI, Request, Response, HTTPException, BackgroundTasks
 from fastapi.responses import PlainTextResponse, JSONResponse
 
-from config import detect_country, WHATSAPP_VERIFY_TOKEN
+from config import detect_country, WHATSAPP_VERIFY_TOKEN, format_fecha_es
 from services.whatsapp import send_whatsapp_message, mark_as_read
 from services.openai_agent import process_message
 from services.mongodb import update_lead_booking, get_database, find_lead_by_email_calcom
@@ -658,3 +658,230 @@ async def scheduler_check_now():
             "status": "error", 
             "message": str(e)
         }, status_code=500)
+
+
+@app.post("/test/send-reminder-manual")
+async def send_reminder_manual(request: Request):
+    """
+    Envía recordatorio manual a un lead específico.
+    Útil para testing.
+    Body: {"phone": "+5493401514509"}
+    """
+    try:
+        body = await request.json()
+        phone = body.get("phone", "")
+        
+        if not phone:
+            return JSONResponse(
+                {"error": "phone es requerido"},
+                status_code=400
+            )
+        
+        # Limpiar phone
+        phone_clean = phone.lstrip('+')
+        
+        # Buscar lead en MongoDB
+        from services.mongodb import get_database
+        db = get_database()
+        
+        if db is None:
+            return JSONResponse(
+                {"error": "No hay conexión a MongoDB"},
+                status_code=500
+            )
+        
+        # Buscar por phone_whatsapp (con o sin +)
+        lead = db["leads_fortia"].find_one({
+            "$or": [
+                {"phone_whatsapp": phone},
+                {"phone_whatsapp": f"+{phone_clean}"},
+                {"phone_whatsapp": phone_clean}
+            ]
+        })
+        
+        if not lead:
+            return JSONResponse(
+                {"error": f"Lead no encontrado: {phone}"},
+                status_code=404
+            )
+        
+        # Extraer datos
+        name = lead.get("name", "")
+        booking_start = lead.get("booking_start_time", "")
+        zoom_url = lead.get("booking_zoom_url", "")
+        tz_str = lead.get("timezone_detected", 
+                         "America/Argentina/Buenos_Aires")
+        pais = lead.get("country_detected", "tu país")
+        
+        if not booking_start:
+            return JSONResponse({
+                "error": "Lead no tiene reunión agendada",
+                "lead_name": name
+            }, status_code=400)
+        
+        # Formatear fecha/hora
+        try:
+            bs = booking_start
+            if bs.endswith('Z'):
+                bs = bs[:-1] + '+00:00'
+            booking_dt = datetime.fromisoformat(bs)
+            tz = pytz.timezone(tz_str)
+            booking_local = booking_dt.astimezone(tz)
+            fecha_str = booking_local.strftime("%d/%m/%Y")
+            hora_str = booking_local.strftime("%H:%M")
+        except Exception as e:
+            fecha_str = "fecha pendiente"
+            hora_str = "hora pendiente"
+            logger.error(f"Error parseando fecha: {e}")
+        
+        # Construir mensaje
+        saludo = f"¡Hola {name}! " if name else "¡Hola! "
+        
+        msg = f"""{saludo}Te recordamos tu reunión:
+
+📅 Fecha: {fecha_str}
+🕐 Hora: {hora_str} (hora de {pais})"""
+        
+        if zoom_url:
+            msg += f"""
+
+📍 Link de Zoom:
+{zoom_url}"""
+        
+        msg += """
+
+¡Te esperamos! 🚀"""
+        
+        # Enviar WhatsApp
+        from services.whatsapp import send_whatsapp_message
+        result = await send_whatsapp_message(phone_clean, msg)
+        
+        if result:
+            logger.info(f"[MANUAL] ✓ Recordatorio enviado a {phone}")
+            return JSONResponse({
+                "status": "sent",
+                "phone": phone,
+                "name": name,
+                "fecha": fecha_str,
+                "hora": hora_str,
+                "message_preview": msg[:100] + "..."
+            })
+        else:
+            logger.error(f"[MANUAL] ✗ Error enviando a {phone}")
+            return JSONResponse({
+                "status": "failed",
+                "phone": phone,
+                "error": "Error enviando WhatsApp"
+            }, status_code=500)
+    
+    except Exception as e:
+        logger.error(f"Error en send-reminder-manual: {e}")
+        return JSONResponse(
+            {"error": str(e)},
+            status_code=500
+        )
+
+
+@app.post("/test/send-template-24h")
+async def test_template_24h(request: Request):
+    """
+    Prueba envío de plantilla reminder_24h_.
+    Body: {"phone": "+5493401514509"}
+    """
+    try:
+        body = await request.json()
+        phone = body.get("phone", "")
+        
+        if not phone:
+            return JSONResponse(
+                {"error": "phone es requerido"},
+                status_code=400
+            )
+        
+        # Buscar lead
+        from services.mongodb import get_database
+        db = get_database()
+        
+        if db is None:
+            return JSONResponse(
+                {"error": "No hay conexión a MongoDB"},
+                status_code=500
+            )
+        
+        phone_clean = phone.lstrip('+')
+        lead = db["leads_fortia"].find_one({
+            "$or": [
+                {"phone_whatsapp": phone},
+                {"phone_whatsapp": f"+{phone_clean}"},
+                {"phone_whatsapp": phone_clean}
+            ]
+        })
+        
+        if not lead:
+            return JSONResponse(
+                {"error": f"Lead no encontrado: {phone}"},
+                status_code=404
+            )
+        
+        # Extraer datos
+        name = lead.get("name", "usuario")
+        booking_start = lead.get("booking_start_time", "")
+        tz_str = lead.get("timezone_detected", 
+                         "America/Argentina/Buenos_Aires")
+        link_modificar = lead.get(
+            "booking_reschedule_link",
+            lead.get("booking_cancel_link", "N/A")
+        )
+        
+        # Formatear fecha/hora
+        fecha_str = "fecha pendiente"
+        hora_str = "hora pendiente"
+        
+        if booking_start:
+            try:
+                bs = booking_start
+                if bs.endswith('Z'):
+                    bs = bs[:-1] + '+00:00'
+                booking_dt = datetime.fromisoformat(bs)
+                tz = pytz.timezone(tz_str)
+                booking_local = booking_dt.astimezone(tz)
+                fecha_str = format_fecha_es(booking_local)
+                hora_str = booking_local.strftime("%H:%M")
+            except Exception as e:
+                logger.error(f"Error parseando fecha: {e}")
+        
+        # Enviar plantilla
+        from services.whatsapp import send_template_reminder_24h
+        
+        result = await send_template_reminder_24h(
+            phone=phone,
+            nombre=name,
+            hora=hora_str,
+            fecha=fecha_str,
+            link_modificar=link_modificar
+        )
+        
+        if result:
+            return JSONResponse({
+                "status": "sent",
+                "template": "reminder_24h_",
+                "phone": phone,
+                "variables": {
+                    "1_nombre": name,
+                    "2_hora": hora_str,
+                    "3_fecha": fecha_str,
+                    "4_link": link_modificar[:50] + "..."
+                }
+            })
+        else:
+            return JSONResponse({
+                "status": "failed",
+                "error": "Error enviando plantilla"
+            }, status_code=500)
+    
+    except Exception as e:
+        logger.error(f"Error en test-template-24h: {e}")
+        return JSONResponse(
+            {"error": str(e)},
+            status_code=500
+        )

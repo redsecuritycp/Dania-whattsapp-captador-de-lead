@@ -246,3 +246,74 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
     except Exception as e:
         logger.error(f"[AUDIO] Error transcribe_audio: {e}")
         return ""
+
+
+async def send_template_reminder_24h(
+    phone: str,
+    nombre: str,
+    hora: str,
+    fecha: str,
+    link_modificar: str
+) -> bool:
+    """
+    Envía recordatorio de 24hs usando plantilla aprobada.
+    Plantilla: reminder_24h_
+    Variables: {{1}}=nombre, {{2}}=hora, {{3}}=fecha, {{4}}=link
+    """
+    token = os.environ.get("WHATSAPP_TOKEN", "")
+    phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+    
+    if not token or not phone_id:
+        logger.error("WhatsApp no configurado")
+        return False
+    
+    phone_clean = phone.lstrip('+')
+    
+    url = f"{WHATSAPP_API_URL}/{phone_id}/messages"
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone_clean,
+        "type": "template",
+        "template": {
+            "name": "reminder_24h_",
+            "language": {
+                "code": "es_AR"
+            },
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": nombre},
+                        {"type": "text", "text": hora},
+                        {"type": "text", "text": fecha},
+                        {"type": "text", "text": link_modificar}
+                    ]
+                }
+            ]
+        }
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            
+            if response.status_code == 200:
+                logger.info(
+                    f"[TEMPLATE] ✓ reminder_24h_ enviado a {phone}"
+                )
+                return True
+            else:
+                logger.error(
+                    f"[TEMPLATE] ✗ Error {response.status_code}: "
+                    f"{response.text}"
+                )
+                return False
+    except Exception as e:
+        logger.error(f"[TEMPLATE] Error enviando plantilla: {e}")
+        return False
