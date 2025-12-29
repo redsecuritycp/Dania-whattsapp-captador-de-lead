@@ -274,6 +274,49 @@ async def research_person_and_company(nombre_persona: str,
                         f"[GOOGLE] ✓ LinkedIn: {results['linkedin_personal']}")
 
         # ═══════════════════════════════════════════════════════════════
+        # PASO 4B: BÚSQUEDAS ADICIONALES DE LINKEDIN
+        # ═══════════════════════════════════════════════════════════════
+        linkedin_adicionales = []
+        
+        # 4B.1: Buscar por cargo (fundador/CEO/etc)
+        if results["linkedin_personal_confianza"] < 80:
+            logger.info("[CARGO] Buscando LinkedIn por cargo...")
+            por_cargo = await buscar_linkedin_por_cargo(
+                empresa=empresa_busqueda,
+                ubicacion=ubicacion_completa
+            )
+            for url in por_cargo:
+                if url not in linkedin_adicionales and \
+                   url != results["linkedin_personal"]:
+                    linkedin_adicionales.append(url)
+        
+        # 4B.2: Buscar por email si lo tenemos
+        # (el email viene del contexto, hay que pasarlo como parámetro)
+        
+        # 4B.3: Combinar resultados
+        if linkedin_adicionales:
+            if results["linkedin_personal"] == "No encontrado":
+                results["linkedin_personal"] = linkedin_adicionales[0]
+                results["linkedin_personal_confianza"] = 60
+                results["linkedin_personal_source"] = "cargo_search"
+                if len(linkedin_adicionales) > 1:
+                    results["linkedin_personal"] += " | " + \
+                        " | ".join(linkedin_adicionales[1:3])
+            else:
+                # Agregar como adicionales
+                actual = results["linkedin_personal"]
+                todos = [actual] + [
+                    u for u in linkedin_adicionales 
+                    if u != actual
+                ][:2]
+                results["linkedin_personal"] = " | ".join(todos)
+            
+            logger.info(
+                f"[LINKEDIN] Total encontrados: "
+                f"{results['linkedin_personal']}"
+            )
+
+        # ═══════════════════════════════════════════════════════════════
         # PASO 5: NOTICIAS - APIFY + GOOGLE FALLBACK
         # ═══════════════════════════════════════════════════════════════
         noticias = []
@@ -414,6 +457,151 @@ async def tavily_verificar_nombre(website: str, primer_nombre: str,
     except Exception as e:
         logger.error(f"[TAVILY] Error verificando nombre: {e}")
         return None
+
+
+async def buscar_linkedin_por_cargo(
+    empresa: str,
+    ubicacion: str = "",
+    cargos: list = None
+) -> list:
+    """
+    Busca LinkedIn de fundadores/CEO/directores de una empresa.
+    Retorna lista de URLs encontradas.
+    """
+    if not TAVILY_API_KEY:
+        return []
+    
+    if cargos is None:
+        cargos = [
+            'fundador', 'founder', 'CEO', 'director', 
+            'dueño', 'owner', 'gerente general'
+        ]
+    
+    resultados = []
+    
+    for cargo in cargos[:3]:  # Limitar a 3 cargos
+        query = f'{cargo} "{empresa}" site:linkedin.com/in'
+        if ubicacion:
+            query = f'{cargo} "{empresa}" {ubicacion} site:linkedin.com/in'
+        
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(
+                    "https://api.tavily.com/search",
+                    json={
+                        "api_key": TAVILY_API_KEY,
+                        "query": query,
+                        "search_depth": "basic",
+                        "include_domains": ["linkedin.com"],
+                        "max_results": 5
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    for r in data.get("results", []):
+                        url = r.get("url", "")
+                        if "linkedin.com/in/" in url and \
+                           "/company/" not in url:
+                            url_clean = url.split("?")[0]
+                            if url_clean not in resultados:
+                                resultados.append(url_clean)
+                                logger.info(
+                                    f"[CARGO] LinkedIn por {cargo}: "
+                                    f"{url_clean}"
+                                )
+        except Exception as e:
+            logger.error(f"[CARGO] Error buscando {cargo}: {e}")
+    
+    return resultados[:5]  # Máximo 5 resultados
+
+
+async def buscar_linkedin_en_web(
+    contenido_web: str,
+    nombre: str = "",
+    apellido: str = ""
+) -> list:
+    """
+    Busca URLs de LinkedIn personal en el contenido de la web.
+    Busca en secciones Equipo, Nosotros, About, etc.
+    """
+    resultados = []
+    
+    # Patrón para LinkedIn personal
+    pattern = r'https?://(?:www\.)?linkedin\.com/in/([a-zA-Z0-9_-]+)'
+    matches = re.findall(pattern, contenido_web, re.IGNORECASE)
+    
+    for slug in matches:
+        # Filtrar slugs genéricos
+        if slug.lower() in ['company', 'jobs', 'pulse', 'learning']:
+            continue
+        
+        url = f"https://linkedin.com/in/{slug}"
+        
+        # Si tenemos nombre/apellido, priorizar matches
+        if nombre or apellido:
+            slug_lower = slug.lower().replace("-", " ")
+            nombre_lower = nombre.lower() if nombre else ""
+            apellido_lower = apellido.lower() if apellido else ""
+            
+            if nombre_lower in slug_lower or apellido_lower in slug_lower:
+                # Match con nombre, agregar al principio
+                if url not in resultados:
+                    resultados.insert(0, url)
+                    logger.info(f"[WEB] LinkedIn en web (match nombre): {url}")
+            else:
+                if url not in resultados:
+                    resultados.append(url)
+                    logger.info(f"[WEB] LinkedIn en web: {url}")
+        else:
+            if url not in resultados:
+                resultados.append(url)
+    
+    return resultados[:5]
+
+
+async def buscar_linkedin_por_email(email: str) -> Optional[str]:
+    """
+    Busca LinkedIn usando el email como query.
+    """
+    if not TAVILY_API_KEY or not email or email == "No encontrado":
+        return None
+    
+    # Extraer nombre del email (antes del @)
+    nombre_email = email.split("@")[0]
+    # Limpiar (quitar números, puntos, guiones)
+    nombre_limpio = re.sub(r'[0-9._-]', ' ', nombre_email).strip()
+    
+    if len(nombre_limpio) < 3:
+        return None
+    
+    query = f'"{email}" site:linkedin.com/in'
+    
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": TAVILY_API_KEY,
+                    "query": query,
+                    "search_depth": "basic",
+                    "include_domains": ["linkedin.com"],
+                    "max_results": 3
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                for r in data.get("results", []):
+                    url = r.get("url", "")
+                    if "linkedin.com/in/" in url:
+                        url_clean = url.split("?")[0]
+                        logger.info(f"[EMAIL] LinkedIn por email: {url_clean}")
+                        return url_clean
+    except Exception as e:
+        logger.error(f"[EMAIL] Error: {e}")
+    
+    return None
 
 
 async def tavily_buscar_linkedin_personal(nombre: str,

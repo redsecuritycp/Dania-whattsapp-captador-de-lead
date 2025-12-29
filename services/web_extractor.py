@@ -560,6 +560,26 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str, website:
     if not resultado.get('business_activity') and regex_data.get('business_activity'):
         resultado['business_activity'] = regex_data['business_activity']
     
+    # ═══════════════════════════════════════════════════════════════
+    # Business model - Asegurar que tenga valor
+    # ═══════════════════════════════════════════════════════════════
+    if not resultado.get('business_model') or \
+       resultado.get('business_model') == 'No encontrado':
+        # Intentar inferir del business_activity
+        activity = resultado.get('business_activity', '').lower()
+        if any(x in activity for x in ['software', 'saas', 'plataforma']):
+            resultado['business_model'] = 'SaaS'
+        elif any(x in activity for x in ['tienda', 'venta', 'retail']):
+            resultado['business_model'] = 'Retail'
+        elif any(x in activity for x in ['mayorista', 'distribuidor']):
+            resultado['business_model'] = 'Mayorista'
+        elif any(x in activity for x in ['servicio', 'consultor']):
+            resultado['business_model'] = 'Servicios profesionales'
+        elif any(x in activity for x in ['fabricación', 'manufactura']):
+            resultado['business_model'] = 'Fabricante/Mayorista'
+        else:
+            resultado['business_model'] = 'No especificado'
+    
     # services_text
     services = resultado.get('services', [])
     if isinstance(services, list) and len(services) > 0:
@@ -568,6 +588,63 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str, website:
         resultado['services_text'] = 'No encontrado'
     
     return resultado
+
+
+async def extraer_paginas_secundarias(website: str) -> str:
+    """
+    Extrae contenido de páginas secundarias importantes:
+    /contacto, /contact, /nosotros, /about, /equipo, /team, etc.
+    """
+    paginas = [
+        '/contacto', '/contact', '/contactenos', '/contact-us',
+        '/nosotros', '/about', '/about-us', '/quienes-somos',
+        '/equipo', '/team', '/nuestro-equipo', '/our-team'
+    ]
+    
+    contenido_extra = ""
+    paginas_exitosas = 0
+    max_paginas = 3  # Limitar para no demorar mucho
+    
+    for pagina in paginas:
+        if paginas_exitosas >= max_paginas:
+            break
+        
+        url = f"https://{website}{pagina}"
+        
+        try:
+            async with httpx.AsyncClient(
+                timeout=15.0, 
+                follow_redirects=True
+            ) as client:
+                response = await client.get(
+                    url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; "
+                                      "Win64; x64) AppleWebKit/537.36"
+                    }
+                )
+                
+                if response.status_code == 200:
+                    texto = response.text
+                    # Verificar que no sea redirect a home
+                    if len(texto) > 1000 and pagina.strip('/') in texto.lower():
+                        contenido_extra += f"\n\n=== PÁGINA: {pagina} ===\n"
+                        contenido_extra += texto[:10000]
+                        paginas_exitosas += 1
+                        logger.info(
+                            f"[SECUNDARIA] ✓ {pagina} - "
+                            f"{len(texto)} chars"
+                        )
+        except Exception as e:
+            logger.debug(f"[SECUNDARIA] {pagina} no disponible: {e}")
+            continue
+    
+    if paginas_exitosas > 0:
+        logger.info(
+            f"[SECUNDARIA] Extraídas {paginas_exitosas} páginas extra"
+        )
+    
+    return contenido_extra
 
 
 async def extract_web_data(website: str) -> dict:
@@ -596,7 +673,11 @@ async def extract_web_data(website: str) -> dict:
     http_content = await fetch_html_direct(website_full)
     logger.info(f"[HTTP] {len(http_content)} caracteres")
     
-    # 4. COMBINAR TODO (el regex busca en los 3 métodos)
+    # 4. PÁGINAS SECUNDARIAS (contacto, nosotros, equipo)
+    secundarias_content = await extraer_paginas_secundarias(website_clean)
+    logger.info(f"[SECUNDARIAS] {len(secundarias_content)} caracteres")
+    
+    # 5. COMBINAR TODO (el regex busca en todos los métodos)
     main_content = ""
     if firecrawl_content:
         main_content += "=== FIRECRAWL ===\n" + firecrawl_content + "\n\n"
@@ -604,6 +685,9 @@ async def extract_web_data(website: str) -> dict:
         main_content += "=== JINA ===\n" + jina_content + "\n\n"
     if http_content:
         main_content += "=== HTTP ===\n" + http_content[:30000] + "\n\n"
+    if secundarias_content:
+        main_content += "=== PÁGINAS SECUNDARIAS ===\n" 
+        main_content += secundarias_content + "\n\n"
     
     # 5. Tavily para búsqueda complementaria y descripción
     tavily_query = f'"{website_clean}" contacto dirección teléfono email Argentina'
