@@ -55,6 +55,7 @@ async def check_and_send_reminders():
     Verifica bookings próximos y envía recordatorios.
     Corre cada 5 minutos.
     """
+    logger.info("[REMINDERS] ══════ Iniciando check de recordatorios ══════")
     try:
         db = get_database()
         # FIX: usar "is not None" en lugar de solo "if db"
@@ -66,15 +67,20 @@ async def check_and_send_reminders():
         now = datetime.now(pytz.UTC)
 
         # Buscar leads con booking activo
-        leads_with_booking = collection.find({
+        query = {
             "booking_status": "created",
-            "booking_start_time": {
-                "$exists": True,
-                "$ne": ""
-            }
-        })
+            "booking_start_time": {"$exists": True, "$ne": ""}
+        }
+        leads_with_booking = list(collection.find(query))
+        
+        logger.info(f"[REMINDERS] Encontrados {len(leads_with_booking)} "
+                    f"leads con booking activo")
 
         for lead in leads_with_booking:
+            logger.info(f"[REMINDERS] Procesando: "
+                        f"{lead.get('name', 'Sin nombre')} - "
+                        f"{lead.get('phone_whatsapp', 'Sin tel')} - "
+                        f"Reunión: {lead.get('booking_start_time', 'Sin fecha')}")
             try:
                 await process_lead_reminders(lead, now)
             except Exception as e:

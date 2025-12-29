@@ -103,8 +103,12 @@ async def lifespan(app: FastAPI):
     
     # Iniciar scheduler de recordatorios
     try:
-        init_scheduler()
-        logger.info("✅ Scheduler de recordatorios iniciado")
+        from services.reminders import init_scheduler
+        sched = init_scheduler()
+        if sched and sched.running:
+            logger.info("✅ Scheduler de recordatorios ACTIVO")
+        else:
+            logger.error("❌ Scheduler NO está corriendo")
     except Exception as e:
         logger.error(f"⚠️ Error iniciando scheduler: {e}")
     
@@ -595,23 +599,62 @@ async def test_reminder(request: Request):
 @app.get("/scheduler/status")
 async def scheduler_status():
     """Verifica el estado del scheduler."""
-    from services.reminders import scheduler
-    
-    if scheduler and scheduler.running:
+    try:
+        from services.reminders import scheduler
+        
+        if scheduler is None:
+            return JSONResponse({
+                "status": "not_initialized",
+                "message": "Scheduler no fue inicializado",
+                "jobs": []
+            })
+        
+        if not scheduler.running:
+            return JSONResponse({
+                "status": "stopped",
+                "message": "Scheduler existe pero no está corriendo",
+                "jobs": []
+            })
+        
         jobs = []
         for job in scheduler.get_jobs():
+            next_run = None
+            if job.next_run_time:
+                next_run = job.next_run_time.isoformat()
             jobs.append({
                 "id": job.id,
                 "name": job.name,
-                "next_run": str(job.next_run_time) if job.next_run_time else None
+                "next_run": next_run
             })
         
         return JSONResponse({
             "status": "running",
+            "jobs_count": len(jobs),
             "jobs": jobs
         })
-    else:
+    except Exception as e:
         return JSONResponse({
-            "status": "stopped",
+            "status": "error",
+            "message": str(e),
             "jobs": []
         })
+
+
+@app.post("/scheduler/check-now")
+async def scheduler_check_now():
+    """Fuerza una verificación inmediata de recordatorios."""
+    try:
+        from services.reminders import check_and_send_reminders
+        
+        await check_and_send_reminders()
+        
+        return JSONResponse({
+            "status": "executed",
+            "message": "Check de recordatorios ejecutado"
+        })
+    except Exception as e:
+        logger.error(f"Error en check manual: {e}")
+        return JSONResponse({
+            "status": "error", 
+            "message": str(e)
+        }, status_code=500)
