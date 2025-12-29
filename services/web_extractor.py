@@ -526,9 +526,14 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str, website:
             if len(regex_data['phones']) > 1:
                 resultado['phones_adicionales'] = regex_data['phones'][1:]
     
-    # WhatsApp
+    # WhatsApp - de regex
     if not resultado.get('whatsapp_empresa') and regex_data.get('whatsapp'):
         resultado['whatsapp_empresa'] = regex_data['whatsapp']
+    
+    # Marcar si necesita búsqueda externa (se hace después)
+    if not resultado.get('whatsapp_empresa') or \
+       resultado.get('whatsapp_empresa') == 'No encontrado':
+        resultado['_necesita_wa_externo'] = True
     
     # Redes sociales
     if not resultado.get('linkedin_empresa') and regex_data.get('linkedin'):
@@ -647,6 +652,81 @@ async def extraer_paginas_secundarias(website: str) -> str:
     return contenido_extra
 
 
+async def buscar_whatsapp_externo(
+    website: str, 
+    empresa: str = ""
+) -> str:
+    """
+    Busca WhatsApp de la empresa en fuentes externas.
+    Útil cuando el widget está en JS y no lo capturamos.
+    """
+    if not TAVILY_API_KEY:
+        return ""
+    
+    # Limpiar dominio
+    dominio = website.replace("https://", "").replace(
+        "http://", "").replace("www.", "").split("/")[0]
+    
+    # Query de búsqueda
+    query = f'"{dominio}" whatsapp teléfono contacto'
+    if empresa and empresa != "No encontrado":
+        query = f'"{empresa}" whatsapp teléfono Argentina'
+    
+    logger.info(f"[WA-EXTERNO] Buscando: {query}")
+    
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": TAVILY_API_KEY,
+                    "query": query,
+                    "search_depth": "basic",
+                    "max_results": 5,
+                    "include_answer": False
+                }
+            )
+            
+            if response.status_code != 200:
+                return ""
+            
+            data = response.json()
+            results = data.get("results", [])
+            
+            # Buscar número en los resultados
+            wa_patterns = [
+                r'wa\.me/(\d{10,15})',
+                r'whatsapp\.com/send\?phone=(\d{10,15})',
+                r'\+54\s*\d{10,12}',
+                r'\+54\s*\(?\d{2,4}\)?\s*\d{6,8}',
+            ]
+            
+            for r in results:
+                texto = f"{r.get('title', '')} {r.get('content', '')}"
+                
+                for pattern in wa_patterns:
+                    match = re.search(pattern, texto)
+                    if match:
+                        # Extraer solo dígitos
+                        num = re.sub(r'[^\d]', '', match.group(0))
+                        if len(num) >= 10 and len(num) <= 15:
+                            # Asegurar formato con +
+                            if not num.startswith('54'):
+                                continue
+                            resultado = '+' + num
+                            logger.info(
+                                f"[WA-EXTERNO] ✓ Encontrado: {resultado}"
+                            )
+                            return resultado
+            
+            logger.info("[WA-EXTERNO] No encontrado en fuentes externas")
+            return ""
+            
+    except Exception as e:
+        logger.error(f"[WA-EXTERNO] Error: {e}")
+        return ""
+
+
 async def extract_web_data(website: str) -> dict:
     """
     Pipeline completo de extracción web.
@@ -739,6 +819,23 @@ async def extract_web_data(website: str) -> dict:
     
     # 10. Merge de resultados
     resultado = merge_results(gpt_data, regex_data, tavily_answer, website_full)
+    
+    # ═══════════════════════════════════════════════════════════════
+    # BÚSQUEDA EXTERNA DE WHATSAPP (si no lo encontramos)
+    # ═══════════════════════════════════════════════════════════════
+    if resultado.get('_necesita_wa_externo'):
+        empresa_nombre = resultado.get('business_name', '')
+        wa_externo = await buscar_whatsapp_externo(
+            website_clean, 
+            empresa_nombre
+        )
+        if wa_externo:
+            resultado['whatsapp_empresa'] = wa_externo
+            resultado['whatsapp_source'] = 'externo'
+        
+        # Limpiar flag temporal
+        resultado.pop('_necesita_wa_externo', None)
+    
     resultado['website'] = website_full
     resultado['extraction_status'] = 'success'
     
