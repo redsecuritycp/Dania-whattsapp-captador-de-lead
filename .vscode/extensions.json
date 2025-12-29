@@ -2,16 +2,6 @@
   "recommendations": [
     "ms-python.python",
     "ms-python.vscode-pylance",
-    "ms-python.black-formatter",
-    "ms-python.isort",
-    "charliermarsh.ruff",
-    "ms-python.debugpy",
-    "eamodio.gitlens",
-    "ms-vscode.vscode-json",
-    "humao.rest-client",
-    "mikestead.dotenv",
-    "yzhang.markdown-all-in-one",
-    "redhat.vscode-yaml"
+    "ms-python.debugpy"
   ]
 }
-

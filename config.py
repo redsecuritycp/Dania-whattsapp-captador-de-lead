@@ -552,37 +552,400 @@ AREA_CODES_ARGENTINA = {
 # CÓDIGOS DE ÁREA - MÉXICO
 # ============================================================
 AREA_CODES_MEXICO = {
+    # CDMX y Área Metropolitana
     '55': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    '552': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    '553': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    '554': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    '555': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    '556': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    '557': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    '558': {'city': 'Ciudad de México', 'province': 'CDMX'},
+    
+    # Jalisco
     '33': {'city': 'Guadalajara', 'province': 'Jalisco'},
+    '331': {'city': 'Guadalajara', 'province': 'Jalisco'},
+    '332': {'city': 'Guadalajara', 'province': 'Jalisco'},
+    '333': {'city': 'Guadalajara', 'province': 'Jalisco'},
+    '341': {'city': 'Cihuatlán', 'province': 'Jalisco'},
+    '342': {'city': 'Autlán', 'province': 'Jalisco'},
+    '343': {'city': 'Ciudad Guzmán', 'province': 'Jalisco'},
+    '344': {'city': 'Tamazula', 'province': 'Jalisco'},
+    '345': {'city': 'Tuxpan', 'province': 'Jalisco'},
+    '346': {'city': 'Sayula', 'province': 'Jalisco'},
+    '347': {'city': 'Tequila', 'province': 'Jalisco'},
+    '348': {'city': 'Yahualica', 'province': 'Jalisco'},
+    '349': {'city': 'Arandas', 'province': 'Jalisco'},
+    '322': {'city': 'Puerto Vallarta', 'province': 'Jalisco'},
+    '371': {'city': 'Ocotlán', 'province': 'Jalisco'},
+    '372': {'city': 'La Barca', 'province': 'Jalisco'},
+    '373': {'city': 'Tepatitlán', 'province': 'Jalisco'},
+    '374': {'city': 'Ameca', 'province': 'Jalisco'},
+    '375': {'city': 'Jocotepec', 'province': 'Jalisco'},
+    '376': {'city': 'Chapala', 'province': 'Jalisco'},
+    '377': {'city': 'Atotonilco', 'province': 'Jalisco'},
+    '378': {'city': 'Teocaltiche', 'province': 'Jalisco'},
+    '386': {'city': 'San Juan de los Lagos', 'province': 'Jalisco'},
+    '387': {'city': 'Lagos de Moreno', 'province': 'Jalisco'},
+    '388': {'city': 'Encarnación de Díaz', 'province': 'Jalisco'},
+    '391': {'city': 'Tala', 'province': 'Jalisco'},
+    '392': {'city': 'Etzatlán', 'province': 'Jalisco'},
+    '393': {'city': 'Magdalena', 'province': 'Jalisco'},
+    '395': {'city': 'Villa Hidalgo', 'province': 'Jalisco'},
+    
+    # Nuevo León
     '81': {'city': 'Monterrey', 'province': 'Nuevo León'},
+    '811': {'city': 'Monterrey', 'province': 'Nuevo León'},
+    '812': {'city': 'Monterrey', 'province': 'Nuevo León'},
+    '818': {'city': 'San Pedro Garza García', 'province': 'Nuevo León'},
+    '821': {'city': 'Linares', 'province': 'Nuevo León'},
+    '823': {'city': 'Sabinas Hidalgo', 'province': 'Nuevo León'},
+    '824': {'city': 'Montemorelos', 'province': 'Nuevo León'},
+    '825': {'city': 'Cerralvo', 'province': 'Nuevo León'},
+    '826': {'city': 'Doctor Arroyo', 'province': 'Nuevo León'},
+    '828': {'city': 'Cadereyta', 'province': 'Nuevo León'},
+    '829': {'city': 'China', 'province': 'Nuevo León'},
+    
+    # Estado de México
+    '722': {'city': 'Toluca', 'province': 'Estado de México'},
+    '721': {'city': 'Zinacantepec', 'province': 'Estado de México'},
+    '723': {'city': 'Tenancingo', 'province': 'Estado de México'},
+    '724': {'city': 'Ixtapan de la Sal', 'province': 'Estado de México'},
+    '725': {'city': 'Santiago Tianguistenco', 'province': 'Estado de México'},
+    '726': {'city': 'Valle de Bravo', 'province': 'Estado de México'},
+    '728': {'city': 'Tejupilco', 'province': 'Estado de México'},
+    '588': {'city': 'Atlacomulco', 'province': 'Estado de México'},
+    '589': {'city': 'Jilotepec', 'province': 'Estado de México'},
+    '591': {'city': 'Texcoco', 'province': 'Estado de México'},
+    '592': {'city': 'San Martín de las Pirámides', 'province': 'Estado de México'},
+    '593': {'city': 'Ecatepec', 'province': 'Estado de México'},
+    '594': {'city': 'Tlalnepantla', 'province': 'Estado de México'},
+    '595': {'city': 'Naucalpan', 'province': 'Estado de México'},
+    '596': {'city': 'Cuautitlán', 'province': 'Estado de México'},
+    '597': {'city': 'Tultitlán', 'province': 'Estado de México'},
+    
+    # Puebla
     '222': {'city': 'Puebla', 'province': 'Puebla'},
+    '221': {'city': 'Cholula', 'province': 'Puebla'},
+    '223': {'city': 'Atlixco', 'province': 'Puebla'},
+    '224': {'city': 'Izúcar de Matamoros', 'province': 'Puebla'},
+    '225': {'city': 'Tecamachalco', 'province': 'Puebla'},
+    '226': {'city': 'San Martín Texmelucan', 'province': 'Puebla'},
+    '227': {'city': 'Huejotzingo', 'province': 'Puebla'},
+    '228': {'city': 'Teziutlán', 'province': 'Puebla'},
+    '229': {'city': 'Huauchinango', 'province': 'Puebla'},
+    '231': {'city': 'Chignahuapan', 'province': 'Puebla'},
+    '232': {'city': 'Zacatlán', 'province': 'Puebla'},
+    '233': {'city': 'Tehuacán', 'province': 'Puebla'},
+    '236': {'city': 'Acatlán', 'province': 'Puebla'},
+    '237': {'city': 'Ajalpan', 'province': 'Puebla'},
+    '238': {'city': 'Ciudad Serdán', 'province': 'Puebla'},
+    '243': {'city': 'Libres', 'province': 'Puebla'},
+    '244': {'city': 'Acatzingo', 'province': 'Puebla'},
+    '245': {'city': 'Tepeaca', 'province': 'Puebla'},
+    '246': {'city': 'Tlaxcala', 'province': 'Tlaxcala'},
+    '247': {'city': 'Apizaco', 'province': 'Tlaxcala'},
+    '248': {'city': 'Huamantla', 'province': 'Tlaxcala'},
+    '249': {'city': 'Calpulalpan', 'province': 'Tlaxcala'},
+    
+    # Querétaro
     '442': {'city': 'Querétaro', 'province': 'Querétaro'},
+    '441': {'city': 'San Juan del Río', 'province': 'Querétaro'},
+    '414': {'city': 'Jalpan', 'province': 'Querétaro'},
+    '419': {'city': 'Tequisquiapan', 'province': 'Querétaro'},
+    '427': {'city': 'Cadereyta', 'province': 'Querétaro'},
+    
+    # Guanajuato
     '477': {'city': 'León', 'province': 'Guanajuato'},
-    '656': {'city': 'Ciudad Juárez', 'province': 'Chihuahua'},
-    '664': {'city': 'Tijuana', 'province': 'Baja California'},
-    '999': {'city': 'Mérida', 'province': 'Yucatán'},
-    '998': {'city': 'Cancún', 'province': 'Quintana Roo'},
-    '449': {'city': 'Aguascalientes', 'province': 'Aguascalientes'},
-    '614': {'city': 'Chihuahua', 'province': 'Chihuahua'},
-    '667': {'city': 'Culiacán', 'province': 'Sinaloa'},
-    '669': {'city': 'Mazatlán', 'province': 'Sinaloa'},
-    '662': {'city': 'Hermosillo', 'province': 'Sonora'},
-    '871': {'city': 'Torreón', 'province': 'Coahuila'},
-    '844': {'city': 'Saltillo', 'province': 'Coahuila'},
-    '833': {'city': 'Tampico', 'province': 'Tamaulipas'},
+    '462': {'city': 'Irapuato', 'province': 'Guanajuato'},
+    '461': {'city': 'Celaya', 'province': 'Guanajuato'},
+    '464': {'city': 'Salamanca', 'province': 'Guanajuato'},
+    '466': {'city': 'Acámbaro', 'province': 'Guanajuato'},
+    '467': {'city': 'Salvatierra', 'province': 'Guanajuato'},
+    '468': {'city': 'Dolores Hidalgo', 'province': 'Guanajuato'},
+    '469': {'city': 'San Felipe', 'province': 'Guanajuato'},
+    '471': {'city': 'Silao', 'province': 'Guanajuato'},
+    '472': {'city': 'Guanajuato', 'province': 'Guanajuato'},
+    '473': {'city': 'San Miguel de Allende', 'province': 'Guanajuato'},
+    '474': {'city': 'San Francisco del Rincón', 'province': 'Guanajuato'},
+    '475': {'city': 'Purísima del Rincón', 'province': 'Guanajuato'},
+    '476': {'city': 'Pénjamo', 'province': 'Guanajuato'},
+    '478': {'city': 'Valle de Santiago', 'province': 'Guanajuato'},
+    
+    # Michoacán
     '443': {'city': 'Morelia', 'province': 'Michoacán'},
-    '961': {'city': 'Tuxtla Gutiérrez', 'province': 'Chiapas'},
-    '951': {'city': 'Oaxaca', 'province': 'Oaxaca'},
+    '351': {'city': 'Zamora', 'province': 'Michoacán'},
+    '352': {'city': 'Jiquilpan', 'province': 'Michoacán'},
+    '353': {'city': 'La Piedad', 'province': 'Michoacán'},
+    '354': {'city': 'Zacapu', 'province': 'Michoacán'},
+    '355': {'city': 'Uruapan', 'province': 'Michoacán'},
+    '356': {'city': 'Pátzcuaro', 'province': 'Michoacán'},
+    '357': {'city': 'Tacámbaro', 'province': 'Michoacán'},
+    '358': {'city': 'Apatzingán', 'province': 'Michoacán'},
+    '359': {'city': 'Nueva Italia', 'province': 'Michoacán'},
+    '381': {'city': 'Sahuayo', 'province': 'Michoacán'},
+    '382': {'city': 'Maravatío', 'province': 'Michoacán'},
+    '383': {'city': 'Zitácuaro', 'province': 'Michoacán'},
+    '384': {'city': 'Hidalgo', 'province': 'Michoacán'},
+    '421': {'city': 'Lázaro Cárdenas', 'province': 'Michoacán'},
+    '422': {'city': 'Coalcomán', 'province': 'Michoacán'},
+    '423': {'city': 'Los Reyes', 'province': 'Michoacán'},
+    '424': {'city': 'Paracho', 'province': 'Michoacán'},
+    '425': {'city': 'Huetamo', 'province': 'Michoacán'},
+    '426': {'city': 'Ciudad Hidalgo', 'province': 'Michoacán'},
+    
+    # Veracruz
     '229': {'city': 'Veracruz', 'province': 'Veracruz'},
     '228': {'city': 'Xalapa', 'province': 'Veracruz'},
-    '984': {'city': 'Playa del Carmen', 'province': 'Quintana Roo'},
-    '747': {'city': 'Acapulco', 'province': 'Guerrero'},
-    '722': {'city': 'Toluca', 'province': 'Estado de México'},
-    '777': {'city': 'Cuernavaca', 'province': 'Morelos'},
-    '492': {'city': 'Zacatecas', 'province': 'Zacatecas'},
-    '444': {'city': 'San Luis Potosí', 'province': 'San Luis Potosí'},
-    '322': {'city': 'Puerto Vallarta', 'province': 'Jalisco'},
+    '271': {'city': 'Córdoba', 'province': 'Veracruz'},
+    '272': {'city': 'Orizaba', 'province': 'Veracruz'},
+    '273': {'city': 'Fortín', 'province': 'Veracruz'},
+    '274': {'city': 'Tehuacán', 'province': 'Veracruz'},
+    '278': {'city': 'Cosamaloapan', 'province': 'Veracruz'},
+    '279': {'city': 'Tierra Blanca', 'province': 'Veracruz'},
+    '281': {'city': 'Poza Rica', 'province': 'Veracruz'},
+    '282': {'city': 'Tuxpan', 'province': 'Veracruz'},
+    '283': {'city': 'Papantla', 'province': 'Veracruz'},
+    '284': {'city': 'Martínez de la Torre', 'province': 'Veracruz'},
+    '285': {'city': 'Misantla', 'province': 'Veracruz'},
+    '286': {'city': 'San Andrés Tuxtla', 'province': 'Veracruz'},
+    '287': {'city': 'Acayucan', 'province': 'Veracruz'},
+    '288': {'city': 'Coatzacoalcos', 'province': 'Veracruz'},
+    '289': {'city': 'Minatitlán', 'province': 'Veracruz'},
+    '294': {'city': 'Las Choapas', 'province': 'Veracruz'},
+    '296': {'city': 'Alvarado', 'province': 'Veracruz'},
+    '297': {'city': 'Boca del Río', 'province': 'Veracruz'},
+    
+    # Chihuahua
+    '614': {'city': 'Chihuahua', 'province': 'Chihuahua'},
+    '656': {'city': 'Ciudad Juárez', 'province': 'Chihuahua'},
+    '625': {'city': 'Nuevo Casas Grandes', 'province': 'Chihuahua'},
+    '626': {'city': 'Cuauhtémoc', 'province': 'Chihuahua'},
+    '627': {'city': 'Madera', 'province': 'Chihuahua'},
+    '628': {'city': 'Parral', 'province': 'Chihuahua'},
+    '629': {'city': 'Camargo', 'province': 'Chihuahua'},
+    '635': {'city': 'Delicias', 'province': 'Chihuahua'},
+    '636': {'city': 'Jiménez', 'province': 'Chihuahua'},
+    '639': {'city': 'Ojinaga', 'province': 'Chihuahua'},
+    '648': {'city': 'Saucillo', 'province': 'Chihuahua'},
+    '649': {'city': 'Meoqui', 'province': 'Chihuahua'},
+    '652': {'city': 'Ascensión', 'province': 'Chihuahua'},
+    '659': {'city': 'Villa Ahumada', 'province': 'Chihuahua'},
+    
+    # Baja California
+    '664': {'city': 'Tijuana', 'province': 'Baja California'},
+    '663': {'city': 'Rosarito', 'province': 'Baja California'},
+    '665': {'city': 'Tecate', 'province': 'Baja California'},
+    '646': {'city': 'Ensenada', 'province': 'Baja California'},
+    '686': {'city': 'Mexicali', 'province': 'Baja California'},
+    '653': {'city': 'San Luis Río Colorado', 'province': 'Sonora'},
+    '658': {'city': 'San Felipe', 'province': 'Baja California'},
+    
+    # Baja California Sur
+    '612': {'city': 'La Paz', 'province': 'Baja California Sur'},
+    '613': {'city': 'Ciudad Constitución', 'province': 'Baja California Sur'},
+    '615': {'city': 'Guerrero Negro', 'province': 'Baja California Sur'},
     '624': {'city': 'Los Cabos', 'province': 'Baja California Sur'},
+    
+    # Sonora
+    '662': {'city': 'Hermosillo', 'province': 'Sonora'},
+    '622': {'city': 'Guaymas', 'province': 'Sonora'},
+    '623': {'city': 'Ciudad Obregón', 'province': 'Sonora'},
+    '631': {'city': 'Nogales', 'province': 'Sonora'},
+    '632': {'city': 'Puerto Peñasco', 'province': 'Sonora'},
+    '633': {'city': 'Caborca', 'province': 'Sonora'},
+    '634': {'city': 'Santa Ana', 'province': 'Sonora'},
+    '637': {'city': 'Cananea', 'province': 'Sonora'},
+    '638': {'city': 'Agua Prieta', 'province': 'Sonora'},
+    '641': {'city': 'Navojoa', 'province': 'Sonora'},
+    '642': {'city': 'Huatabampo', 'province': 'Sonora'},
+    '643': {'city': 'Álamos', 'province': 'Sonora'},
+    '644': {'city': 'Empalme', 'province': 'Sonora'},
+    '645': {'city': 'Ures', 'province': 'Sonora'},
+    '647': {'city': 'San Carlos', 'province': 'Sonora'},
+    
+    # Sinaloa
+    '667': {'city': 'Culiacán', 'province': 'Sinaloa'},
+    '668': {'city': 'Los Mochis', 'province': 'Sinaloa'},
+    '669': {'city': 'Mazatlán', 'province': 'Sinaloa'},
+    '672': {'city': 'El Fuerte', 'province': 'Sinaloa'},
+    '673': {'city': 'Guasave', 'province': 'Sinaloa'},
+    '674': {'city': 'Guamúchil', 'province': 'Sinaloa'},
+    '675': {'city': 'Mocorito', 'province': 'Sinaloa'},
+    '687': {'city': 'Escuinapa', 'province': 'Sinaloa'},
+    '694': {'city': 'Rosario', 'province': 'Sinaloa'},
+    '695': {'city': 'El Dorado', 'province': 'Sinaloa'},
+    '696': {'city': 'Eldorado', 'province': 'Sinaloa'},
+    '697': {'city': 'La Cruz', 'province': 'Sinaloa'},
+    
+    # Coahuila
+    '844': {'city': 'Saltillo', 'province': 'Coahuila'},
+    '871': {'city': 'Torreón', 'province': 'Coahuila'},
+    '861': {'city': 'Piedras Negras', 'province': 'Coahuila'},
+    '862': {'city': 'Acuña', 'province': 'Coahuila'},
+    '864': {'city': 'Múzquiz', 'province': 'Coahuila'},
+    '866': {'city': 'Monclova', 'province': 'Coahuila'},
+    '867': {'city': 'Sabinas', 'province': 'Coahuila'},
+    '869': {'city': 'Nueva Rosita', 'province': 'Coahuila'},
+    '872': {'city': 'Gómez Palacio', 'province': 'Durango'},
+    '873': {'city': 'Lerdo', 'province': 'Durango'},
+    '878': {'city': 'Parras', 'province': 'Coahuila'},
+    
+    # Tamaulipas
+    '833': {'city': 'Tampico', 'province': 'Tamaulipas'},
+    '834': {'city': 'Ciudad Victoria', 'province': 'Tamaulipas'},
+    '835': {'city': 'Ciudad Mante', 'province': 'Tamaulipas'},
+    '836': {'city': 'González', 'province': 'Tamaulipas'},
+    '841': {'city': 'San Fernando', 'province': 'Tamaulipas'},
+    '842': {'city': 'Soto La Marina', 'province': 'Tamaulipas'},
+    '846': {'city': 'Altamira', 'province': 'Tamaulipas'},
+    '868': {'city': 'Matamoros', 'province': 'Tamaulipas'},
+    '891': {'city': 'Nuevo Laredo', 'province': 'Tamaulipas'},
+    '892': {'city': 'Reynosa', 'province': 'Tamaulipas'},
+    '893': {'city': 'Río Bravo', 'province': 'Tamaulipas'},
+    '894': {'city': 'Valle Hermoso', 'province': 'Tamaulipas'},
+    '897': {'city': 'Ciudad Miguel Alemán', 'province': 'Tamaulipas'},
+    '899': {'city': 'Reynosa', 'province': 'Tamaulipas'},
+    
+    # Durango
+    '618': {'city': 'Durango', 'province': 'Durango'},
+    '671': {'city': 'Santiago Papasquiaro', 'province': 'Durango'},
+    '676': {'city': 'Canatlán', 'province': 'Durango'},
+    '677': {'city': 'Nuevo Ideal', 'province': 'Durango'},
+    
+    # Yucatán
+    '999': {'city': 'Mérida', 'province': 'Yucatán'},
+    '985': {'city': 'Tizimín', 'province': 'Yucatán'},
+    '986': {'city': 'Valladolid', 'province': 'Yucatán'},
+    '988': {'city': 'Motul', 'province': 'Yucatán'},
+    '991': {'city': 'Ticul', 'province': 'Yucatán'},
+    '992': {'city': 'Progreso', 'province': 'Yucatán'},
+    '997': {'city': 'Izamal', 'province': 'Yucatán'},
+    
+    # Quintana Roo
+    '998': {'city': 'Cancún', 'province': 'Quintana Roo'},
+    '984': {'city': 'Playa del Carmen', 'province': 'Quintana Roo'},
+    '983': {'city': 'Chetumal', 'province': 'Quintana Roo'},
+    '987': {'city': 'Cozumel', 'province': 'Quintana Roo'},
+    '994': {'city': 'Felipe Carrillo Puerto', 'province': 'Quintana Roo'},
+    
+    # Chiapas
+    '961': {'city': 'Tuxtla Gutiérrez', 'province': 'Chiapas'},
+    '962': {'city': 'San Cristóbal', 'province': 'Chiapas'},
+    '963': {'city': 'Comitán', 'province': 'Chiapas'},
+    '964': {'city': 'Tapachula', 'province': 'Chiapas'},
+    '965': {'city': 'Arriaga', 'province': 'Chiapas'},
+    '966': {'city': 'Tonalá', 'province': 'Chiapas'},
+    '967': {'city': 'San Cristóbal de las Casas', 'province': 'Chiapas'},
+    '968': {'city': 'Villaflores', 'province': 'Chiapas'},
+    '916': {'city': 'Palenque', 'province': 'Chiapas'},
+    '917': {'city': 'Pichucalco', 'province': 'Chiapas'},
+    '918': {'city': 'Ocosingo', 'province': 'Chiapas'},
+    '919': {'city': 'Yajalón', 'province': 'Chiapas'},
+    '932': {'city': 'Huixtla', 'province': 'Chiapas'},
+    '934': {'city': 'Motozintla', 'province': 'Chiapas'},
+    
+    # Oaxaca
+    '951': {'city': 'Oaxaca', 'province': 'Oaxaca'},
+    '953': {'city': 'Huajuapan', 'province': 'Oaxaca'},
+    '954': {'city': 'Puerto Escondido', 'province': 'Oaxaca'},
+    '958': {'city': 'Salina Cruz', 'province': 'Oaxaca'},
+    '971': {'city': 'Tehuantepec', 'province': 'Oaxaca'},
+    '972': {'city': 'Juchitán', 'province': 'Oaxaca'},
+    
+    # Guerrero
+    '747': {'city': 'Acapulco', 'province': 'Guerrero'},
+    '733': {'city': 'Iguala', 'province': 'Guerrero'},
+    '734': {'city': 'Taxco', 'province': 'Guerrero'},
+    '735': {'city': 'Teloloapan', 'province': 'Guerrero'},
+    '736': {'city': 'Chilpancingo', 'province': 'Guerrero'},
+    '737': {'city': 'Tixtla', 'province': 'Guerrero'},
+    '741': {'city': 'Chilapa', 'province': 'Guerrero'},
+    '742': {'city': 'Tlapa', 'province': 'Guerrero'},
+    '743': {'city': 'Ayutla', 'province': 'Guerrero'},
+    '744': {'city': 'Acapulco', 'province': 'Guerrero'},
+    '745': {'city': 'Coyuca de Benítez', 'province': 'Guerrero'},
+    '751': {'city': 'Altamirano', 'province': 'Guerrero'},
+    '753': {'city': 'Ciudad Altamirano', 'province': 'Guerrero'},
+    '754': {'city': 'Zihuatanejo', 'province': 'Guerrero'},
+    '755': {'city': 'Ixtapa', 'province': 'Guerrero'},
+    '756': {'city': 'Petatlan', 'province': 'Guerrero'},
+    '757': {'city': 'Coyuca de Catalán', 'province': 'Guerrero'},
+    '758': {'city': 'Ometepec', 'province': 'Guerrero'},
+    
+    # Morelos
+    '777': {'city': 'Cuernavaca', 'province': 'Morelos'},
+    '731': {'city': 'Jojutla', 'province': 'Morelos'},
+    '734': {'city': 'Cuautla', 'province': 'Morelos'},
+    '735': {'city': 'Yautepec', 'province': 'Morelos'},
+    '737': {'city': 'Puente de Ixtla', 'province': 'Morelos'},
+    '738': {'city': 'Temixco', 'province': 'Morelos'},
+    '739': {'city': 'Jiutepec', 'province': 'Morelos'},
+    
+    # Hidalgo
+    '771': {'city': 'Pachuca', 'province': 'Hidalgo'},
+    '772': {'city': 'Actopan', 'province': 'Hidalgo'},
+    '773': {'city': 'Tulancingo', 'province': 'Hidalgo'},
+    '774': {'city': 'Apan', 'province': 'Hidalgo'},
+    '775': {'city': 'Tepeji del Río', 'province': 'Hidalgo'},
+    '778': {'city': 'Huejutla', 'province': 'Hidalgo'},
+    '779': {'city': 'Tula', 'province': 'Hidalgo'},
+    '789': {'city': 'Ixmiquilpan', 'province': 'Hidalgo'},
+    
+    # San Luis Potosí
+    '444': {'city': 'San Luis Potosí', 'province': 'San Luis Potosí'},
+    '481': {'city': 'Matehuala', 'province': 'San Luis Potosí'},
+    '482': {'city': 'Cedral', 'province': 'San Luis Potosí'},
+    '483': {'city': 'Ciudad Valles', 'province': 'San Luis Potosí'},
+    '485': {'city': 'Tamazunchale', 'province': 'San Luis Potosí'},
+    '486': {'city': 'Rioverde', 'province': 'San Luis Potosí'},
+    '487': {'city': 'Cerritos', 'province': 'San Luis Potosí'},
+    '488': {'city': 'Salinas', 'province': 'San Luis Potosí'},
+    '489': {'city': 'Santa María del Río', 'province': 'San Luis Potosí'},
+    
+    # Aguascalientes
+    '449': {'city': 'Aguascalientes', 'province': 'Aguascalientes'},
+    '465': {'city': 'Calvillo', 'province': 'Aguascalientes'},
+    
+    # Zacatecas
+    '492': {'city': 'Zacatecas', 'province': 'Zacatecas'},
+    '493': {'city': 'Fresnillo', 'province': 'Zacatecas'},
+    '494': {'city': 'Jerez', 'province': 'Zacatecas'},
+    '495': {'city': 'Jalpa', 'province': 'Zacatecas'},
+    '496': {'city': 'Nochistlán', 'province': 'Zacatecas'},
+    '498': {'city': 'Río Grande', 'province': 'Zacatecas'},
+    '499': {'city': 'Concepción del Oro', 'province': 'Zacatecas'},
+    
+    # Nayarit
+    '311': {'city': 'Tepic', 'province': 'Nayarit'},
+    '319': {'city': 'Compostela', 'province': 'Nayarit'},
+    '323': {'city': 'Acaponeta', 'province': 'Nayarit'},
+    '324': {'city': 'Santiago Ixcuintla', 'province': 'Nayarit'},
+    '325': {'city': 'Tecuala', 'province': 'Nayarit'},
+    '327': {'city': 'Ixtlán del Río', 'province': 'Nayarit'},
+    '329': {'city': 'Bahía de Banderas', 'province': 'Nayarit'},
+    
+    # Colima
+    '312': {'city': 'Colima', 'province': 'Colima'},
+    '313': {'city': 'Manzanillo', 'province': 'Colima'},
+    '314': {'city': 'Tecomán', 'province': 'Colima'},
+    '316': {'city': 'Coquimatlán', 'province': 'Colima'},
+    
+    # Tabasco
+    '993': {'city': 'Villahermosa', 'province': 'Tabasco'},
+    '914': {'city': 'Cárdenas', 'province': 'Tabasco'},
+    '917': {'city': 'Tenosique', 'province': 'Tabasco'},
+    '923': {'city': 'Comalcalco', 'province': 'Tabasco'},
+    '933': {'city': 'Macuspana', 'province': 'Tabasco'},
+    '934': {'city': 'Emiliano Zapata', 'province': 'Tabasco'},
+    '936': {'city': 'Huimanguillo', 'province': 'Tabasco'},
+    '937': {'city': 'Paraíso', 'province': 'Tabasco'},
+    
+    # Campeche
+    '981': {'city': 'Campeche', 'province': 'Campeche'},
+    '938': {'city': 'Ciudad del Carmen', 'province': 'Campeche'},
+    '982': {'city': 'Champotón', 'province': 'Campeche'},
+    '996': {'city': 'Calkiní', 'province': 'Campeche'},
 }
 
 # ============================================================
@@ -628,26 +991,126 @@ AREA_CODES_SPAIN = {
 # CÓDIGOS DE ÁREA - BRASIL
 # ============================================================
 AREA_CODES_BRAZIL = {
+    # São Paulo
     '11': {'city': 'São Paulo', 'province': 'São Paulo'},
+    '12': {'city': 'São José dos Campos', 'province': 'São Paulo'},
+    '13': {'city': 'Santos', 'province': 'São Paulo'},
+    '14': {'city': 'Bauru', 'province': 'São Paulo'},
+    '15': {'city': 'Sorocaba', 'province': 'São Paulo'},
+    '16': {'city': 'Ribeirão Preto', 'province': 'São Paulo'},
+    '17': {'city': 'São José do Rio Preto', 'province': 'São Paulo'},
+    '18': {'city': 'Presidente Prudente', 'province': 'São Paulo'},
+    '19': {'city': 'Campinas', 'province': 'São Paulo'},
+    
+    # Rio de Janeiro
     '21': {'city': 'Rio de Janeiro', 'province': 'Rio de Janeiro'},
+    '22': {'city': 'Campos dos Goytacazes', 'province': 'Rio de Janeiro'},
+    '24': {'city': 'Volta Redonda', 'province': 'Rio de Janeiro'},
+    
+    # Espírito Santo
+    '27': {'city': 'Vitória', 'province': 'Espírito Santo'},
+    '28': {'city': 'Cachoeiro de Itapemirim', 'province': 'Espírito Santo'},
+    
+    # Minas Gerais
     '31': {'city': 'Belo Horizonte', 'province': 'Minas Gerais'},
+    '32': {'city': 'Juiz de Fora', 'province': 'Minas Gerais'},
+    '33': {'city': 'Governador Valadares', 'province': 'Minas Gerais'},
+    '34': {'city': 'Uberlândia', 'province': 'Minas Gerais'},
+    '35': {'city': 'Poços de Caldas', 'province': 'Minas Gerais'},
+    '37': {'city': 'Divinópolis', 'province': 'Minas Gerais'},
+    '38': {'city': 'Montes Claros', 'province': 'Minas Gerais'},
+    
+    # Paraná
     '41': {'city': 'Curitiba', 'province': 'Paraná'},
-    '51': {'city': 'Porto Alegre', 'province': 'Rio Grande do Sul'},
-    '61': {'city': 'Brasília', 'province': 'Distrito Federal'},
-    '71': {'city': 'Salvador', 'province': 'Bahia'},
-    '81': {'city': 'Recife', 'province': 'Pernambuco'},
-    '85': {'city': 'Fortaleza', 'province': 'Ceará'},
-    '91': {'city': 'Belém', 'province': 'Pará'},
-    '92': {'city': 'Manaus', 'province': 'Amazonas'},
+    '42': {'city': 'Ponta Grossa', 'province': 'Paraná'},
+    '43': {'city': 'Londrina', 'province': 'Paraná'},
+    '44': {'city': 'Maringá', 'province': 'Paraná'},
+    '45': {'city': 'Foz do Iguaçu', 'province': 'Paraná'},
+    '46': {'city': 'Francisco Beltrão', 'province': 'Paraná'},
+    
+    # Santa Catarina
     '47': {'city': 'Joinville', 'province': 'Santa Catarina'},
     '48': {'city': 'Florianópolis', 'province': 'Santa Catarina'},
-    '19': {'city': 'Campinas', 'province': 'São Paulo'},
-    '27': {'city': 'Vitória', 'province': 'Espírito Santo'},
+    '49': {'city': 'Chapecó', 'province': 'Santa Catarina'},
+    
+    # Rio Grande do Sul
+    '51': {'city': 'Porto Alegre', 'province': 'Rio Grande do Sul'},
+    '53': {'city': 'Pelotas', 'province': 'Rio Grande do Sul'},
+    '54': {'city': 'Caxias do Sul', 'province': 'Rio Grande do Sul'},
+    '55': {'city': 'Santa Maria', 'province': 'Rio Grande do Sul'},
+    
+    # Distrito Federal (Brasília)
+    '61': {'city': 'Brasília', 'province': 'Distrito Federal'},
+    
+    # Goiás
     '62': {'city': 'Goiânia', 'province': 'Goiás'},
-    '67': {'city': 'Campo Grande', 'province': 'Mato Grosso do Sul'},
+    '64': {'city': 'Rio Verde', 'province': 'Goiás'},
+    
+    # Tocantins
+    '63': {'city': 'Palmas', 'province': 'Tocantins'},
+    
+    # Mato Grosso
     '65': {'city': 'Cuiabá', 'province': 'Mato Grosso'},
+    '66': {'city': 'Rondonópolis', 'province': 'Mato Grosso'},
+    
+    # Mato Grosso do Sul
+    '67': {'city': 'Campo Grande', 'province': 'Mato Grosso do Sul'},
+    
+    # Acre
+    '68': {'city': 'Rio Branco', 'province': 'Acre'},
+    
+    # Rondônia
+    '69': {'city': 'Porto Velho', 'province': 'Rondônia'},
+    
+    # Bahia
+    '71': {'city': 'Salvador', 'province': 'Bahia'},
+    '73': {'city': 'Ilhéus', 'province': 'Bahia'},
+    '74': {'city': 'Juazeiro', 'province': 'Bahia'},
+    '75': {'city': 'Feira de Santana', 'province': 'Bahia'},
+    '77': {'city': 'Vitória da Conquista', 'province': 'Bahia'},
+    
+    # Sergipe
+    '79': {'city': 'Aracaju', 'province': 'Sergipe'},
+    
+    # Pernambuco
+    '81': {'city': 'Recife', 'province': 'Pernambuco'},
+    '87': {'city': 'Petrolina', 'province': 'Pernambuco'},
+    
+    # Alagoas
     '82': {'city': 'Maceió', 'province': 'Alagoas'},
+    
+    # Paraíba
+    '83': {'city': 'João Pessoa', 'province': 'Paraíba'},
+    
+    # Rio Grande do Norte
     '84': {'city': 'Natal', 'province': 'Rio Grande do Norte'},
+    
+    # Ceará
+    '85': {'city': 'Fortaleza', 'province': 'Ceará'},
+    '88': {'city': 'Juazeiro do Norte', 'province': 'Ceará'},
+    
+    # Piauí
+    '86': {'city': 'Teresina', 'province': 'Piauí'},
+    '89': {'city': 'Picos', 'province': 'Piauí'},
+    
+    # Maranhão
+    '98': {'city': 'São Luís', 'province': 'Maranhão'},
+    '99': {'city': 'Imperatriz', 'province': 'Maranhão'},
+    
+    # Pará
+    '91': {'city': 'Belém', 'province': 'Pará'},
+    '93': {'city': 'Santarém', 'province': 'Pará'},
+    '94': {'city': 'Marabá', 'province': 'Pará'},
+    
+    # Amazonas
+    '92': {'city': 'Manaus', 'province': 'Amazonas'},
+    '97': {'city': 'Coari', 'province': 'Amazonas'},
+    
+    # Roraima
+    '95': {'city': 'Boa Vista', 'province': 'Roraima'},
+    
+    # Amapá
+    '96': {'city': 'Macapá', 'province': 'Amapá'},
 }
 
 # ============================================================
@@ -682,20 +1145,416 @@ AREA_CODES_ITALY = {
 # CÓDIGOS DE ÁREA - USA
 # ============================================================
 AREA_CODES_USA = {
-    '212': {'city': 'Nueva York', 'province': 'NY'},
-    '213': {'city': 'Los Ángeles', 'province': 'CA'},
-    '312': {'city': 'Chicago', 'province': 'IL'},
-    '305': {'city': 'Miami', 'province': 'FL'},
-    '415': {'city': 'San Francisco', 'province': 'CA'},
+    # New York
+    '212': {'city': 'Manhattan', 'province': 'New York'},
+    '315': {'city': 'Syracuse', 'province': 'New York'},
+    '347': {'city': 'New York City', 'province': 'New York'},
+    '516': {'city': 'Long Island', 'province': 'New York'},
+    '518': {'city': 'Albany', 'province': 'New York'},
+    '585': {'city': 'Rochester', 'province': 'New York'},
+    '607': {'city': 'Binghamton', 'province': 'New York'},
+    '631': {'city': 'Suffolk County', 'province': 'New York'},
+    '646': {'city': 'Manhattan', 'province': 'New York'},
+    '716': {'city': 'Buffalo', 'province': 'New York'},
+    '718': {'city': 'Brooklyn/Queens', 'province': 'New York'},
+    '845': {'city': 'Hudson Valley', 'province': 'New York'},
+    '914': {'city': 'Westchester', 'province': 'New York'},
+    '917': {'city': 'New York City', 'province': 'New York'},
+    '929': {'city': 'New York City', 'province': 'New York'},
+    
+    # California
+    '209': {'city': 'Stockton', 'province': 'California'},
+    '213': {'city': 'Los Angeles', 'province': 'California'},
+    '310': {'city': 'Santa Monica', 'province': 'California'},
+    '323': {'city': 'Los Angeles', 'province': 'California'},
+    '408': {'city': 'San Jose', 'province': 'California'},
+    '415': {'city': 'San Francisco', 'province': 'California'},
+    '424': {'city': 'Los Angeles', 'province': 'California'},
+    '442': {'city': 'Oceanside', 'province': 'California'},
+    '510': {'city': 'Oakland', 'province': 'California'},
+    '530': {'city': 'Redding', 'province': 'California'},
+    '559': {'city': 'Fresno', 'province': 'California'},
+    '562': {'city': 'Long Beach', 'province': 'California'},
+    '619': {'city': 'San Diego', 'province': 'California'},
+    '626': {'city': 'Pasadena', 'province': 'California'},
+    '650': {'city': 'San Mateo', 'province': 'California'},
+    '657': {'city': 'Anaheim', 'province': 'California'},
+    '661': {'city': 'Bakersfield', 'province': 'California'},
+    '669': {'city': 'San Jose', 'province': 'California'},
+    '707': {'city': 'Santa Rosa', 'province': 'California'},
+    '714': {'city': 'Anaheim', 'province': 'California'},
+    '747': {'city': 'Los Angeles', 'province': 'California'},
+    '760': {'city': 'Palm Springs', 'province': 'California'},
+    '805': {'city': 'Santa Barbara', 'province': 'California'},
+    '818': {'city': 'Burbank', 'province': 'California'},
+    '831': {'city': 'Monterey', 'province': 'California'},
+    '858': {'city': 'San Diego', 'province': 'California'},
+    '909': {'city': 'San Bernardino', 'province': 'California'},
+    '916': {'city': 'Sacramento', 'province': 'California'},
+    '925': {'city': 'Concord', 'province': 'California'},
+    '949': {'city': 'Irvine', 'province': 'California'},
+    '951': {'city': 'Riverside', 'province': 'California'},
+    
+    # Texas
+    '210': {'city': 'San Antonio', 'province': 'Texas'},
+    '214': {'city': 'Dallas', 'province': 'Texas'},
+    '254': {'city': 'Waco', 'province': 'Texas'},
+    '281': {'city': 'Houston', 'province': 'Texas'},
+    '325': {'city': 'Abilene', 'province': 'Texas'},
+    '346': {'city': 'Houston', 'province': 'Texas'},
+    '361': {'city': 'Corpus Christi', 'province': 'Texas'},
+    '409': {'city': 'Beaumont', 'province': 'Texas'},
+    '430': {'city': 'Tyler', 'province': 'Texas'},
+    '432': {'city': 'Midland', 'province': 'Texas'},
+    '469': {'city': 'Dallas', 'province': 'Texas'},
+    '512': {'city': 'Austin', 'province': 'Texas'},
+    '682': {'city': 'Fort Worth', 'province': 'Texas'},
+    '713': {'city': 'Houston', 'province': 'Texas'},
+    '737': {'city': 'Austin', 'province': 'Texas'},
+    '806': {'city': 'Lubbock', 'province': 'Texas'},
+    '817': {'city': 'Fort Worth', 'province': 'Texas'},
+    '830': {'city': 'Fredericksburg', 'province': 'Texas'},
+    '832': {'city': 'Houston', 'province': 'Texas'},
+    '903': {'city': 'Tyler', 'province': 'Texas'},
+    '915': {'city': 'El Paso', 'province': 'Texas'},
+    '936': {'city': 'Conroe', 'province': 'Texas'},
+    '940': {'city': 'Denton', 'province': 'Texas'},
+    '956': {'city': 'Laredo', 'province': 'Texas'},
+    '972': {'city': 'Dallas', 'province': 'Texas'},
+    '979': {'city': 'College Station', 'province': 'Texas'},
+    
+    # Florida
+    '239': {'city': 'Fort Myers', 'province': 'Florida'},
+    '305': {'city': 'Miami', 'province': 'Florida'},
+    '321': {'city': 'Orlando', 'province': 'Florida'},
+    '352': {'city': 'Gainesville', 'province': 'Florida'},
+    '386': {'city': 'Daytona Beach', 'province': 'Florida'},
+    '407': {'city': 'Orlando', 'province': 'Florida'},
+    '561': {'city': 'West Palm Beach', 'province': 'Florida'},
+    '727': {'city': 'St. Petersburg', 'province': 'Florida'},
+    '754': {'city': 'Fort Lauderdale', 'province': 'Florida'},
+    '772': {'city': 'Port St. Lucie', 'province': 'Florida'},
+    '786': {'city': 'Miami', 'province': 'Florida'},
+    '813': {'city': 'Tampa', 'province': 'Florida'},
+    '850': {'city': 'Tallahassee', 'province': 'Florida'},
+    '863': {'city': 'Lakeland', 'province': 'Florida'},
+    '904': {'city': 'Jacksonville', 'province': 'Florida'},
+    '941': {'city': 'Sarasota', 'province': 'Florida'},
+    '954': {'city': 'Fort Lauderdale', 'province': 'Florida'},
+    
+    # Illinois
+    '217': {'city': 'Springfield', 'province': 'Illinois'},
+    '224': {'city': 'Chicago Suburbs', 'province': 'Illinois'},
+    '309': {'city': 'Peoria', 'province': 'Illinois'},
+    '312': {'city': 'Chicago', 'province': 'Illinois'},
+    '331': {'city': 'Aurora', 'province': 'Illinois'},
+    '618': {'city': 'Belleville', 'province': 'Illinois'},
+    '630': {'city': 'Naperville', 'province': 'Illinois'},
+    '708': {'city': 'Cicero', 'province': 'Illinois'},
+    '773': {'city': 'Chicago', 'province': 'Illinois'},
+    '779': {'city': 'Rockford', 'province': 'Illinois'},
+    '815': {'city': 'Rockford', 'province': 'Illinois'},
+    '847': {'city': 'Evanston', 'province': 'Illinois'},
+    '872': {'city': 'Chicago', 'province': 'Illinois'},
+    
+    # Pennsylvania
+    '215': {'city': 'Philadelphia', 'province': 'Pennsylvania'},
+    '267': {'city': 'Philadelphia', 'province': 'Pennsylvania'},
+    '272': {'city': 'Scranton', 'province': 'Pennsylvania'},
+    '412': {'city': 'Pittsburgh', 'province': 'Pennsylvania'},
+    '484': {'city': 'Allentown', 'province': 'Pennsylvania'},
+    '570': {'city': 'Scranton', 'province': 'Pennsylvania'},
+    '610': {'city': 'Allentown', 'province': 'Pennsylvania'},
+    '717': {'city': 'Harrisburg', 'province': 'Pennsylvania'},
+    '724': {'city': 'New Castle', 'province': 'Pennsylvania'},
+    '814': {'city': 'Erie', 'province': 'Pennsylvania'},
+    '878': {'city': 'Pittsburgh', 'province': 'Pennsylvania'},
+    
+    # Ohio
+    '216': {'city': 'Cleveland', 'province': 'Ohio'},
+    '220': {'city': 'Newark', 'province': 'Ohio'},
+    '234': {'city': 'Akron', 'province': 'Ohio'},
+    '330': {'city': 'Akron', 'province': 'Ohio'},
+    '380': {'city': 'Columbus', 'province': 'Ohio'},
+    '419': {'city': 'Toledo', 'province': 'Ohio'},
+    '440': {'city': 'Parma', 'province': 'Ohio'},
+    '513': {'city': 'Cincinnati', 'province': 'Ohio'},
+    '567': {'city': 'Toledo', 'province': 'Ohio'},
+    '614': {'city': 'Columbus', 'province': 'Ohio'},
+    '740': {'city': 'Lancaster', 'province': 'Ohio'},
+    '937': {'city': 'Dayton', 'province': 'Ohio'},
+    
+    # Georgia
+    '229': {'city': 'Albany', 'province': 'Georgia'},
+    '404': {'city': 'Atlanta', 'province': 'Georgia'},
+    '470': {'city': 'Atlanta', 'province': 'Georgia'},
+    '478': {'city': 'Macon', 'province': 'Georgia'},
+    '678': {'city': 'Atlanta', 'province': 'Georgia'},
+    '706': {'city': 'Augusta', 'province': 'Georgia'},
+    '762': {'city': 'Augusta', 'province': 'Georgia'},
+    '770': {'city': 'Marietta', 'province': 'Georgia'},
+    '912': {'city': 'Savannah', 'province': 'Georgia'},
+    '943': {'city': 'Atlanta', 'province': 'Georgia'},
+    
+    # North Carolina
+    '252': {'city': 'Greenville', 'province': 'North Carolina'},
+    '336': {'city': 'Greensboro', 'province': 'North Carolina'},
+    '704': {'city': 'Charlotte', 'province': 'North Carolina'},
+    '743': {'city': 'Greensboro', 'province': 'North Carolina'},
+    '828': {'city': 'Asheville', 'province': 'North Carolina'},
+    '910': {'city': 'Fayetteville', 'province': 'North Carolina'},
+    '919': {'city': 'Raleigh', 'province': 'North Carolina'},
+    '980': {'city': 'Charlotte', 'province': 'North Carolina'},
+    '984': {'city': 'Raleigh', 'province': 'North Carolina'},
+    
+    # Michigan
+    '231': {'city': 'Muskegon', 'province': 'Michigan'},
+    '248': {'city': 'Troy', 'province': 'Michigan'},
+    '269': {'city': 'Kalamazoo', 'province': 'Michigan'},
+    '313': {'city': 'Detroit', 'province': 'Michigan'},
+    '517': {'city': 'Lansing', 'province': 'Michigan'},
+    '586': {'city': 'Warren', 'province': 'Michigan'},
+    '616': {'city': 'Grand Rapids', 'province': 'Michigan'},
+    '734': {'city': 'Ann Arbor', 'province': 'Michigan'},
+    '810': {'city': 'Flint', 'province': 'Michigan'},
+    '906': {'city': 'Marquette', 'province': 'Michigan'},
+    '947': {'city': 'Troy', 'province': 'Michigan'},
+    '989': {'city': 'Saginaw', 'province': 'Michigan'},
+    
+    # New Jersey
+    '201': {'city': 'Jersey City', 'province': 'New Jersey'},
+    '551': {'city': 'Jersey City', 'province': 'New Jersey'},
+    '609': {'city': 'Trenton', 'province': 'New Jersey'},
+    '732': {'city': 'Edison', 'province': 'New Jersey'},
+    '848': {'city': 'Edison', 'province': 'New Jersey'},
+    '856': {'city': 'Camden', 'province': 'New Jersey'},
+    '862': {'city': 'Newark', 'province': 'New Jersey'},
+    '908': {'city': 'Elizabeth', 'province': 'New Jersey'},
+    '973': {'city': 'Newark', 'province': 'New Jersey'},
+    
+    # Virginia
+    '276': {'city': 'Bristol', 'province': 'Virginia'},
+    '434': {'city': 'Lynchburg', 'province': 'Virginia'},
+    '540': {'city': 'Roanoke', 'province': 'Virginia'},
+    '571': {'city': 'Arlington', 'province': 'Virginia'},
+    '703': {'city': 'Arlington', 'province': 'Virginia'},
+    '757': {'city': 'Norfolk', 'province': 'Virginia'},
+    '804': {'city': 'Richmond', 'province': 'Virginia'},
+    
+    # Washington
+    '206': {'city': 'Seattle', 'province': 'Washington'},
+    '253': {'city': 'Tacoma', 'province': 'Washington'},
+    '360': {'city': 'Olympia', 'province': 'Washington'},
+    '425': {'city': 'Bellevue', 'province': 'Washington'},
+    '509': {'city': 'Spokane', 'province': 'Washington'},
+    '564': {'city': 'Olympia', 'province': 'Washington'},
+    
+    # Massachusetts
+    '339': {'city': 'Boston', 'province': 'Massachusetts'},
+    '351': {'city': 'Lowell', 'province': 'Massachusetts'},
+    '413': {'city': 'Springfield', 'province': 'Massachusetts'},
+    '508': {'city': 'Worcester', 'province': 'Massachusetts'},
+    '617': {'city': 'Boston', 'province': 'Massachusetts'},
+    '774': {'city': 'Worcester', 'province': 'Massachusetts'},
+    '781': {'city': 'Boston', 'province': 'Massachusetts'},
+    '857': {'city': 'Boston', 'province': 'Massachusetts'},
+    '978': {'city': 'Lowell', 'province': 'Massachusetts'},
+    
+    # Arizona
+    '480': {'city': 'Mesa', 'province': 'Arizona'},
+    '520': {'city': 'Tucson', 'province': 'Arizona'},
+    '602': {'city': 'Phoenix', 'province': 'Arizona'},
+    '623': {'city': 'Glendale', 'province': 'Arizona'},
+    '928': {'city': 'Flagstaff', 'province': 'Arizona'},
+    
+    # Tennessee
+    '423': {'city': 'Chattanooga', 'province': 'Tennessee'},
+    '615': {'city': 'Nashville', 'province': 'Tennessee'},
+    '629': {'city': 'Nashville', 'province': 'Tennessee'},
+    '731': {'city': 'Jackson', 'province': 'Tennessee'},
+    '865': {'city': 'Knoxville', 'province': 'Tennessee'},
+    '901': {'city': 'Memphis', 'province': 'Tennessee'},
+    '931': {'city': 'Clarksville', 'province': 'Tennessee'},
+    
+    # Indiana
+    '219': {'city': 'Gary', 'province': 'Indiana'},
+    '260': {'city': 'Fort Wayne', 'province': 'Indiana'},
+    '317': {'city': 'Indianapolis', 'province': 'Indiana'},
+    '463': {'city': 'Indianapolis', 'province': 'Indiana'},
+    '574': {'city': 'South Bend', 'province': 'Indiana'},
+    '765': {'city': 'Muncie', 'province': 'Indiana'},
+    '812': {'city': 'Evansville', 'province': 'Indiana'},
+    '930': {'city': 'Evansville', 'province': 'Indiana'},
+    
+    # Missouri
+    '314': {'city': 'St. Louis', 'province': 'Missouri'},
+    '417': {'city': 'Springfield', 'province': 'Missouri'},
+    '573': {'city': 'Jefferson City', 'province': 'Missouri'},
+    '636': {'city': 'Chesterfield', 'province': 'Missouri'},
+    '660': {'city': 'Sedalia', 'province': 'Missouri'},
+    '816': {'city': 'Kansas City', 'province': 'Missouri'},
+    
+    # Maryland
+    '240': {'city': 'Rockville', 'province': 'Maryland'},
+    '301': {'city': 'Rockville', 'province': 'Maryland'},
+    '410': {'city': 'Baltimore', 'province': 'Maryland'},
+    '443': {'city': 'Baltimore', 'province': 'Maryland'},
+    '667': {'city': 'Baltimore', 'province': 'Maryland'},
+    
+    # Wisconsin
+    '262': {'city': 'Kenosha', 'province': 'Wisconsin'},
+    '414': {'city': 'Milwaukee', 'province': 'Wisconsin'},
+    '534': {'city': 'Milwaukee', 'province': 'Wisconsin'},
+    '608': {'city': 'Madison', 'province': 'Wisconsin'},
+    '715': {'city': 'Eau Claire', 'province': 'Wisconsin'},
+    '920': {'city': 'Green Bay', 'province': 'Wisconsin'},
+    
+    # Colorado
+    '303': {'city': 'Denver', 'province': 'Colorado'},
+    '719': {'city': 'Colorado Springs', 'province': 'Colorado'},
+    '720': {'city': 'Denver', 'province': 'Colorado'},
+    '970': {'city': 'Fort Collins', 'province': 'Colorado'},
+    
+    # Minnesota
+    '218': {'city': 'Duluth', 'province': 'Minnesota'},
+    '320': {'city': 'St. Cloud', 'province': 'Minnesota'},
+    '507': {'city': 'Rochester', 'province': 'Minnesota'},
+    '612': {'city': 'Minneapolis', 'province': 'Minnesota'},
+    '651': {'city': 'St. Paul', 'province': 'Minnesota'},
+    '763': {'city': 'Minneapolis', 'province': 'Minnesota'},
+    '952': {'city': 'Bloomington', 'province': 'Minnesota'},
+    
+    # South Carolina
+    '803': {'city': 'Columbia', 'province': 'South Carolina'},
+    '843': {'city': 'Charleston', 'province': 'South Carolina'},
+    '854': {'city': 'Charleston', 'province': 'South Carolina'},
+    '864': {'city': 'Greenville', 'province': 'South Carolina'},
+    
+    # Alabama
+    '205': {'city': 'Birmingham', 'province': 'Alabama'},
+    '251': {'city': 'Mobile', 'province': 'Alabama'},
+    '256': {'city': 'Huntsville', 'province': 'Alabama'},
+    '334': {'city': 'Montgomery', 'province': 'Alabama'},
+    '938': {'city': 'Huntsville', 'province': 'Alabama'},
+    
+    # Louisiana
+    '225': {'city': 'Baton Rouge', 'province': 'Louisiana'},
+    '318': {'city': 'Shreveport', 'province': 'Louisiana'},
+    '337': {'city': 'Lafayette', 'province': 'Louisiana'},
+    '504': {'city': 'New Orleans', 'province': 'Louisiana'},
+    '985': {'city': 'Houma', 'province': 'Louisiana'},
+    
+    # Kentucky
+    '270': {'city': 'Bowling Green', 'province': 'Kentucky'},
+    '364': {'city': 'Bowling Green', 'province': 'Kentucky'},
+    '502': {'city': 'Louisville', 'province': 'Kentucky'},
+    '606': {'city': 'Ashland', 'province': 'Kentucky'},
+    '859': {'city': 'Lexington', 'province': 'Kentucky'},
+    
+    # Oregon
+    '458': {'city': 'Eugene', 'province': 'Oregon'},
+    '503': {'city': 'Portland', 'province': 'Oregon'},
+    '541': {'city': 'Eugene', 'province': 'Oregon'},
+    '971': {'city': 'Portland', 'province': 'Oregon'},
+    
+    # Oklahoma
+    '405': {'city': 'Oklahoma City', 'province': 'Oklahoma'},
+    '539': {'city': 'Tulsa', 'province': 'Oklahoma'},
+    '580': {'city': 'Lawton', 'province': 'Oklahoma'},
+    '918': {'city': 'Tulsa', 'province': 'Oklahoma'},
+    
+    # Connecticut
+    '203': {'city': 'New Haven', 'province': 'Connecticut'},
+    '475': {'city': 'New Haven', 'province': 'Connecticut'},
+    '860': {'city': 'Hartford', 'province': 'Connecticut'},
+    '959': {'city': 'Hartford', 'province': 'Connecticut'},
+    
+    # Utah
+    '385': {'city': 'Salt Lake City', 'province': 'Utah'},
+    '435': {'city': 'St. George', 'province': 'Utah'},
+    '801': {'city': 'Salt Lake City', 'province': 'Utah'},
+    
+    # Nevada
+    '702': {'city': 'Las Vegas', 'province': 'Nevada'},
+    '725': {'city': 'Las Vegas', 'province': 'Nevada'},
+    '775': {'city': 'Reno', 'province': 'Nevada'},
+    
+    # Iowa
+    '319': {'city': 'Cedar Rapids', 'province': 'Iowa'},
+    '515': {'city': 'Des Moines', 'province': 'Iowa'},
+    '563': {'city': 'Davenport', 'province': 'Iowa'},
+    '641': {'city': 'Mason City', 'province': 'Iowa'},
+    '712': {'city': 'Sioux City', 'province': 'Iowa'},
+    
+    # Arkansas
+    '479': {'city': 'Fort Smith', 'province': 'Arkansas'},
+    '501': {'city': 'Little Rock', 'province': 'Arkansas'},
+    '870': {'city': 'Jonesboro', 'province': 'Arkansas'},
+    
+    # Mississippi
+    '228': {'city': 'Gulfport', 'province': 'Mississippi'},
+    '601': {'city': 'Jackson', 'province': 'Mississippi'},
+    '662': {'city': 'Tupelo', 'province': 'Mississippi'},
+    '769': {'city': 'Jackson', 'province': 'Mississippi'},
+    
+    # Kansas
+    '316': {'city': 'Wichita', 'province': 'Kansas'},
+    '620': {'city': 'Dodge City', 'province': 'Kansas'},
+    '785': {'city': 'Topeka', 'province': 'Kansas'},
+    '913': {'city': 'Kansas City', 'province': 'Kansas'},
+    
+    # New Mexico
+    '505': {'city': 'Albuquerque', 'province': 'New Mexico'},
+    '575': {'city': 'Las Cruces', 'province': 'New Mexico'},
+    
+    # Nebraska
+    '308': {'city': 'Grand Island', 'province': 'Nebraska'},
+    '402': {'city': 'Omaha', 'province': 'Nebraska'},
+    '531': {'city': 'Omaha', 'province': 'Nebraska'},
+    
+    # Idaho
+    '208': {'city': 'Boise', 'province': 'Idaho'},
+    '986': {'city': 'Boise', 'province': 'Idaho'},
+    
+    # West Virginia
+    '304': {'city': 'Charleston', 'province': 'West Virginia'},
+    '681': {'city': 'Charleston', 'province': 'West Virginia'},
+    
+    # Hawaii
+    '808': {'city': 'Honolulu', 'province': 'Hawaii'},
+    
+    # New Hampshire
+    '603': {'city': 'Manchester', 'province': 'New Hampshire'},
+    
+    # Maine
+    '207': {'city': 'Portland', 'province': 'Maine'},
+    
+    # Rhode Island
+    '401': {'city': 'Providence', 'province': 'Rhode Island'},
+    
+    # Montana
+    '406': {'city': 'Billings', 'province': 'Montana'},
+    
+    # Delaware
+    '302': {'city': 'Wilmington', 'province': 'Delaware'},
+    
+    # South Dakota
+    '605': {'city': 'Sioux Falls', 'province': 'South Dakota'},
+    
+    # North Dakota
+    '701': {'city': 'Fargo', 'province': 'North Dakota'},
+    
+    # Alaska
+    '907': {'city': 'Anchorage', 'province': 'Alaska'},
+    
+    # Vermont
+    '802': {'city': 'Burlington', 'province': 'Vermont'},
+    
+    # Wyoming
+    '307': {'city': 'Cheyenne', 'province': 'Wyoming'},
+    
+    # Washington D.C.
     '202': {'city': 'Washington D.C.', 'province': 'DC'},
-    '617': {'city': 'Boston', 'province': 'MA'},
-    '713': {'city': 'Houston', 'province': 'TX'},
-    '214': {'city': 'Dallas', 'province': 'TX'},
-    '404': {'city': 'Atlanta', 'province': 'GA'},
-    '303': {'city': 'Denver', 'province': 'CO'},
-    '206': {'city': 'Seattle', 'province': 'WA'},
-    '702': {'city': 'Las Vegas', 'province': 'NV'},
-    '602': {'city': 'Phoenix', 'province': 'AZ'},
 }
 
 # ============================================================
@@ -1122,14 +1981,17 @@ AREA_CODES_SWITZERLAND = {
     '21': {'city': 'Lausana', 'province': 'Vaud'},
     '41': {'city': 'Lucerna', 'province': 'Lucerna'},
     '71': {'city': 'San Galo', 'province': 'San Galo'},
+    '81': {'city': 'Coira', 'province': 'Grisones'},
     '91': {'city': 'Lugano', 'province': 'Tesino'},
     '52': {'city': 'Winterthur', 'province': 'Zúrich'},
-    '32': {'city': 'Biel/Bienne', 'province': 'Berna'},
-    '62': {'city': 'Aarau', 'province': 'Argovia'},
+    '62': {'city': 'Olten', 'province': 'Soleura'},
+    '32': {'city': 'Biel', 'province': 'Berna'},
     '26': {'city': 'Friburgo', 'province': 'Friburgo'},
     '27': {'city': 'Sion', 'province': 'Valais'},
-    '81': {'city': 'Chur', 'province': 'Grisones'},
     '33': {'city': 'Thun', 'province': 'Berna'},
+    '34': {'city': 'Burgdorf', 'province': 'Berna'},
+    '55': {'city': 'Rapperswil', 'province': 'San Galo'},
+    '56': {'city': 'Baden', 'province': 'Argovia'},
 }
 
 # ============================================================
@@ -1137,30 +1999,25 @@ AREA_CODES_SWITZERLAND = {
 # ============================================================
 AREA_CODES_GREECE = {
     '21': {'city': 'Atenas', 'province': 'Ática'},
-    '231': {'city': 'Salónica', 'province': 'Macedonia Central'},
-    '261': {'city': 'Patras', 'province': 'Grecia Occidental'},
-    '281': {'city': 'Heraclión', 'province': 'Creta'},
-    '241': {'city': 'Rodas', 'province': 'Egeo Meridional'},
+    '231': {'city': 'Tesalónica', 'province': 'Macedonia Central'},
+    '241': {'city': 'Larisa', 'province': 'Tesalia'},
     '251': {'city': 'Kavala', 'province': 'Macedonia Oriental'},
-    '2421': {'city': 'Volos', 'province': 'Tesalia'},
-    '2651': {'city': 'Ioánina', 'province': 'Epiro'},
-    '2661': {'city': 'Corfú', 'province': 'Islas Jónicas'},
-    '2810': {'city': 'Chania', 'province': 'Creta'},
+    '261': {'city': 'Patras', 'province': 'Grecia Occidental'},
+    '271': {'city': 'Trípoli', 'province': 'Peloponeso'},
+    '281': {'city': 'Heraclión', 'province': 'Creta'},
 }
 
 # ============================================================
 # CÓDIGOS DE ÁREA - DINAMARCA
 # ============================================================
 AREA_CODES_DENMARK = {
-    '33': {'city': 'Copenhague', 'province': 'Capital'},
-    '38': {'city': 'Copenhague', 'province': 'Capital'},
-    '39': {'city': 'Copenhague Norte', 'province': 'Capital'},
-    '45': {'city': 'Copenhague', 'province': 'Capital'},
+    '33': {'city': 'Copenhague', 'province': 'Hovedstaden'},
+    '35': {'city': 'Copenhague', 'province': 'Hovedstaden'},
     '86': {'city': 'Aarhus', 'province': 'Jutlandia Central'},
-    '98': {'city': 'Aalborg', 'province': 'Jutlandia del Norte'},
-    '66': {'city': 'Odense', 'province': 'Dinamarca Meridional'},
-    '75': {'city': 'Vejle', 'province': 'Dinamarca Meridional'},
-    '76': {'city': 'Fredericia', 'province': 'Dinamarca Meridional'},
+    '87': {'city': 'Aarhus', 'province': 'Jutlandia Central'},
+    '98': {'city': 'Aalborg', 'province': 'Jutlandia Septentrional'},
+    '65': {'city': 'Odense', 'province': 'Dinamarca Meridional'},
+    '79': {'city': 'Esbjerg', 'province': 'Dinamarca Meridional'},
 }
 
 # ============================================================
@@ -1170,17 +2027,9 @@ AREA_CODES_SWEDEN = {
     '8': {'city': 'Estocolmo', 'province': 'Estocolmo'},
     '31': {'city': 'Gotemburgo', 'province': 'Västra Götaland'},
     '40': {'city': 'Malmö', 'province': 'Escania'},
+    '46': {'city': 'Lund', 'province': 'Escania'},
     '18': {'city': 'Uppsala', 'province': 'Uppsala'},
     '13': {'city': 'Linköping', 'province': 'Östergötland'},
-    '19': {'city': 'Örebro', 'province': 'Örebro'},
-    '21': {'city': 'Västerås', 'province': 'Västmanland'},
-    '33': {'city': 'Borås', 'province': 'Västra Götaland'},
-    '36': {'city': 'Jönköping', 'province': 'Jönköping'},
-    '42': {'city': 'Helsingborg', 'province': 'Escania'},
-    '46': {'city': 'Lund', 'province': 'Escania'},
-    '54': {'city': 'Karlstad', 'province': 'Värmland'},
-    '60': {'city': 'Sundsvall', 'province': 'Västernorrland'},
-    '63': {'city': 'Östersund', 'province': 'Jämtland'},
     '90': {'city': 'Umeå', 'province': 'Västerbotten'},
     '920': {'city': 'Luleå', 'province': 'Norrbotten'},
 }
@@ -1190,17 +2039,12 @@ AREA_CODES_SWEDEN = {
 # ============================================================
 AREA_CODES_FINLAND = {
     '9': {'city': 'Helsinki', 'province': 'Uusimaa'},
-    '2': {'city': 'Turku', 'province': 'Finlandia Sudoccidental'},
+    '2': {'city': 'Turku', 'province': 'Finlandia Propia'},
     '3': {'city': 'Tampere', 'province': 'Pirkanmaa'},
-    '5': {'city': 'Lahti', 'province': 'Päijät-Häme'},
-    '6': {'city': 'Vaasa', 'province': 'Ostrobotnia'},
     '8': {'city': 'Oulu', 'province': 'Ostrobotnia del Norte'},
-    '13': {'city': 'Joensuu', 'province': 'Carelia del Norte'},
     '14': {'city': 'Jyväskylä', 'province': 'Finlandia Central'},
-    '15': {'city': 'Mikkeli', 'province': 'Savonia del Sur'},
-    '16': {'city': 'Rovaniemi', 'province': 'Laponia'},
     '17': {'city': 'Kuopio', 'province': 'Savonia del Norte'},
-    '19': {'city': 'Espoo', 'province': 'Uusimaa'},
+    '16': {'city': 'Rovaniemi', 'province': 'Laponia'},
 }
 
 # ============================================================
@@ -1213,14 +2057,8 @@ AREA_CODES_NORWAY = {
     '55': {'city': 'Bergen', 'province': 'Vestland'},
     '73': {'city': 'Trondheim', 'province': 'Trøndelag'},
     '51': {'city': 'Stavanger', 'province': 'Rogaland'},
-    '69': {'city': 'Fredrikstad', 'province': 'Viken'},
-    '33': {'city': 'Drammen', 'province': 'Viken'},
-    '32': {'city': 'Kristiansand', 'province': 'Agder'},
+    '77': {'city': 'Tromsø', 'province': 'Troms'},
     '75': {'city': 'Bodø', 'province': 'Nordland'},
-    '77': {'city': 'Tromsø', 'province': 'Troms og Finnmark'},
-    '62': {'city': 'Hamar', 'province': 'Innlandet'},
-    '61': {'city': 'Lillehammer', 'province': 'Innlandet'},
-    '70': {'city': 'Ålesund', 'province': 'Møre og Romsdal'},
 }
 
 # ============================================================
@@ -1229,22 +2067,13 @@ AREA_CODES_NORWAY = {
 AREA_CODES_POLAND = {
     '22': {'city': 'Varsovia', 'province': 'Mazovia'},
     '12': {'city': 'Cracovia', 'province': 'Pequeña Polonia'},
-    '71': {'city': 'Breslavia', 'province': 'Baja Silesia'},
-    '61': {'city': 'Poznan', 'province': 'Gran Polonia'},
-    '58': {'city': 'Gdansk', 'province': 'Pomerania'},
+    '61': {'city': 'Poznań', 'province': 'Gran Polonia'},
+    '71': {'city': 'Wrocław', 'province': 'Baja Silesia'},
+    '58': {'city': 'Gdańsk', 'province': 'Pomerania'},
     '32': {'city': 'Katowice', 'province': 'Silesia'},
-    '42': {'city': 'Lodz', 'province': 'Lodz'},
+    '42': {'city': 'Łódź', 'province': 'Łódź'},
     '91': {'city': 'Szczecin', 'province': 'Pomerania Occidental'},
-    '85': {'city': 'Bialystok', 'province': 'Podlaquia'},
     '81': {'city': 'Lublin', 'province': 'Lublin'},
-    '89': {'city': 'Olsztyn', 'province': 'Varmia y Masuria'},
-    '52': {'city': 'Bydgoszcz', 'province': 'Cuyavia y Pomerania'},
-    '56': {'city': 'Torun', 'province': 'Cuyavia y Pomerania'},
-    '17': {'city': 'Rzeszów', 'province': 'Subcarpacia'},
-    '41': {'city': 'Kielce', 'province': 'Santa Cruz'},
-    '68': {'city': 'Zielona Góra', 'province': 'Lubusz'},
-    '77': {'city': 'Opole', 'province': 'Opole'},
-    '15': {'city': 'Tarnów', 'province': 'Pequeña Polonia'},
 }
 
 # ============================================================
@@ -1253,20 +2082,11 @@ AREA_CODES_POLAND = {
 AREA_CODES_CROATIA = {
     '1': {'city': 'Zagreb', 'province': 'Zagreb'},
     '21': {'city': 'Split', 'province': 'Split-Dalmacia'},
+    '20': {'city': 'Dubrovnik', 'province': 'Dubrovnik-Neretva'},
     '51': {'city': 'Rijeka', 'province': 'Primorje-Gorski Kotar'},
+    '52': {'city': 'Pula', 'province': 'Istria'},
     '31': {'city': 'Osijek', 'province': 'Osijek-Baranja'},
     '23': {'city': 'Zadar', 'province': 'Zadar'},
-    '52': {'city': 'Pula', 'province': 'Istria'},
-    '42': {'city': 'Varaždin', 'province': 'Varaždin'},
-    '20': {'city': 'Dubrovnik', 'province': 'Dubrovnik-Neretva'},
-    '35': {'city': 'Slavonski Brod', 'province': 'Brod-Posavina'},
-    '47': {'city': 'Karlovac', 'province': 'Karlovac'},
-    '48': {'city': 'Koprivnica', 'province': 'Koprivnica-Križevci'},
-    '49': {'city': 'Krapina', 'province': 'Krapina-Zagorje'},
-    '44': {'city': 'Sisak', 'province': 'Sisak-Moslavina'},
-    '43': {'city': 'Bjelovar', 'province': 'Bjelovar-Bilogora'},
-    '22': {'city': 'Šibenik', 'province': 'Šibenik-Knin'},
-    '53': {'city': 'Gospić', 'province': 'Lika-Senj'},
 }
 
 
@@ -1310,6 +2130,10 @@ def detect_country(phone_raw: str) -> dict:
     
     # Argentina: quitar 9 de móviles
     if country_prefix == '54' and rest.startswith('9'):
+        rest = rest[1:]
+    
+    # México: quitar 1 de móviles
+    if country_prefix == '52' and rest.startswith('1'):
         rest = rest[1:]
     
     # Seleccionar mapa de códigos de área
