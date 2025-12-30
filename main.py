@@ -885,3 +885,52 @@ async def test_template_24h(request: Request):
             {"error": str(e)},
             status_code=500
         )
+
+
+@app.post("/test/extract-web")
+async def test_extract_web(request: Request):
+    """
+    Prueba extracción de datos web sin pasar por el flujo completo.
+    Body: {"website": "dpmsa.com.ar"}
+    """
+    try:
+        body = await request.json()
+        website = body.get("website", "")
+        
+        if not website:
+            return JSONResponse(
+                {"error": "website es requerido"},
+                status_code=400
+            )
+        
+        from services.web_extractor import extract_web_data
+        
+        logger.info(f"[TEST] Extrayendo: {website}")
+        
+        resultado = await extract_web_data(website)
+        
+        # Campos importantes para verificar
+        resumen = {
+            "website": resultado.get("website"),
+            "business_name": resultado.get("business_name"),
+            "business_model": resultado.get("business_model"),
+            "whatsapp_empresa": resultado.get("whatsapp_empresa"),
+            "whatsapp_source": resultado.get("whatsapp_source", "web"),
+            "phone_empresa": resultado.get("phone_empresa"),
+            "email_principal": resultado.get("email_principal"),
+            "linkedin_empresa": resultado.get("linkedin_empresa"),
+            "extraction_status": resultado.get("extraction_status")
+        }
+        
+        return JSONResponse({
+            "status": "success",
+            "resumen": resumen,
+            "datos_completos": resultado
+        })
+    
+    except Exception as e:
+        logger.error(f"[TEST] Error: {e}")
+        return JSONResponse(
+            {"error": str(e)},
+            status_code=500
+        )

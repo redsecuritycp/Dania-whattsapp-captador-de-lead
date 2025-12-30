@@ -659,6 +659,7 @@ async def buscar_whatsapp_externo(
     """
     Busca WhatsApp de la empresa en fuentes externas.
     Útil cuando el widget está en JS y no lo capturamos.
+    Soporta números internacionales.
     """
     if not TAVILY_API_KEY:
         return ""
@@ -667,64 +668,93 @@ async def buscar_whatsapp_externo(
     dominio = website.replace("https://", "").replace(
         "http://", "").replace("www.", "").split("/")[0]
     
-    # Query de búsqueda
-    query = f'"{dominio}" whatsapp teléfono contacto'
+    # Queries a intentar (en orden de prioridad)
+    queries = [
+        f'"{dominio}" teléfono contacto',
+        f'"{dominio}" whatsapp',
+    ]
+    
+    # Si tenemos nombre de empresa, agregar query adicional
     if empresa and empresa != "No encontrado":
-        query = f'"{empresa}" whatsapp teléfono Argentina'
+        queries.append(f'"{empresa}" teléfono whatsapp')
     
-    logger.info(f"[WA-EXTERNO] Buscando: {query}")
-    
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.post(
-                "https://api.tavily.com/search",
-                json={
-                    "api_key": TAVILY_API_KEY,
-                    "query": query,
-                    "search_depth": "basic",
-                    "max_results": 5,
-                    "include_answer": False
-                }
-            )
-            
-            if response.status_code != 200:
-                return ""
-            
-            data = response.json()
-            results = data.get("results", [])
-            
-            # Buscar número en los resultados
-            wa_patterns = [
-                r'wa\.me/(\d{10,15})',
-                r'whatsapp\.com/send\?phone=(\d{10,15})',
-                r'\+54\s*\d{10,12}',
-                r'\+54\s*\(?\d{2,4}\)?\s*\d{6,8}',
-            ]
-            
-            for r in results:
-                texto = f"{r.get('title', '')} {r.get('content', '')}"
+    for query in queries:
+        logger.info(f"[WA-EXTERNO] Buscando: {query}")
+        
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(
+                    "https://api.tavily.com/search",
+                    json={
+                        "api_key": TAVILY_API_KEY,
+                        "query": query,
+                        "search_depth": "basic",
+                        "max_results": 10,
+                        "include_answer": False
+                    }
+                )
                 
-                for pattern in wa_patterns:
-                    match = re.search(pattern, texto)
-                    if match:
-                        # Extraer solo dígitos
-                        num = re.sub(r'[^\d]', '', match.group(0))
-                        if len(num) >= 10 and len(num) <= 15:
-                            # Asegurar formato con +
-                            if not num.startswith('54'):
+                if response.status_code != 200:
+                    logger.warning(
+                        f"[WA-EXTERNO] Tavily error: {response.status_code}"
+                    )
+                    continue
+                
+                data = response.json()
+                results = data.get("results", [])
+                
+                # Patrones para WhatsApp (internacionales)
+                wa_patterns = [
+                    # Links directos de WhatsApp
+                    r'wa\.me/(\d{10,15})',
+                    r'whatsapp\.com/send\?phone=(\d{10,15})',
+                    # Números con + (cualquier país)
+                    r'\+(\d{1,4}[\s\-]?\d{6,14})',
+                    # Formato ZoomInfo y directorios
+                    r'phone[:\s]+\+?(\d{10,15})',
+                    r'tel[:\s]+\+?(\d{10,15})',
+                ]
+                
+                for r in results:
+                    texto = f"{r.get('title', '')} {r.get('content', '')}"
+                    url = r.get('url', '')
+                    
+                    # Priorizar resultados de directorios
+                    es_directorio = any(d in url.lower() for d in [
+                        'zoominfo', 'linkedin', 'cylex', 
+                        'paginasamarillas', 'yellowpages',
+                        'guia', 'directorio', 'kompass'
+                    ])
+                    
+                    for pattern in wa_patterns:
+                        matches = re.findall(pattern, texto, re.IGNORECASE)
+                        for match in matches:
+                            # Limpiar: solo dígitos
+                            num = re.sub(r'[^\d]', '', match)
+                            
+                            # Validar longitud (10-15 dígitos)
+                            if len(num) < 10 or len(num) > 15:
                                 continue
+                            
+                            # Evitar números que son años o IDs
+                            if num.startswith('20') and len(num) == 4:
+                                continue
+                            if num.startswith('19') and len(num) == 4:
+                                continue
+                            
                             resultado = '+' + num
                             logger.info(
-                                f"[WA-EXTERNO] ✓ Encontrado: {resultado}"
+                                f"[WA-EXTERNO] ✓ Encontrado: {resultado} "
+                                f"(fuente: {url[:50]})"
                             )
                             return resultado
-            
-            logger.info("[WA-EXTERNO] No encontrado en fuentes externas")
-            return ""
-            
-    except Exception as e:
-        logger.error(f"[WA-EXTERNO] Error: {e}")
-        return ""
+                
+        except Exception as e:
+            logger.error(f"[WA-EXTERNO] Error: {e}")
+            continue
+    
+    logger.info("[WA-EXTERNO] No encontrado en fuentes externas")
+    return ""
 
 
 async def extract_web_data(website: str) -> dict:
