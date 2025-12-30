@@ -11,6 +11,10 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from config import TAVILY_API_KEY, OPENAI_API_KEY, JINA_API_KEY, FIRECRAWL_API_KEY
+from services.social_research import (
+    buscar_linkedin_en_web,
+    buscar_linkedin_por_email
+)
 
 logger = logging.getLogger(__name__)
 
@@ -865,6 +869,59 @@ async def extract_web_data(website: str) -> dict:
         
         # Limpiar flag temporal
         resultado.pop('_necesita_wa_externo', None)
+    
+    # ═══════════════════════════════════════════════════════════════
+    # BÚSQUEDA DE LINKEDIN PERSONAL EN CONTENIDO WEB
+    # ═══════════════════════════════════════════════════════════════
+    linkedin_encontrados = []
+    
+    # 1. Buscar LinkedIn en el contenido web extraído
+    if main_content:
+        nombre_contacto = resultado.get('contact_name', '')
+        primer_nombre = nombre_contacto.split()[0] if nombre_contacto else ''
+        apellido = nombre_contacto.split()[-1] if len(
+            nombre_contacto.split()) > 1 else ''
+        
+        linkedin_en_web = await buscar_linkedin_en_web(
+            contenido_web=main_content,
+            nombre=primer_nombre,
+            apellido=apellido
+        )
+        
+        if linkedin_en_web:
+            logger.info(
+                f"[LINKEDIN-WEB] ✓ Encontrados en web: "
+                f"{len(linkedin_en_web)}"
+            )
+            linkedin_encontrados.extend(linkedin_en_web)
+    
+    # 2. Buscar LinkedIn por email
+    email = resultado.get('email_principal', '')
+    if email and email != 'No encontrado' and '@' in email:
+        linkedin_por_email = await buscar_linkedin_por_email(email)
+        if linkedin_por_email and linkedin_por_email not in linkedin_encontrados:
+            logger.info(
+                f"[LINKEDIN-EMAIL] ✓ Encontrado: {linkedin_por_email}"
+            )
+            linkedin_encontrados.append(linkedin_por_email)
+    
+    # 3. Guardar resultados si encontramos algo
+    if linkedin_encontrados:
+        # Si ya hay linkedin_personal, agregar los nuevos
+        actual = resultado.get('linkedin_personal_web', '')
+        if actual and actual != 'No encontrado':
+            todos = [actual] + [
+                u for u in linkedin_encontrados if u != actual
+            ]
+        else:
+            todos = linkedin_encontrados
+        
+        # Guardar máximo 3 URLs separadas por |
+        resultado['linkedin_personal_web'] = ' | '.join(todos[:3])
+        logger.info(
+            f"[LINKEDIN] Total en web: "
+            f"{resultado['linkedin_personal_web']}"
+        )
     
     resultado['website'] = website_full
     resultado['extraction_status'] = 'success'
