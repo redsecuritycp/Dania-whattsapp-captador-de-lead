@@ -27,7 +27,7 @@ from config import (TAVILY_API_KEY, GOOGLE_API_KEY, GOOGLE_SEARCH_CX,
 logger = logging.getLogger(__name__)
 
 HTTP_TIMEOUT = 30.0
-APIFY_TIMEOUT = 200.0
+APIFY_TIMEOUT = 45.0  # Reducido de 200s a 45s
 
 
 def es_url_valida_noticia(url: str, texto: str, empresa: str) -> bool:
@@ -317,23 +317,31 @@ async def research_person_and_company(nombre_persona: str,
             )
 
         # ═══════════════════════════════════════════════════════════════
-        # PASO 5: NOTICIAS - APIFY + GOOGLE FALLBACK
+        # PASO 5: NOTICIAS - GOOGLE PRIMERO (RÁPIDO) + APIFY PARALELO
         # ═══════════════════════════════════════════════════════════════
         noticias = []
-
-        if APIFY_API_TOKEN:
-            logger.info(f"[APIFY] Buscando noticias con crawler...")
-            noticias = await apify_buscar_noticias(empresa_busqueda,
-                                                   ubicacion_query)
-            if noticias:
-                results["noticias_source"] = "apify"
-
-        if not noticias and GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
-            logger.info(f"[GOOGLE] Fallback: buscando noticias...")
-            noticias = await google_buscar_noticias(empresa, empresa_busqueda,
-                                                    ubicacion_query)
+        
+        # Primero Google (rápido, ~2 seg)
+        if GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
+            logger.info(f"[GOOGLE] Buscando noticias...")
+            noticias = await google_buscar_noticias(
+                empresa, empresa_busqueda, ubicacion_query
+            )
             if noticias:
                 results["noticias_source"] = "google"
+        
+        # Si Google no encontró, intentar APIFY con timeout corto
+        if not noticias and APIFY_API_TOKEN:
+            logger.info(f"[APIFY] Intentando crawler (timeout 30s)...")
+            try:
+                noticias = await asyncio.wait_for(
+                    apify_buscar_noticias(empresa_busqueda, ubicacion_query),
+                    timeout=30.0
+                )
+                if noticias:
+                    results["noticias_source"] = "apify"
+            except asyncio.TimeoutError:
+                logger.warning("[APIFY] Timeout - continuando sin noticias")
 
         if noticias:
             results["noticias_lista"] = noticias
@@ -1077,10 +1085,24 @@ async def apify_buscar_noticias(empresa_busqueda: str,
         return []
 
     try:
-        # Query para Google News
-        query_parts = [empresa_busqueda]
+        # Query para Google News - usar nombre completo
+        # Si empresa_busqueda es solo siglas (DPM), agregar contexto
+        query_parts = []
+        
+        # Usar nombre completo entre comillas para exactitud
+        if empresa_busqueda:
+            # Si parece sigla (menos de 5 chars), buscar con 
+            # más contexto
+            if len(empresa_busqueda.replace(" ", "")) <= 5:
+                query_parts.append(f'"{empresa_busqueda}"')
+            else:
+                query_parts.append(f'"{empresa_busqueda}"')
+        
+        # Agregar rubro si está disponible (viene del context)
+        # Por ahora solo ubicación
         if ubicacion_query:
             query_parts.append(ubicacion_query)
+        
         query = " ".join(query_parts)
 
         # URLs de noticias
@@ -1095,7 +1117,7 @@ async def apify_buscar_noticias(empresa_busqueda: str,
             # Iniciar el crawler
             response = await client.post(
                 f"https://api.apify.com/v2/acts/apify~website-content-crawler"
-                f"/runs?token={APIFY_API_TOKEN}&waitForFinish=180",
+                f"/runs?token={APIFY_API_TOKEN}&waitForFinish=30",
                 json={
                     "startUrls": start_urls,
                     "maxCrawlPages": 20,
@@ -1193,8 +1215,22 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str,
 
     try:
         query_parts = []
+        
+        # Usar nombre completo de empresa
         if empresa:
             query_parts.append(f'"{empresa}"')
+        
+        # Si empresa_busqueda es diferente (tiene dominio), 
+        # agregarlo
+        if empresa_busqueda and empresa_busqueda != empresa:
+            # Extraer dominio limpio si es URL
+            dominio = empresa_busqueda.replace(
+                "https://", "").replace(
+                "http://", "").replace(
+                "www.", "").split("/")[0]
+            if "." in dominio:
+                query_parts.append(f'OR "{dominio}"')
+        
         query_parts.append("noticias OR prensa OR nota")
 
         query = " ".join(query_parts)

@@ -374,6 +374,10 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                            ) and not lead_data.get("challenges_detected"):
                 lead_data["challenges_detected"] = ", ".join(
                     context["challenges_detected"][:3])
+            
+            # Agregar business_model del context si no viene en arguments
+            if context.get("business_model") and not lead_data.get("business_model"):
+                lead_data["business_model"] = context.get("business_model")
 
             try:
                 save_result = save_lead(lead_data)
