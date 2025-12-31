@@ -67,13 +67,18 @@ async def check_and_send_reminders():
         now = datetime.now(pytz.UTC)
         logger.info("[REMINDERS] ══════ Iniciando check de recordatorios ══════")
 
-        # Buscar leads con booking activo
+        # Buscar leads con booking activo (campos inglés O español)
         leads_with_booking = collection.find({
-            "booking_status": "created",
-            "booking_start_time": {
-                "$exists": True,
-                "$ne": ""
-            }
+            "$or": [
+                {
+                    "booking_status": "created",
+                    "booking_start_time": {"$exists": True, "$ne": ""}
+                },
+                {
+                    "reserva_estado": "created",
+                    "reserva_fecha_hora": {"$exists": True, "$ne": ""}
+                }
+            ]
         })
 
         leads_list = list(leads_with_booking)
@@ -81,9 +86,12 @@ async def check_and_send_reminders():
 
         for lead in leads_list:
             try:
-                phone = lead.get("phone_whatsapp", "")
-                name = lead.get("name", "")
-                booking_str = lead.get("booking_start_time", "")
+                phone = lead.get("phone_whatsapp") or lead.get("telefono_whatsapp", "")
+                name = lead.get("name") or lead.get("nombre", "")
+                booking_str = (
+                    lead.get("booking_start_time") or 
+                    lead.get("reserva_fecha_hora", "")
+                )
                 
                 if not booking_str:
                     continue
@@ -111,7 +119,10 @@ async def check_and_send_reminders():
                     )
                     collection.update_one(
                         {"_id": lead["_id"]},
-                        {"$set": {"booking_status": "completed"}}
+                        {"$set": {
+                            "booking_status": "completed",
+                            "reserva_estado": "completed"
+                        }}
                     )
                     continue
                 
@@ -130,18 +141,23 @@ async def check_and_send_reminders():
 
 
 async def process_lead_reminders(lead: dict, now: datetime):
-    """Procesa los recordatorios para un lead específico."""
-    phone = lead.get("phone_whatsapp", "")
+    """
+    Procesa los recordatorios para un lead específico.
+    NUEVA LÓGICA: Envía recordatorios atrasados si no se enviaron.
+    """
+    phone = lead.get("phone_whatsapp") or lead.get("telefono_whatsapp", "")
     if not phone:
         return
 
-    booking_start_str = lead.get("booking_start_time", "")
+    booking_start_str = (
+        lead.get("booking_start_time") or 
+        lead.get("reserva_fecha_hora", "")
+    )
     if not booking_start_str:
         return
 
     # Parsear fecha de booking
     try:
-        # Formato ISO: 2025-01-20T15:00:00Z
         if booking_start_str.endswith('Z'):
             booking_start_str = booking_start_str[:-1] + '+00:00'
         booking_start = datetime.fromisoformat(
@@ -157,16 +173,29 @@ async def process_lead_reminders(lead: dict, now: datetime):
     diff = booking_start - now
     minutes_until = diff.total_seconds() / 60
 
-    # Obtener recordatorios ya enviados
-    reminders_sent = lead.get("reminders_sent", [])
+    # Si la reunión ya pasó, no hacer nada (se marca completed en check_and_send)
+    if minutes_until < -60:
+        return
+
+    # Obtener recordatorios ya enviados (ambos formatos)
+    reminders_sent = (
+        lead.get("reminders_sent") or 
+        lead.get("recordatorios_enviados") or 
+        []
+    )
 
     # Datos para el mensaje
-    zoom_url = lead.get("booking_zoom_url", "")
-    name = lead.get("name", "")
+    zoom_url = (
+        lead.get("booking_zoom_url") or 
+        lead.get("reserva_zoom_url", "")
+    )
+    name = lead.get("name") or lead.get("nombre", "")
 
     # Formatear fecha/hora para mostrar
-    # Usar timezone del lead si está disponible
-    tz_str = lead.get("timezone_detected", "America/Argentina/Buenos_Aires")
+    tz_str = (
+        lead.get("timezone_detected") or 
+        lead.get("zona_horaria", "America/Argentina/Buenos_Aires")
+    )
     try:
         tz = pytz.timezone(tz_str)
         booking_local = booking_start.astimezone(tz)
@@ -175,86 +204,127 @@ async def process_lead_reminders(lead: dict, now: datetime):
 
     fecha_str = format_fecha_es(booking_local)
     hora_str = booking_local.strftime("%H:%M")
-    pais = lead.get("country_detected", "tu país")
+    pais = (
+        lead.get("country_detected") or 
+        lead.get("pais_detectado", "tu país")
+    )
 
-    # Verificar qué recordatorio enviar
+    # ═══════════════════════════════════════════════════════════════════
+    # NUEVA LÓGICA: Enviar recordatorios atrasados
+    # Si no se envió y ya pasó el momento, enviarlo igual
+    # ═══════════════════════════════════════════════════════════════════
+    
     reminder_to_send = None
 
     # A la hora exacta (entre -5 y +5 minutos)
     if -5 <= minutes_until <= 5 and "at_time" not in reminders_sent:
         reminder_to_send = ("at_time", _get_message_at_time(name, zoom_url))
 
-    # 15 minutos antes (entre 10 y 20 minutos)
-    elif 10 <= minutes_until <= 20 and "15min" not in reminders_sent:
+    # 15 minutos antes (o menos, si no se envió)
+    elif 0 < minutes_until <= 20 and "15min" not in reminders_sent:
         reminder_to_send = ("15min", _get_message_15min(zoom_url))
 
-    # 1 hora antes (entre 55 y 65 minutos)
-    elif 55 <= minutes_until <= 65 and "1hr" not in reminders_sent:
-        reminder_to_send = ("1hr", _get_message_1hr(zoom_url))
+    # 1 hora antes (o menos, si no se envió)
+    elif 0 < minutes_until <= 65 and "1hr" not in reminders_sent:
+        # Solo si no enviamos el de 15min ya
+        if "15min" in reminders_sent or minutes_until > 20:
+            reminder_to_send = ("1hr", _get_message_1hr(zoom_url))
 
-    # 5 horas antes (entre 295 y 305 minutos = 4h55m a 5h05m)
-    elif 295 <= minutes_until <= 305 and "5hr" not in reminders_sent:
-        reminder_to_send = ("5hr",
-                            _get_message_5hr(fecha_str, hora_str, zoom_url))
+    # 5 horas antes (o menos, si no se envió)
+    elif 0 < minutes_until <= 305 and "5hr" not in reminders_sent:
+        # Solo si no enviamos los anteriores
+        if "1hr" in reminders_sent or minutes_until > 65:
+            reminder_to_send = (
+                "5hr", 
+                _get_message_5hr(fecha_str, hora_str, zoom_url)
+            )
 
-    # 24 horas antes - USA PLANTILLA (funciona fuera de ventana 24hs)
-    elif 1435 <= minutes_until <= 1445 and "24hr" not in reminders_sent:
-        # Usar plantilla en vez de mensaje normal
-        link_modificar = lead.get(
-            "booking_reschedule_link", 
-            lead.get("booking_cancel_link", "")
-        )
-        
-        template_sent = await send_template_reminder_24h(
-            phone=phone,
-            nombre=name if name else "usuario",
-            hora=hora_str,
-            fecha=fecha_str,
-            link_modificar=link_modificar if link_modificar else "N/A"
-        )
-        
-        if template_sent:
-            # Marcar como enviado
-            db = get_database()
-            if db is not None:
-                db["leads_fortia"].update_one(
-                    {"phone_whatsapp": phone},
-                    {"$push": {
-                        "reminders_sent": "24hr"
-                    }})
-            logger.info(
-                f"[REMINDERS] ✓ Template 24hr enviado a {phone}"
+    # 24 horas antes (o menos, si no se envió)
+    elif 0 < minutes_until <= 1445 and "24hr" not in reminders_sent:
+        # Solo si no enviamos los anteriores
+        if "5hr" in reminders_sent or minutes_until > 305:
+            # Usar plantilla para 24hr
+            link_modificar = (
+                lead.get("booking_reschedule_link") or 
+                lead.get("reserva_link_reprogramar") or
+                lead.get("booking_cancel_link") or
+                lead.get("reserva_link_cancelar", "")
             )
-        else:
-            logger.error(
-                f"[REMINDERS] ✗ Error enviando template 24hr a {phone}"
+            
+            template_sent = await send_template_reminder_24h(
+                phone=phone,
+                nombre=name if name else "usuario",
+                hora=hora_str,
+                fecha=fecha_str,
+                link_modificar=link_modificar if link_modificar else "N/A"
             )
-        
-        # No seguir con el flujo normal de envío
-        return
+            
+            if template_sent:
+                # Marcar como enviado en MongoDB (ambos formatos)
+                db = get_database()
+                if db is not None:
+                    db["leads_fortia"].update_one(
+                        {"$or": [
+                            {"phone_whatsapp": phone},
+                            {"telefono_whatsapp": phone}
+                        ]},
+                        {"$push": {"reminders_sent": "24hr"}}
+                    )
+                    db["leads_fortia"].update_one(
+                        {"$or": [
+                            {"phone_whatsapp": phone},
+                            {"telefono_whatsapp": phone}
+                        ]},
+                        {"$push": {"recordatorios_enviados": "24hr"}}
+                    )
+                logger.info(
+                    f"[REMINDERS] ✓ Template 24hr enviado a {phone}"
+                )
+            else:
+                logger.error(
+                    f"[REMINDERS] ✗ Error enviando template 24hr a {phone}"
+                )
+            
+            # No seguir con el flujo normal de envío
+            return
 
     # Enviar recordatorio si corresponde
     if reminder_to_send:
         reminder_type, message = reminder_to_send
-
-        # Limpiar el + del phone si existe para enviar
         phone_clean = phone.lstrip('+')
+
+        logger.info(
+            f"[REMINDERS] Enviando '{reminder_type}' a {phone} "
+            f"(faltan {int(minutes_until)} min)"
+        )
 
         success = await send_whatsapp_message(phone_clean, message)
 
         if success:
-            # Marcar como enviado en MongoDB - FIX: usar is not None
+            # Marcar como enviado en MongoDB (ambos formatos de campo)
             db = get_database()
             if db is not None:
+                # Buscar por ambos campos
                 db["leads_fortia"].update_one(
-                    {"phone_whatsapp": phone},
-                    {"$push": {
-                        "reminders_sent": reminder_type
-                    }})
+                    {"$or": [
+                        {"phone_whatsapp": phone},
+                        {"telefono_whatsapp": phone}
+                    ]},
+                    {"$push": {"reminders_sent": reminder_type}}
+                )
+                # También actualizar campo en español si existe
+                db["leads_fortia"].update_one(
+                    {"$or": [
+                        {"phone_whatsapp": phone},
+                        {"telefono_whatsapp": phone}
+                    ]},
+                    {"$push": {"recordatorios_enviados": reminder_type}}
+                )
             logger.info(f"[REMINDERS] ✓ Enviado '{reminder_type}' a {phone}")
         else:
             logger.error(
-                f"[REMINDERS] ✗ Error enviando '{reminder_type}' a {phone}")
+                f"[REMINDERS] ✗ Error enviando '{reminder_type}' a {phone}"
+            )
 
 
 # ============================================================================

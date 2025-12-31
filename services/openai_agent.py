@@ -377,7 +377,43 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             # Agregar business_model del context si no viene en arguments
             if context.get("business_model") and not lead_data.get("business_model"):
                 lead_data["business_model"] = context.get("business_model")
-                logger.info(f"[GUARDAR] business_model agregado del context: {lead_data['business_model']}")
+                logger.info(
+                    f"[GUARDAR] business_model del context: "
+                    f"{lead_data['business_model']}"
+                )
+            
+            # Si aún no hay business_model, intentar inferirlo
+            if not lead_data.get("business_model") or \
+               lead_data.get("business_model") in ["", "No encontrado", "No proporcionado"]:
+                activity = lead_data.get("business_activity", "").lower()
+                if activity:
+                    if any(x in activity for x in ['software', 'saas', 'plataforma', 'app']):
+                        lead_data["business_model"] = "SaaS"
+                    elif any(x in activity for x in ['tienda', 'venta', 'retail', 'comercio']):
+                        lead_data["business_model"] = "Retail"
+                    elif any(x in activity for x in ['mayorista', 'distribuidor', 'distribución']):
+                        lead_data["business_model"] = "Mayorista"
+                    elif any(x in activity for x in ['servicio', 'consultor', 'asesor', 'agencia']):
+                        lead_data["business_model"] = "Servicios profesionales"
+                    elif any(x in activity for x in ['fabricación', 'manufactura', 'fábrica', 'industria']):
+                        lead_data["business_model"] = "Fabricante"
+                    elif any(x in activity for x in ['agro', 'campo', 'agrícola', 'ganadería']):
+                        lead_data["business_model"] = "Agroindustria"
+                    elif any(x in activity for x in ['construcción', 'inmobiliaria', 'obra']):
+                        lead_data["business_model"] = "Construcción/Inmobiliaria"
+                    elif any(x in activity for x in ['salud', 'médico', 'clínica', 'hospital']):
+                        lead_data["business_model"] = "Salud"
+                    elif any(x in activity for x in ['educación', 'escuela', 'universidad', 'capacitación']):
+                        lead_data["business_model"] = "Educación"
+                    elif any(x in activity for x in ['restaurant', 'gastronom', 'comida', 'bar']):
+                        lead_data["business_model"] = "Gastronomía"
+                    else:
+                        lead_data["business_model"] = "B2B"  # Default
+                    
+                    logger.info(
+                        f"[GUARDAR] business_model inferido de '{activity}': "
+                        f"{lead_data['business_model']}"
+                    )
 
             try:
                 save_result = save_lead(lead_data)

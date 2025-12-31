@@ -1,6 +1,6 @@
 """
 Servicio de MongoDB para DANIA/Fortia
-Réplica fiel del workflow n8n: Tool__MongoDB_Manager
+Campos en ESPAÑOL
 """
 import logging
 from datetime import datetime, timezone
@@ -15,6 +15,89 @@ logger = logging.getLogger(__name__)
 
 _client: Optional[MongoClient] = None
 _db = None
+
+# ═══════════════════════════════════════════════════════════════════
+# MAPEO DE CAMPOS INGLÉS → ESPAÑOL
+# ═══════════════════════════════════════════════════════════════════
+CAMPO_ESPANOL = {
+    # Datos detectados
+    "phone_whatsapp": "telefono_whatsapp",
+    "country_detected": "pais_detectado",
+    "timezone_detected": "zona_horaria",
+    "utc_offset": "utc_offset",
+    "country_code": "codigo_pais",
+    "emoji": "emoji",
+    
+    # Datos personales
+    "name": "nombre",
+    "email": "email",
+    "role": "cargo",
+    
+    # Datos empresa
+    "business_name": "nombre_empresa",
+    "business_activity": "rubro",
+    "business_description": "descripcion_empresa",
+    "business_model": "modelo_negocio",
+    "services_text": "servicios",
+    "website": "sitio_web",
+    "phone_empresa": "telefono_empresa",
+    "whatsapp_empresa": "whatsapp_empresa",
+    "horarios": "horarios",
+    
+    # Ubicación
+    "address": "direccion",
+    "city": "ciudad",
+    "province": "provincia",
+    
+    # Redes sociales
+    "linkedin_personal": "linkedin_personal",
+    "linkedin_empresa": "linkedin_empresa",
+    "instagram_empresa": "instagram_empresa",
+    "facebook_empresa": "facebook_empresa",
+    "noticias_empresa": "noticias_empresa",
+    
+    # Cualificación
+    "team_size": "tamanio_equipo",
+    "ai_knowledge": "conocimiento_ia",
+    "main_challenge": "desafio_principal",
+    "past_attempt": "intento_previo",
+    "has_website": "tiene_web",
+    "qualification_tier": "nivel_calificacion",
+    "challenges_detected": "desafios_detectados",
+    
+    # Timestamps
+    "created_at": "creado_en",
+    "updated_at": "actualizado_en",
+    "created_at_local": "creado_local",
+    
+    # Booking/Reserva
+    "booking_uid": "reserva_uid",
+    "booking_status": "reserva_estado",
+    "booking_start_time": "reserva_fecha_hora",
+    "booking_cancel_link": "reserva_link_cancelar",
+    "booking_reschedule_link": "reserva_link_reprogramar",
+    "booking_zoom_url": "reserva_zoom_url",
+    "booking_updated_at": "reserva_actualizado_en",
+    
+    # Cal.com
+    "email_calcom": "email_calcom",
+    "calcom_link": "calcom_link",
+    
+    # Otros
+    "action": "accion",
+    "conversation_summary": "resumen_conversacion",
+    "summary_date": "fecha_resumen",
+    "reminders_sent": "recordatorios_enviados",
+}
+
+
+def traducir_campos(data: dict) -> dict:
+    """Traduce campos de inglés a español."""
+    traducido = {}
+    for key, value in data.items():
+        nuevo_key = CAMPO_ESPANOL.get(key, key)
+        traducido[nuevo_key] = value
+    return traducido
 
 
 def get_database():
@@ -31,7 +114,6 @@ def get_database():
             
         _client = MongoClient(MONGODB_URI)
         _db = _client[MONGODB_DATABASE]
-        # Test connection
         _client.admin.command('ping')
         logger.info(f"✓ Conectado a MongoDB: {MONGODB_DATABASE}")
         return _db
@@ -41,18 +123,13 @@ def get_database():
 
 
 def get_local_datetime(timezone_str: str) -> str:
-    """
-    Genera created_at_local en el timezone del cliente.
-    Réplica de la lógica en Preparar_Datos de n8n.
-    """
+    """Genera fecha local en el timezone del cliente."""
     try:
-        if not timezone_str or timezone_str == 'No detectado':
+        if not timezone_str or timezone_str in ['No detectado', 'No proporcionado']:
             return 'No disponible'
         
         tz = pytz.timezone(timezone_str)
         ahora = datetime.now(tz)
-        
-        # Formato: DD/MM/YYYY, HH:MM:SS (timezone)
         fecha_local = ahora.strftime('%d/%m/%Y, %H:%M:%S')
         return f"{fecha_local} ({timezone_str})"
     except Exception as e:
@@ -63,8 +140,8 @@ def get_local_datetime(timezone_str: str) -> str:
 def save_lead(lead_data: dict) -> dict:
     """
     Guarda o actualiza un lead en MongoDB.
-    Usa phone_whatsapp como identificador único.
-    Réplica de la lógica en Tool__MongoDB_Manager de n8n.
+    Usa telefono_whatsapp como identificador único.
+    Todos los campos en ESPAÑOL.
     """
     try:
         db = get_database()
@@ -73,15 +150,21 @@ def save_lead(lead_data: dict) -> dict:
             
         collection = db["leads_fortia"]
         
-        phone = lead_data.get("phone_whatsapp", "")
+        # Obtener teléfono (puede venir en inglés o español)
+        phone = lead_data.get("phone_whatsapp") or lead_data.get("telefono_whatsapp", "")
         if not phone:
-            return {"success": False, "error": "phone_whatsapp es requerido"}
+            return {"success": False, "error": "telefono_whatsapp es requerido"}
         
         # ═══════════════════════════════════════════════════════════════════
-        # Limpiar valores undefined/None → "No proporcionado" (como n8n)
+        # Traducir campos a español
+        # ═══════════════════════════════════════════════════════════════════
+        datos_espanol = traducir_campos(lead_data)
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # Limpiar valores undefined/None → "No proporcionado"
         # ═══════════════════════════════════════════════════════════════════
         cleaned_data = {}
-        for key, value in lead_data.items():
+        for key, value in datos_espanol.items():
             if value is None or value == "" or value == "undefined" or value == "null":
                 cleaned_data[key] = "No proporcionado"
             else:
@@ -91,41 +174,63 @@ def save_lead(lead_data: dict) -> dict:
         # Timestamps
         # ═══════════════════════════════════════════════════════════════════
         now = datetime.now(timezone.utc)
-        cleaned_data["updated_at"] = now.isoformat()
+        cleaned_data["actualizado_en"] = now.isoformat()
         
-        # Verificar si existe para saber si es create o update
-        existing = collection.find_one({"phone_whatsapp": phone})
+        # Verificar si existe (buscar por ambos nombres de campo)
+        existing = collection.find_one({
+            "$or": [
+                {"telefono_whatsapp": phone},
+                {"phone_whatsapp": phone}
+            ]
+        })
         
         if not existing:
-            cleaned_data["created_at"] = now.isoformat()
+            cleaned_data["creado_en"] = now.isoformat()
         
         # ═══════════════════════════════════════════════════════════════════
-        # created_at_local - Hora local del cliente (NUEVO - como n8n)
+        # creado_local - Hora local del cliente
         # ═══════════════════════════════════════════════════════════════════
-        timezone_detected = cleaned_data.get("timezone_detected", "")
+        timezone_detected = (
+            cleaned_data.get("zona_horaria") or 
+            cleaned_data.get("timezone_detected", "")
+        )
         if timezone_detected and timezone_detected not in ["No detectado", "No proporcionado"]:
-            cleaned_data["created_at_local"] = get_local_datetime(timezone_detected)
+            cleaned_data["creado_local"] = get_local_datetime(timezone_detected)
         else:
-            cleaned_data["created_at_local"] = "No disponible"
+            cleaned_data["creado_local"] = "No disponible"
         
         # ═══════════════════════════════════════════════════════════════════
         # Upsert
         # ═══════════════════════════════════════════════════════════════════
         if existing:
-            # Update - no sobrescribir created_at
-            if "created_at" in cleaned_data and existing.get("created_at"):
-                del cleaned_data["created_at"]
+            # Update - no sobrescribir creado_en
+            if "creado_en" in cleaned_data and existing.get("creado_en"):
+                del cleaned_data["creado_en"]
+            if "creado_en" in cleaned_data and existing.get("created_at"):
+                del cleaned_data["creado_en"]
             
-            collection.update_one(
-                {"phone_whatsapp": phone},
-                {"$set": cleaned_data}
-            )
+            # Buscar por el campo que tenga
+            filter_query = {"telefono_whatsapp": phone}
+            if existing.get("phone_whatsapp"):
+                filter_query = {"phone_whatsapp": phone}
+            
+            collection.update_one(filter_query, {"$set": cleaned_data})
             logger.info(f"✓ Lead actualizado: {phone}")
-            return {"success": True, "operation": "updated", "phone": phone, "message": "Lead actualizado correctamente"}
+            return {
+                "success": True, 
+                "operation": "updated", 
+                "phone": phone, 
+                "message": "Lead actualizado correctamente"
+            }
         else:
             collection.insert_one(cleaned_data)
             logger.info(f"✓ Lead creado: {phone}")
-            return {"success": True, "operation": "created", "phone": phone, "message": "Lead creado correctamente"}
+            return {
+                "success": True, 
+                "operation": "created", 
+                "phone": phone, 
+                "message": "Lead creado correctamente"
+            }
             
     except PyMongoError as e:
         logger.error(f"Error guardando lead: {e}")
@@ -143,15 +248,18 @@ def find_lead_by_phone(phone_whatsapp: str) -> Optional[dict]:
             return None
             
         collection = db["leads_fortia"]
-        lead = collection.find_one({"phone_whatsapp": phone_whatsapp})
+        # Buscar por ambos campos (compatibilidad)
+        lead = collection.find_one({
+            "$or": [
+                {"telefono_whatsapp": phone_whatsapp},
+                {"phone_whatsapp": phone_whatsapp}
+            ]
+        })
         if lead:
             lead["_id"] = str(lead.get("_id", ""))
         return lead
     except PyMongoError as e:
         logger.error(f"Error buscando lead: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Error inesperado buscando lead: {e}")
         return None
 
 
@@ -170,16 +278,10 @@ def find_lead_by_email_calcom(email_calcom: str) -> Optional[dict]:
     except PyMongoError as e:
         logger.error(f"Error buscando lead por email: {e}")
         return None
-    except Exception as e:
-        logger.error(f"Error inesperado buscando lead por email: {e}")
-        return None
 
 
 def update_lead_calcom_email(phone_whatsapp: str, email_calcom: str, name: str = "") -> dict:
-    """
-    Guarda el email de Cal.com y genera link pre-llenado.
-    Réplica de MongoDB_Guardar_Email_CalCom en n8n.
-    """
+    """Guarda el email de Cal.com y genera link pre-llenado."""
     try:
         db = get_database()
         if db is None:
@@ -187,8 +289,7 @@ def update_lead_calcom_email(phone_whatsapp: str, email_calcom: str, name: str =
             
         collection = db["leads_fortia"]
         
-        # Generar link pre-llenado (como n8n)
-        base_url = CALCOM_EVENT_URL if CALCOM_EVENT_URL else "https://cal.com/agencia-fortia-hviska/60min"
+        base_url = CALCOM_EVENT_URL or "https://cal.com/agencia-fortia-hviska/60min"
         
         from urllib.parse import quote
         encoded_name = quote(name) if name else ""
@@ -198,11 +299,15 @@ def update_lead_calcom_email(phone_whatsapp: str, email_calcom: str, name: str =
         update_data = {
             "email_calcom": email_calcom,
             "calcom_link": calcom_link,
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "actualizado_en": datetime.now(timezone.utc).isoformat()
         }
         
+        # Buscar por ambos campos
         result = collection.update_one(
-            {"phone_whatsapp": phone_whatsapp},
+            {"$or": [
+                {"telefono_whatsapp": phone_whatsapp},
+                {"phone_whatsapp": phone_whatsapp}
+            ]},
             {"$set": update_data}
         )
         
@@ -214,13 +319,12 @@ def update_lead_calcom_email(phone_whatsapp: str, email_calcom: str, name: str =
                 "message": "Email guardado correctamente"
             }
         else:
-            # Si no existe el lead, crear uno básico
             collection.insert_one({
-                "phone_whatsapp": phone_whatsapp,
+                "telefono_whatsapp": phone_whatsapp,
                 "email_calcom": email_calcom,
                 "calcom_link": calcom_link,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat()
+                "creado_en": datetime.now(timezone.utc).isoformat(),
+                "actualizado_en": datetime.now(timezone.utc).isoformat()
             })
             return {
                 "success": True,
@@ -231,15 +335,10 @@ def update_lead_calcom_email(phone_whatsapp: str, email_calcom: str, name: str =
     except PyMongoError as e:
         logger.error(f"Error actualizando email Cal.com: {e}")
         return {"success": False, "error": str(e)}
-    except Exception as e:
-        logger.error(f"Error inesperado: {e}")
-        return {"success": False, "error": str(e)}
 
 
 def update_lead_booking(email_calcom: str, booking_data: dict) -> dict:
-    """
-    Actualiza datos de reserva desde webhook de Cal.com.
-    """
+    """Actualiza datos de reserva desde webhook de Cal.com."""
     try:
         db = get_database()
         if db is None:
@@ -247,21 +346,21 @@ def update_lead_booking(email_calcom: str, booking_data: dict) -> dict:
             
         collection = db["leads_fortia"]
         
-        # Hora Argentina para booking_updated_at
         try:
             tz_arg = pytz.timezone('America/Argentina/Buenos_Aires')
             hora_arg = datetime.now(tz_arg).strftime('%d/%m/%Y, %H:%M')
         except:
             hora_arg = datetime.now(timezone.utc).strftime('%d/%m/%Y, %H:%M')
         
+        # Campos en español
         update_data = {
-            "booking_uid": booking_data.get("booking_uid", ""),
-            "booking_status": booking_data.get("booking_status", ""),
-            "booking_start_time": booking_data.get("booking_start_time", ""),
-            "booking_cancel_link": booking_data.get("booking_cancel_link", ""),
-            "booking_reschedule_link": booking_data.get("booking_reschedule_link", ""),
-            "booking_zoom_url": booking_data.get("booking_zoom_url", ""),
-            "booking_updated_at": hora_arg
+            "reserva_uid": booking_data.get("booking_uid", ""),
+            "reserva_estado": booking_data.get("booking_status", ""),
+            "reserva_fecha_hora": booking_data.get("booking_start_time", ""),
+            "reserva_link_cancelar": booking_data.get("booking_cancel_link", ""),
+            "reserva_link_reprogramar": booking_data.get("booking_reschedule_link", ""),
+            "reserva_zoom_url": booking_data.get("booking_zoom_url", ""),
+            "reserva_actualizado_en": hora_arg
         }
         
         result = collection.update_one(
@@ -270,25 +369,19 @@ def update_lead_booking(email_calcom: str, booking_data: dict) -> dict:
         )
         
         if result.modified_count > 0:
-            logger.info(f"✓ Booking actualizado para: {email_calcom}")
-            return {"success": True, "message": "Booking actualizado"}
+            logger.info(f"✓ Reserva actualizada para: {email_calcom}")
+            return {"success": True, "message": "Reserva actualizada"}
         else:
             logger.warning(f"⚠ Lead no encontrado con email: {email_calcom}")
             return {"success": False, "error": "Lead no encontrado"}
             
     except PyMongoError as e:
-        logger.error(f"Error actualizando booking: {e}")
-        return {"success": False, "error": str(e)}
-    except Exception as e:
-        logger.error(f"Error inesperado: {e}")
+        logger.error(f"Error actualizando reserva: {e}")
         return {"success": False, "error": str(e)}
 
 
 def save_chat_message(session_id: str, msg_type: str, text: str) -> bool:
-    """
-    Guarda un mensaje en el historial de chat.
-    Usa UN documento por sesión con array de mensajes.
-    """
+    """Guarda un mensaje en el historial de chat."""
     try:
         db = get_database()
         if db is None:
@@ -297,83 +390,65 @@ def save_chat_message(session_id: str, msg_type: str, text: str) -> bool:
         collection = db["chat_history"]
         
         message = {
-            "type": msg_type,
-            "text": text,
+            "tipo": msg_type,
+            "texto": text,
             "timestamp": datetime.now(timezone.utc)
         }
         
-        # Upsert: crear documento si no existe, agregar mensaje al array
         collection.update_one(
             {"sessionId": session_id},
             {
-                "$push": {"messages": message},
-                "$set": {"updated_at": datetime.now(timezone.utc)},
-                "$setOnInsert": {"created_at": datetime.now(timezone.utc)}
+                "$push": {"mensajes": message},
+                "$set": {"actualizado_en": datetime.now(timezone.utc)},
+                "$setOnInsert": {"creado_en": datetime.now(timezone.utc)}
             },
             upsert=True
         )
         
-        logger.info(f"✓ Mensaje guardado en chat_history: {session_id}")
         return True
         
     except PyMongoError as e:
         logger.error(f"Error guardando mensaje: {e}")
         return False
-    except Exception as e:
-        logger.error(f"Error inesperado guardando mensaje: {e}")
-        return False
 
 
 def get_chat_history(session_id: str, limit: int = 20) -> list:
-    """
-    Obtiene historial de chat para un usuario.
-    Retorna en formato para OpenAI.
-    """
+    """Obtiene historial de chat para un usuario."""
     try:
         db = get_database()
         if db is None:
             return []
             
         collection = db["chat_history"]
-        
-        # Buscar documento de la sesión
         doc = collection.find_one({"sessionId": session_id})
         
-        if not doc or "messages" not in doc:
+        if not doc:
             return []
         
-        # Tomar últimos N mensajes
-        messages = doc["messages"][-limit:] if len(doc["messages"]) > limit else doc["messages"]
+        # Buscar mensajes en ambos formatos
+        messages = doc.get("mensajes") or doc.get("messages") or []
+        messages = messages[-limit:] if len(messages) > limit else messages
         
-        # Convertir a formato OpenAI
         history = []
         for msg in messages:
-            msg_type = msg.get("type", "")
-            msg_text = msg.get("text", "")
+            msg_type = msg.get("tipo") or msg.get("type", "")
+            msg_text = msg.get("texto") or msg.get("text", "")
             
             if not msg_text:
                 continue
                 
             role = "user" if msg_type == "human" else "assistant"
-            history.append({
-                "role": role,
-                "content": msg_text
-            })
+            history.append({"role": role, "content": msg_text})
         
         return history
         
     except PyMongoError as e:
         logger.error(f"Error obteniendo historial: {e}")
         return []
-    except Exception as e:
-        logger.error(f"Error inesperado obteniendo historial: {e}")
-        return []
 
 
 def update_lead_summary(phone_whatsapp: str, summary: str) -> dict:
-    """
-    Actualiza el resumen de conversación de un lead.
-    """
+    """Actualiza el resumen de conversación de un lead."""
     try:
         db = get_database()
         if db is None:
@@ -381,14 +456,15 @@ def update_lead_summary(phone_whatsapp: str, summary: str) -> dict:
         
         collection = db["leads_fortia"]
         
-        from datetime import datetime, timezone
-        
         result = collection.update_one(
-            {"phone_whatsapp": phone_whatsapp},
+            {"$or": [
+                {"telefono_whatsapp": phone_whatsapp},
+                {"phone_whatsapp": phone_whatsapp}
+            ]},
             {"$set": {
-                "conversation_summary": summary,
-                "summary_date": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat()
+                "resumen_conversacion": summary,
+                "fecha_resumen": datetime.now(timezone.utc).isoformat(),
+                "actualizado_en": datetime.now(timezone.utc).isoformat()
             }}
         )
         
