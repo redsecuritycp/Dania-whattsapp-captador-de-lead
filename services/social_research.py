@@ -123,7 +123,8 @@ async def research_person_and_company(nombre_persona: str,
                                       instagram_empresa_input: str = "",
                                       city: str = "",
                                       province: str = "",
-                                      country: str = "") -> dict:
+                                      country: str = "",
+                                      email_contacto: str = "") -> dict:
     """
     Función principal que replica el workflow completo de n8n.
     LinkedIn empresa: SOLO desde web del cliente.
@@ -234,10 +235,90 @@ async def research_person_and_company(nombre_persona: str,
                     f"[TAVILY] ✓ Nombre verificado: {nombre_verificado}")
 
         # ═══════════════════════════════════════════════════════════════
-        # PASO 3: TAVILY - BUSCAR LINKEDIN PERSONAL (2 FASES)
+        # PASO 3: LINKEDIN PERSONAL - ORDEN DE BÚSQUEDA
         # ═══════════════════════════════════════════════════════════════
-        if TAVILY_API_KEY:
-            logger.info(f"[TAVILY] Buscando LinkedIn personal...")
+        # 3A: Buscar en contenido web del cliente (si tenemos website)
+        # 3B: Buscar por email (si lo tenemos)
+        # 3C: Buscar por nombre+empresa (Tavily/Google)
+        # ═══════════════════════════════════════════════════════════════
+        
+        linkedin_encontrados = []
+        
+        # ───────────────────────────────────────────────────────────────
+        # 3A: BUSCAR EN WEB DEL CLIENTE (más confiable)
+        # ───────────────────────────────────────────────────────────────
+        if tiene_website:
+            logger.info(f"[LINKEDIN] PASO 3A: Buscando en web del cliente...")
+            try:
+                # Extraer contenido de páginas clave
+                paginas = [
+                    f"https://{website_limpio}",
+                    f"https://{website_limpio}/nosotros",
+                    f"https://{website_limpio}/about",
+                    f"https://{website_limpio}/equipo",
+                    f"https://{website_limpio}/team",
+                    f"https://{website_limpio}/contacto",
+                ]
+                
+                contenido_web = ""
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    for pagina in paginas[:4]:
+                        try:
+                            resp = await client.get(
+                                pagina,
+                                headers={"User-Agent": "Mozilla/5.0"},
+                                follow_redirects=True
+                            )
+                            if resp.status_code == 200:
+                                contenido_web += resp.text + "\n"
+                        except:
+                            continue
+                
+                if contenido_web:
+                    urls_web = await buscar_linkedin_en_web(
+                        contenido_web,
+                        results["primer_nombre"],
+                        results["apellido"]
+                    )
+                    for url in urls_web:
+                        if url not in linkedin_encontrados:
+                            linkedin_encontrados.append(url)
+                            logger.info(f"[LINKEDIN-WEB] ✓ {url}")
+                    
+                    if linkedin_encontrados:
+                        results["linkedin_personal"] = " | ".join(
+                            linkedin_encontrados[:3])
+                        results["linkedin_personal_confianza"] = 90
+                        results["linkedin_personal_source"] = "web_cliente"
+                        logger.info(
+                            f"[LINKEDIN] ✓ Encontrado en web: "
+                            f"{results['linkedin_personal']}"
+                        )
+            except Exception as e:
+                logger.warning(f"[LINKEDIN-WEB] Error: {e}")
+        
+        # ───────────────────────────────────────────────────────────────
+        # 3B: BUSCAR POR EMAIL (si no encontramos en web)
+        # ───────────────────────────────────────────────────────────────
+        if not linkedin_encontrados:
+            # email_contacto viene como parámetro de la función
+            if email_contacto and email_contacto != "No encontrado":
+                logger.info(
+                    f"[LINKEDIN] PASO 3B: Buscando por email {email_contacto}..."
+                )
+                linkedin_email = await buscar_linkedin_por_email(email_contacto)
+                if linkedin_email:
+                    linkedin_encontrados.append(linkedin_email)
+                    results["linkedin_personal"] = linkedin_email
+                    results["linkedin_personal_confianza"] = 85
+                    results["linkedin_personal_source"] = "email"
+                    logger.info(f"[LINKEDIN-EMAIL] ✓ {linkedin_email}")
+        
+        # ───────────────────────────────────────────────────────────────
+        # 3C: BUSCAR POR NOMBRE+EMPRESA (Tavily/Google)
+        # ───────────────────────────────────────────────────────────────
+        if not linkedin_encontrados and TAVILY_API_KEY:
+            logger.info(f"[TAVILY] PASO 3C: Buscando LinkedIn personal...")
             linkedin_result = await tavily_buscar_linkedin_personal(
                 results["nombre"], empresa_busqueda, results["primer_nombre"],
                 results["apellido"], ubicacion_completa, city, province,
@@ -255,9 +336,10 @@ async def research_person_and_company(nombre_persona: str,
         # ═══════════════════════════════════════════════════════════════
         # PASO 4: GOOGLE - FALLBACK LINKEDIN PERSONAL (2 FASES)
         # ═══════════════════════════════════════════════════════════════
-        if ((results["linkedin_personal"] == "No encontrado"
-             or results["linkedin_personal_confianza"] < 70) and GOOGLE_API_KEY
-                and GOOGLE_SEARCH_CX):
+        if (not linkedin_encontrados and 
+            (results["linkedin_personal"] == "No encontrado"
+             or results["linkedin_personal_confianza"] < 70) and 
+            GOOGLE_API_KEY and GOOGLE_SEARCH_CX):
             logger.info(f"[GOOGLE] Fallback: buscando LinkedIn personal...")
             google_linkedin = await google_buscar_linkedin_personal(
                 results["nombre"], empresa_busqueda, results["primer_nombre"],
@@ -757,16 +839,12 @@ async def _tavily_buscar_linkedin_interno(
                     continue
 
                 score = 0
-                tiene_match_nombre = False
-                tiene_match_empresa = False
 
-                # Scoring por nombre completo en texto
+                # Scoring por nombre en texto
                 if nombre_lower in texto:
                     score += 50
-                    tiene_match_nombre = True
                 elif primer_lower in texto and apellido_lower in texto:
                     score += 45
-                    tiene_match_nombre = True
 
                 # Scoring por URL slug
                 url_slug = ""
@@ -777,15 +855,25 @@ async def _tavily_buscar_linkedin_interno(
 
                 if primer_lower in url_slug_clean and apellido_lower in url_slug_clean:
                     score += 40
-                    tiene_match_nombre = True
                 elif apellido_lower in url_slug_clean:
                     score += 25
 
-                if apellido_lower in texto and primer_lower in texto:
-                    tiene_match_nombre = True
-                    score += 10
-
-                # Scoring por empresa (si aplica)
+                # ═══════════════════════════════════════════════════════
+                # VALIDACIÓN ESTRICTA: debe tener nombre Y apellido
+                # en texto O en URL
+                # ═══════════════════════════════════════════════════════
+                tiene_primer_nombre = (
+                    primer_lower in texto or 
+                    primer_lower in url_slug_clean
+                )
+                tiene_apellido = (
+                    apellido_lower in texto or 
+                    apellido_lower in url_slug_clean
+                )
+                tiene_match_nombre = tiene_primer_nombre and tiene_apellido
+                
+                # Scoring por empresa (solo si ya tiene match de nombre)
+                tiene_match_empresa = False
                 if empresa_lower and empresa_lower in texto:
                     tiene_match_empresa = True
                     score += 30
@@ -990,16 +1078,12 @@ async def _google_buscar_linkedin_interno(
                     continue
 
                 score = 0
-                tiene_match_nombre = False
-                tiene_match_empresa = False
 
-                # Scoring por nombre completo en texto
+                # Scoring por nombre en texto
                 if nombre_lower in texto:
                     score += 40
-                    tiene_match_nombre = True
                 elif primer_lower in texto and apellido_lower in texto:
                     score += 35
-                    tiene_match_nombre = True
 
                 # Scoring por URL slug
                 url_slug = ""
@@ -1007,19 +1091,30 @@ async def _google_buscar_linkedin_interno(
                     url_slug = (
                         link.split("/in/")[1].split("/")[0].split("?")[0])
                 url_slug_lower = url_slug.lower().replace("-", "")
+                url_slug_clean = url_slug.lower().replace("-", " ")
 
                 if (primer_lower in url_slug_lower
                         and apellido_lower in url_slug_lower):
                     score += 30
-                    tiene_match_nombre = True
                 elif apellido_lower in url_slug_lower:
                     score += 15
 
-                if apellido_lower in texto and primer_lower in texto:
-                    tiene_match_nombre = True
-                    score += 10
-
-                # Scoring por empresa (si aplica)
+                # ═══════════════════════════════════════════════════════
+                # VALIDACIÓN ESTRICTA: debe tener nombre Y apellido
+                # en texto O en URL
+                # ═══════════════════════════════════════════════════════
+                tiene_primer_nombre = (
+                    primer_lower in texto or 
+                    primer_lower in url_slug_clean
+                )
+                tiene_apellido = (
+                    apellido_lower in texto or 
+                    apellido_lower in url_slug_clean
+                )
+                tiene_match_nombre = tiene_primer_nombre and tiene_apellido
+                
+                # Scoring por empresa (solo si ya tiene match de nombre)
+                tiene_match_empresa = False
                 if empresa_lower and empresa_lower in texto:
                     tiene_match_empresa = True
                     score += 30

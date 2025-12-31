@@ -275,6 +275,9 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             province = province_web if province_web else province_phone
             country = context.get("country_detected", "")
 
+            # Obtener email del contexto
+            email_contacto = context.get("email_principal", "")
+            
             result = await research_person_and_company(
                 nombre_persona=nombre,
                 empresa=empresa,
@@ -284,7 +287,8 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 instagram_empresa_input=instagram_empresa,
                 city=city,
                 province=province,
-                country=country)
+                country=country,
+                email_contacto=email_contacto)
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result or {"error": "No se pudieron encontrar redes"}
 
