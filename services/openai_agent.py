@@ -370,14 +370,14 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                                   or lead_data.get("emoji", ""))
 
             # Agregar challenges_detected del context si existe
-            if context.get("challenges_detected"
-                           ) and not lead_data.get("challenges_detected"):
+            if context.get("challenges_detected") and not lead_data.get("challenges_detected"):
                 lead_data["challenges_detected"] = ", ".join(
                     context["challenges_detected"][:3])
             
             # Agregar business_model del context si no viene en arguments
             if context.get("business_model") and not lead_data.get("business_model"):
                 lead_data["business_model"] = context.get("business_model")
+                logger.info(f"[GUARDAR] business_model agregado del context: {lead_data['business_model']}")
 
             try:
                 save_result = save_lead(lead_data)

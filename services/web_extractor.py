@@ -523,6 +523,17 @@ def merge_results(gpt_data: dict, regex_data: dict, tavily_answer: str, website:
             resultado['email_principal'] = other_emails[0]
             logger.info(f"[MERGE] Email alternativo: {other_emails[0]}")
     
+    # Validar que phone_empresa no sea un año (ej: 2024-2025)
+    phone_empresa = resultado.get("phone_empresa", "No encontrado")
+    if phone_empresa and phone_empresa != "No encontrado":
+        # Si parece un año o rango de años, descartarlo
+        import re
+        if re.match(r'^[\d\-\s]+$', phone_empresa) and len(phone_empresa) < 12:
+            # Parece año (ej: "2024-2025", "2024", "2025")
+            if any(str(year) in phone_empresa for year in range(2020, 2030)):
+                resultado['phone_empresa'] = "No encontrado"
+                logger.warning(f"[EXTRACTOR] phone_empresa descartado (parece año): {phone_empresa}")
+    
     # Teléfono
     if not resultado.get('phone_empresa') or resultado.get('phone_empresa') == 'No encontrado':
         if regex_data.get('phones'):

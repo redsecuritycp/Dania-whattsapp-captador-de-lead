@@ -824,23 +824,27 @@ async def _tavily_buscar_linkedin_interno(
                     candidatos.append({
                         "url": url.split("?")[0],
                         "confianza": min(score, 100),
-                        "score": score
+                        "score": score,
+                        "tiene_empresa": tiene_match_empresa
                     })
 
             candidatos.sort(key=lambda x: x["confianza"], reverse=True)
 
             if candidatos:
+                # Devolver hasta 3 candidatos separados por " | "
                 resultados = []
                 for c in candidatos[:3]:
-                    conf = min(95,
-                               confianza_base + (c["score"] - umbral_score))
+                    conf = min(95, confianza_base + (c["score"] - umbral_score))
                     resultados.append({"url": c["url"], "confianza": conf})
-
+                
+                mejor_conf = resultados[0]["confianza"]
+                
                 if len(resultados) == 1:
+                    logger.info(f"[TAVILY] ✓ LinkedIn: {resultados[0]['url']}")
                     return resultados[0]
                 else:
                     urls = [r["url"] for r in resultados]
-                    mejor_conf = resultados[0]["confianza"]
+                    logger.info(f"[TAVILY] ✓ LinkedIn múltiples: {len(urls)}")
                     return {"url": " | ".join(urls), "confianza": mejor_conf}
 
             return None
@@ -1047,23 +1051,29 @@ async def _google_buscar_linkedin_interno(
                         f"[GOOGLE] Candidato: {link} "
                         f"(nombre: {tiene_match_nombre}, "
                         f"empresa: {tiene_match_empresa}, score: {score})")
-                    candidatos.append({"url": link, "score": score})
+                    candidatos.append({
+                        "url": link, 
+                        "score": score,
+                        "tiene_empresa": tiene_match_empresa
+                    })
 
             candidatos.sort(key=lambda x: x["score"], reverse=True)
 
             if candidatos:
+                # Devolver hasta 3 candidatos separados por " | "
                 resultados = []
                 for c in candidatos[:3]:
-                    conf = min(95,
-                               confianza_base + (c["score"] - umbral_score))
+                    conf = min(95, confianza_base + (c["score"] - umbral_score))
                     resultados.append({"url": c["url"], "confianza": conf})
-
+                
                 mejor = resultados[0]
                 if mejor["confianza"] > confianza_actual:
                     if len(resultados) == 1:
+                        logger.info(f"[GOOGLE] ✓ LinkedIn: {mejor['url']}")
                         return mejor
                     else:
                         urls = [r["url"] for r in resultados]
+                        logger.info(f"[GOOGLE] ✓ LinkedIn múltiples: {len(urls)}")
                         return {
                             "url": " | ".join(urls),
                             "confianza": mejor["confianza"]

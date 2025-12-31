@@ -55,35 +55,70 @@ async def check_and_send_reminders():
     """
     Verifica bookings próximos y envía recordatorios.
     Corre cada 5 minutos.
+    Filtra reuniones pasadas automáticamente.
     """
-    logger.info("[REMINDERS] ══════ Iniciando check de recordatorios ══════")
     try:
         db = get_database()
-        # FIX: usar "is not None" en lugar de solo "if db"
         if db is None:
             logger.warning("[REMINDERS] No hay conexión a MongoDB")
             return
 
         collection = db["leads_fortia"]
         now = datetime.now(pytz.UTC)
+        logger.info("[REMINDERS] ══════ Iniciando check de recordatorios ══════")
 
         # Buscar leads con booking activo
-        query = {
+        leads_with_booking = collection.find({
             "booking_status": "created",
-            "booking_start_time": {"$exists": True, "$ne": ""}
-        }
-        leads_with_booking = list(collection.find(query))
-        
-        logger.info(f"[REMINDERS] Encontrados {len(leads_with_booking)} "
-                    f"leads con booking activo")
+            "booking_start_time": {
+                "$exists": True,
+                "$ne": ""
+            }
+        })
 
-        for lead in leads_with_booking:
-            logger.info(f"[REMINDERS] Procesando: "
-                        f"{lead.get('name', 'Sin nombre')} - "
-                        f"{lead.get('phone_whatsapp', 'Sin tel')} - "
-                        f"Reunión: {lead.get('booking_start_time', 'Sin fecha')}")
+        leads_list = list(leads_with_booking)
+        logger.info(f"[REMINDERS] Encontrados {len(leads_list)} leads con booking activo")
+
+        for lead in leads_list:
             try:
+                phone = lead.get("phone_whatsapp", "")
+                name = lead.get("name", "")
+                booking_str = lead.get("booking_start_time", "")
+                
+                if not booking_str:
+                    continue
+                
+                # Parsear fecha del booking
+                try:
+                    if booking_str.endswith('Z'):
+                        booking_clean = booking_str[:-1] + '+00:00'
+                    else:
+                        booking_clean = booking_str
+                    booking_dt = datetime.fromisoformat(
+                        booking_clean.replace('Z', '+00:00')
+                    )
+                    if booking_dt.tzinfo is None:
+                        booking_dt = pytz.UTC.localize(booking_dt)
+                except Exception as parse_err:
+                    logger.warning(f"[REMINDERS] Error parseando fecha: {parse_err}")
+                    continue
+                
+                # Si la reunión ya pasó hace más de 1 hora, marcar completed
+                if booking_dt < now - timedelta(hours=1):
+                    logger.info(
+                        f"[REMINDERS] Reunión PASADA - marcando completed: "
+                        f"{name} - {phone} - {booking_str}"
+                    )
+                    collection.update_one(
+                        {"_id": lead["_id"]},
+                        {"$set": {"booking_status": "completed"}}
+                    )
+                    continue
+                
+                # Procesar recordatorios normalmente
+                logger.info(f"[REMINDERS] Procesando: {name} - {phone} - Reunión: {booking_str}")
                 await process_lead_reminders(lead, now)
+                
             except Exception as e:
                 logger.error(
                     f"[REMINDERS] Error procesando lead {lead.get('phone_whatsapp')}: {e}"

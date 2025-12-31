@@ -7,6 +7,8 @@ import os
 import sys
 import json
 import logging
+import warnings
+warnings.filterwarnings("ignore", message="Can not find any timezone")
 import time
 from datetime import datetime
 from contextlib import asynccontextmanager
