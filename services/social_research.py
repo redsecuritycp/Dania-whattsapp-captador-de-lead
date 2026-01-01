@@ -30,263 +30,6 @@ HTTP_TIMEOUT = 30.0
 APIFY_TIMEOUT = 45.0  # Reducido de 200s a 45s
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# DICCIONARIO DE UBICACIONES - VARIANTES COMPLETAS
-# ═══════════════════════════════════════════════════════════════════════════
-UBICACIONES_VARIANTES = {
-    # ═══════════════════════════════════════════════════════════════════════
-    # PAÍSES - Código ISO, nombre completo, variantes
-    # ═══════════════════════════════════════════════════════════════════════
-    "paises": {
-        # Hispanohablantes
-        "argentina": ["argentina", "ar", "arg", "argentine", "argentino"],
-        "mexico": ["mexico", "méxico", "mx", "mex", "mexican", "mexicano"],
-        "espana": ["españa", "espana", "spain", "es", "esp", "spanish", "español"],
-        "colombia": ["colombia", "co", "col", "colombian", "colombiano"],
-        "chile": ["chile", "cl", "chi", "chilean", "chileno"],
-        "peru": ["peru", "perú", "pe", "per", "peruvian", "peruano"],
-        "venezuela": ["venezuela", "ve", "ven", "venezuelan", "venezolano"],
-        "ecuador": ["ecuador", "ec", "ecu", "ecuadorian", "ecuatoriano"],
-        "bolivia": ["bolivia", "bo", "bol", "bolivian", "boliviano"],
-        "paraguay": ["paraguay", "py", "par", "paraguayan", "paraguayo"],
-        "uruguay": ["uruguay", "uy", "uru", "uruguayan", "uruguayo"],
-        "cuba": ["cuba", "cu", "cub", "cuban", "cubano"],
-        "dominicana": ["dominicana", "república dominicana", "dominican republic", "do", "dom", "rd"],
-        "puerto_rico": ["puerto rico", "pr", "puertorriqueño", "boricua"],
-        "guatemala": ["guatemala", "gt", "gua", "guatemalteco"],
-        "honduras": ["honduras", "hn", "hon", "hondureño"],
-        "el_salvador": ["el salvador", "salvador", "sv", "sal", "salvadoreño"],
-        "nicaragua": ["nicaragua", "ni", "nic", "nicaragüense"],
-        "costa_rica": ["costa rica", "cr", "cri", "costarricense", "tico"],
-        "panama": ["panama", "panamá", "pa", "pan", "panameño"],
-        
-        # Brasil
-        "brasil": ["brasil", "brazil", "br", "bra", "brazilian", "brasileiro"],
-        
-        # USA y Canadá
-        "usa": ["usa", "united states", "estados unidos", "us", "ee.uu", "eeuu", "america", "american", "estadounidense"],
-        "canada": ["canada", "canadá", "ca", "can", "canadian", "canadiense"],
-        
-        # Unión Europea (principales)
-        "alemania": ["alemania", "germany", "de", "deu", "ger", "german", "alemán", "deutschland"],
-        "francia": ["francia", "france", "fr", "fra", "french", "francés"],
-        "italia": ["italia", "italy", "it", "ita", "italian", "italiano"],
-        "portugal": ["portugal", "pt", "por", "portuguese", "portugués"],
-        "paises_bajos": ["países bajos", "holanda", "netherlands", "holland", "nl", "ned", "dutch", "holandés"],
-        "reino_unido": ["reino unido", "united kingdom", "uk", "gb", "gbr", "britain", "british", "británico", "england", "inglaterra"],
-    },
-    
-    # ═══════════════════════════════════════════════════════════════════════
-    # ARGENTINA - Provincias y ciudades principales
-    # ═══════════════════════════════════════════════════════════════════════
-    "argentina": {
-        "provincias": {
-            "buenos_aires": ["buenos aires", "bs as", "bs. as.", "bsas", "ba", "pba", "provincia de buenos aires"],
-            "caba": ["caba", "capital federal", "ciudad autónoma", "ciudad autonoma", "c.a.b.a", "buenos aires ciudad", "cdad de buenos aires"],
-            "catamarca": ["catamarca", "cat"],
-            "chaco": ["chaco", "cha"],
-            "chubut": ["chubut", "chu"],
-            "cordoba": ["córdoba", "cordoba", "cba", "cba."],
-            "corrientes": ["corrientes", "corr", "ctes"],
-            "entre_rios": ["entre ríos", "entre rios", "er", "e. ríos"],
-            "formosa": ["formosa", "for", "fsa"],
-            "jujuy": ["jujuy", "juj", "s.s. de jujuy", "san salvador de jujuy"],
-            "la_pampa": ["la pampa", "lpampa", "l. pampa"],
-            "la_rioja": ["la rioja", "rioja", "lrioja"],
-            "mendoza": ["mendoza", "mza", "mdz"],
-            "misiones": ["misiones", "mis"],
-            "neuquen": ["neuquén", "neuquen", "nqn"],
-            "rio_negro": ["río negro", "rio negro", "rn", "r. negro"],
-            "salta": ["salta", "sal"],
-            "san_juan": ["san juan", "sj", "s. juan"],
-            "san_luis": ["san luis", "sl", "s. luis"],
-            "santa_cruz": ["santa cruz", "sc", "s. cruz"],
-            "santa_fe": ["santa fe", "sf", "sta fe", "sta. fe", "s. fe", "pcia santa fe", "prov santa fe"],
-            "santiago_estero": ["santiago del estero", "sgo estero", "sde", "stgo del estero", "santiago estero"],
-            "tierra_fuego": ["tierra del fuego", "tdf", "t. del fuego", "ushuaia"],
-            "tucuman": ["tucumán", "tucuman", "tuc", "smt", "san miguel de tucumán"],
-        },
-        "ciudades": {
-            # Buenos Aires provincia
-            "la_plata": ["la plata", "laplata"],
-            "mar_del_plata": ["mar del plata", "mdp", "mdq"],
-            "bahia_blanca": ["bahía blanca", "bahia blanca", "bb"],
-            "tandil": ["tandil"],
-            "olavarria": ["olavarría", "olavarria"],
-            
-            # Santa Fe provincia (más completa por ser relevante para el caso)
-            "rosario": ["rosario", "ros"],
-            "santa_fe_ciudad": ["santa fe ciudad", "santa fe capital"],
-            "rafaela": ["rafaela"],
-            "venado_tuerto": ["venado tuerto"],
-            "reconquista": ["reconquista"],
-            "san_lorenzo": ["san lorenzo"],
-            "casilda": ["casilda"],
-            "esperanza": ["esperanza"],
-            "san_justo": ["san justo"],
-            "villa_constitucion": ["villa constitución", "villa constitucion"],
-            "san_jorge": ["san jorge"],
-            "galvez": ["gálvez", "galvez"],
-            "ceres": ["ceres"],
-            "sunchales": ["sunchales"],
-            "armstrong": ["armstrong"],
-            "firmat": ["firmat"],
-            "rufino": ["rufino"],
-            "totoras": ["totoras"],
-            "carcarana": ["carcarañá", "carcarana"],
-            "fray_luis_beltran": ["fray luis beltrán", "fray luis beltran"],
-            "granadero_baigorria": ["granadero baigorria"],
-            "puerto_san_martin": ["puerto general san martín", "puerto san martin"],
-            "capitan_bermudez": ["capitán bermúdez", "capitan bermudez"],
-            "santo_tome": ["santo tomé", "santo tome"],
-            "san_carlos_centro": ["san carlos centro"],
-            "carlos_pellegrini": ["carlos pellegrini", "pellegrini"],
-            "vera": ["vera"],
-            "tostado": ["tostado"],
-        }
-    },
-    
-    # ═══════════════════════════════════════════════════════════════════════
-    # MÉXICO, ESPAÑA, COLOMBIA, CHILE, PERÚ, USA, BRASIL (principales)
-    # ═══════════════════════════════════════════════════════════════════════
-    "mexico": {
-        "estados": {
-            "cdmx": ["ciudad de méxico", "cdmx", "df", "distrito federal", "ciudad de mexico", "méxico df", "mexico df"],
-            "jalisco": ["jalisco", "jal"],
-            "nuevo_leon": ["nuevo león", "nuevo leon", "nl"],
-        },
-        "ciudades": {
-            "ciudad_mexico": ["ciudad de méxico", "cdmx", "df", "méxico df"],
-            "guadalajara": ["guadalajara", "gdl"],
-            "monterrey": ["monterrey", "mty"],
-        }
-    },
-    
-    "espana": {
-        "comunidades": {
-            "madrid": ["madrid", "comunidad de madrid", "mad"],
-            "cataluna": ["cataluña", "catalunya", "cataluna", "cat"],
-            "valencia": ["comunidad valenciana", "valencia", "país valenciano", "val"],
-        },
-        "ciudades": {
-            "madrid_ciudad": ["madrid"],
-            "barcelona": ["barcelona", "bcn"],
-            "valencia_ciudad": ["valencia", "valència"],
-        }
-    },
-    
-    "colombia": {
-        "departamentos": {
-            "bogota_dc": ["bogotá d.c.", "bogota", "bogotá", "distrito capital"],
-            "antioquia": ["antioquia", "ant"],
-        },
-        "ciudades": {
-            "bogota": ["bogotá", "bogota"],
-            "medellin": ["medellín", "medellin"],
-        }
-    },
-    
-    "chile": {
-        "regiones": {
-            "metropolitana": ["metropolitana", "región metropolitana", "rm", "santiago"],
-        },
-        "ciudades": {
-            "santiago": ["santiago", "santiago de chile", "stgo"],
-        }
-    },
-    
-    "peru": {
-        "departamentos": {
-            "lima": ["lima"],
-        },
-        "ciudades": {
-            "lima_ciudad": ["lima"],
-        }
-    },
-    
-    "usa": {
-        "estados": {
-            "california": ["california", "ca", "calif"],
-            "new_york_state": ["new york", "ny"],
-            "texas": ["texas", "tx"],
-        },
-        "ciudades": {
-            "new_york": ["new york city", "nyc", "new york", "manhattan"],
-            "los_angeles": ["los angeles", "la", "l.a."],
-        }
-    },
-    
-    "brasil": {
-        "estados": {
-            "sao_paulo": ["são paulo", "sao paulo", "sp"],
-            "rio_janeiro": ["rio de janeiro", "rj"],
-        },
-        "ciudades": {
-            "sao_paulo_ciudad": ["são paulo", "sao paulo", "sp"],
-            "rio_janeiro_ciudad": ["rio de janeiro", "rio"],
-        }
-    },
-}
-
-
-def obtener_variantes_ubicacion(ubicacion: str) -> list:
-    """
-    Dado un nombre de ubicación, retorna todas sus variantes.
-    Busca en países, provincias/estados y ciudades.
-    """
-    if not ubicacion:
-        return []
-    
-    ubicacion_lower = ubicacion.lower().strip()
-    variantes = [ubicacion_lower]
-    
-    # Buscar en países
-    for pais, lista in UBICACIONES_VARIANTES.get("paises", {}).items():
-        if ubicacion_lower in [v.lower() for v in lista]:
-            variantes.extend([v.lower() for v in lista])
-            return list(set(variantes))
-    
-    # Buscar en cada país (provincias/estados y ciudades)
-    for pais in ["argentina", "mexico", "espana", "colombia", 
-                 "chile", "peru", "usa", "brasil"]:
-        pais_data = UBICACIONES_VARIANTES.get(pais, {})
-        
-        # Buscar en provincias/estados
-        for key in ["provincias", "estados", "comunidades", 
-                    "departamentos", "regiones"]:
-            subdiv = pais_data.get(key, {})
-            for nombre, lista in subdiv.items():
-                if ubicacion_lower in [v.lower() for v in lista]:
-                    variantes.extend([v.lower() for v in lista])
-                    return list(set(variantes))
-        
-        # Buscar en ciudades
-        ciudades = pais_data.get("ciudades", {})
-        for nombre, lista in ciudades.items():
-            if ubicacion_lower in [v.lower() for v in lista]:
-                variantes.extend([v.lower() for v in lista])
-                return list(set(variantes))
-    
-    return variantes
-
-
-def ubicacion_en_texto(ubicacion: str, texto: str) -> bool:
-    """
-    Verifica si alguna variante de la ubicación está en el texto.
-    """
-    if not ubicacion or not texto:
-        return False
-    
-    texto_lower = texto.lower()
-    variantes = obtener_variantes_ubicacion(ubicacion)
-    
-    for v in variantes:
-        if v in texto_lower:
-            return True
-    
-    return False
-
-
 def es_url_valida_noticia(url: str, texto: str, empresa: str) -> bool:
     """Valida si una URL es una noticia real y relevante."""
     url_lower = url.lower()
@@ -389,8 +132,7 @@ def calcular_peso_linkedin(
     apellido: str,
     empresa: str = "",
     provincia: str = "",
-    ciudad: str = "",
-    pais: str = ""
+    ciudad: str = ""
 ) -> int:
     """
     Calcula el peso de un perfil de LinkedIn.
@@ -399,10 +141,9 @@ def calcular_peso_linkedin(
     - Nombre (obligatorio): 40 puntos
     - Apellido (obligatorio): 40 puntos
     - Empresa: 10 puntos
-    - Ubicación (provincia/ciudad/país): 10 puntos
+    - Provincia/Ciudad: 10 puntos
     
     Si no tiene nombre Y apellido, retorna 0 (descartar).
-    Usa variantes de ubicación para mejor matching.
     """
     url_lower = url.lower()
     texto_lower = texto.lower()
@@ -419,6 +160,8 @@ def calcular_peso_linkedin(
     primer_lower = primer_nombre.lower().strip()
     apellido_lower = apellido.lower().strip()
     empresa_lower = empresa.lower().strip() if empresa else ""
+    provincia_lower = provincia.lower().strip() if provincia else ""
+    ciudad_lower = ciudad.lower().strip() if ciudad else ""
     
     peso = 0
     tiene_nombre = False
@@ -436,14 +179,13 @@ def calcular_peso_linkedin(
             peso += 40
             tiene_apellido = True
     
-    # ═══════════════════════════════════════════════════════════════════
-    # CRÍTICO: Si no tiene nombre Y apellido, descartar SIEMPRE
-    # ═══════════════════════════════════════════════════════════════════
+    # Si no tiene nombre Y apellido, descartar
     if not (tiene_nombre and tiene_apellido):
         return 0
     
     # Verificar empresa (10 puntos)
     if empresa_lower and len(empresa_lower) > 2:
+        # Buscar empresa completa o palabras clave
         palabras_empresa = [
             p for p in empresa_lower.split() 
             if len(p) > 2
@@ -453,25 +195,11 @@ def calcular_peso_linkedin(
         elif any(p in contenido for p in palabras_empresa):
             peso += 5
     
-    # ═══════════════════════════════════════════════════════════════════
-    # Verificar ubicación con VARIANTES (10 puntos máximo)
-    # ═══════════════════════════════════════════════════════════════════
-    puntos_ubicacion = 0
-    
-    # Provincia/Estado (5 puntos)
-    if provincia and ubicacion_en_texto(provincia, contenido):
-        puntos_ubicacion += 5
-    
-    # Ciudad (5 puntos)
-    if ciudad and ubicacion_en_texto(ciudad, contenido):
-        puntos_ubicacion += 5
-    
-    # País (3 puntos, solo si no sumó por provincia/ciudad)
-    if pais and puntos_ubicacion == 0:
-        if ubicacion_en_texto(pais, contenido):
-            puntos_ubicacion += 3
-    
-    peso += min(puntos_ubicacion, 10)
+    # Verificar ubicación (10 puntos)
+    if provincia_lower and provincia_lower in contenido:
+        peso += 5
+    if ciudad_lower and ciudad_lower in contenido:
+        peso += 5
     
     return min(peso, 100)
 
@@ -652,8 +380,7 @@ async def research_person_and_company(nombre_persona: str,
                             apellido=apellido_busqueda,
                             empresa=empresa_busqueda,
                             provincia=province,
-                            ciudad=city,
-                            pais=country
+                            ciudad=city
                         )
                         
                         if peso >= 60:
@@ -691,8 +418,7 @@ async def research_person_and_company(nombre_persona: str,
                     apellido=apellido_busqueda,
                     empresa=empresa_busqueda,
                     provincia=province,
-                    ciudad=city,
-                    pais=country
+                    ciudad=city
                 )
                 # Email tiene peso mínimo 70 si encontró algo
                 peso = max(peso, 70)
@@ -802,8 +528,7 @@ async def research_person_and_company(nombre_persona: str,
                     apellido=apellido_busqueda,
                     empresa=empresa_busqueda,
                     provincia=province,
-                    ciudad=city,
-                    pais=country
+                    ciudad=city
                 )
                 if peso >= 60:
                     ya_existe = any(
@@ -1289,30 +1014,61 @@ async def _tavily_buscar_linkedin_interno(
                 if "/company/" in url:
                     continue
 
-                # ═══════════════════════════════════════════════════════════════
-                # VALIDACIÓN ESTRICTA: usar calcular_peso_linkedin
-                # ═══════════════════════════════════════════════════════════════
-                peso = calcular_peso_linkedin(
-                    url=url,
-                    texto=texto,
-                    primer_nombre=primer_lower,
-                    apellido=apellido_lower,
-                    empresa=empresa_lower,
-                    provincia=province,
-                    ciudad=city,
-                    pais=country
+                score = 0
+
+                # Scoring por nombre en texto
+                if nombre_lower in texto:
+                    score += 50
+                elif primer_lower in texto and apellido_lower in texto:
+                    score += 45
+
+                # Scoring por URL slug
+                url_slug = ""
+                if "/in/" in url:
+                    url_slug = (
+                        url.split("/in/")[1].split("/")[0].split("?")[0])
+                url_slug_clean = url_slug.lower().replace("-", " ")
+
+                if primer_lower in url_slug_clean and apellido_lower in url_slug_clean:
+                    score += 40
+                elif apellido_lower in url_slug_clean:
+                    score += 25
+
+                # ═══════════════════════════════════════════════════════
+                # VALIDACIÓN ESTRICTA: debe tener nombre Y apellido
+                # en texto O en URL
+                # ═══════════════════════════════════════════════════════
+                tiene_primer_nombre = (
+                    primer_lower in texto or 
+                    primer_lower in url_slug_clean
                 )
+                tiene_apellido = (
+                    apellido_lower in texto or 
+                    apellido_lower in url_slug_clean
+                )
+                tiene_match_nombre = tiene_primer_nombre and tiene_apellido
                 
-                # Si peso < 60, DESCARTAR (no tiene nombre+apellido)
-                if peso < 60:
-                    logger.debug(
-                        f"[TAVILY] Descartado: {url} (peso: {peso} < 60)"
-                    )
-                    continue
-                
+                # Scoring por empresa (solo si ya tiene match de nombre)
+                tiene_match_empresa = False
+                if empresa_lower and empresa_lower in texto:
+                    tiene_match_empresa = True
+                    score += 30
+
+                # ═══════════════════════════════════════════════════════
+                # SCORING POR UBICACIÓN (NUEVO)
+                # ═══════════════════════════════════════════════════════
+                if city_lower and city_lower in texto:
+                    score += 15
+                    logger.debug(f"[TAVILY] +15 por ciudad: {city}")
+                if province_lower and province_lower in texto:
+                    score += 10
+                    logger.debug(f"[TAVILY] +10 por provincia: {province}")
+                if country_lower and country_lower in texto:
+                    score += 5
+                    logger.debug(f"[TAVILY] +5 por país: {country}")
+
                 # Detectar rubros incompatibles
                 tiene_rubro_incompatible = False
-                tiene_match_empresa = empresa_lower in texto if empresa_lower else False
                 for rubro in rubros_incompatibles:
                     if rubro in texto and not tiene_match_empresa:
                         tiene_rubro_incompatible = True
@@ -1320,20 +1076,21 @@ async def _tavily_buscar_linkedin_interno(
 
                 if tiene_rubro_incompatible:
                     logger.info(
-                        f"[TAVILY] Descartado (rubro incompatible): {url}"
-                    )
+                        f"[TAVILY] Descartado (rubro incompatible): {url}")
                     continue
 
-                # Candidato válido
-                logger.info(
-                    f"[TAVILY] ✓ Candidato: {url} (peso: {peso})"
-                )
-                candidatos.append({
-                    "url": url.split("?")[0],
-                    "confianza": peso,
-                    "score": peso,
-                    "tiene_empresa": tiene_match_empresa
-                })
+                # Aceptar si tiene match de nombre y supera umbral
+                if tiene_match_nombre and score >= umbral_score:
+                    logger.info(
+                        f"[TAVILY] Candidato: {url} "
+                        f"(nombre: {tiene_match_nombre}, "
+                        f"empresa: {tiene_match_empresa}, score: {score})")
+                    candidatos.append({
+                        "url": url.split("?")[0],
+                        "confianza": min(score, 100),
+                        "score": score,
+                        "tiene_empresa": tiene_match_empresa
+                    })
 
             candidatos.sort(key=lambda x: x["confianza"], reverse=True)
 
@@ -1341,8 +1098,8 @@ async def _tavily_buscar_linkedin_interno(
                 # Devolver hasta 3 candidatos separados por " | "
                 resultados = []
                 for c in candidatos[:3]:
-                    # Usar el peso directamente como confianza
-                    resultados.append({"url": c["url"], "confianza": c["confianza"]})
+                    conf = min(95, confianza_base + (c["score"] - umbral_score))
+                    resultados.append({"url": c["url"], "confianza": conf})
                 
                 mejor_conf = resultados[0]["confianza"]
                 
@@ -1496,30 +1253,60 @@ async def _google_buscar_linkedin_interno(
                 if "linkedin.com/in/" not in link:
                     continue
 
-                # ═══════════════════════════════════════════════════════════════
-                # VALIDACIÓN ESTRICTA: usar calcular_peso_linkedin
-                # ═══════════════════════════════════════════════════════════════
-                peso = calcular_peso_linkedin(
-                    url=link,
-                    texto=texto,
-                    primer_nombre=primer_lower,
-                    apellido=apellido_lower,
-                    empresa=empresa_lower,
-                    provincia=province,
-                    ciudad=city,
-                    pais=country
+                score = 0
+
+                # Scoring por nombre en texto
+                if nombre_lower in texto:
+                    score += 40
+                elif primer_lower in texto and apellido_lower in texto:
+                    score += 35
+
+                # Scoring por URL slug
+                url_slug = ""
+                if "/in/" in link:
+                    url_slug = (
+                        link.split("/in/")[1].split("/")[0].split("?")[0])
+                url_slug_lower = url_slug.lower().replace("-", "")
+                url_slug_clean = url_slug.lower().replace("-", " ")
+
+                if (primer_lower in url_slug_lower
+                        and apellido_lower in url_slug_lower):
+                    score += 30
+                elif apellido_lower in url_slug_lower:
+                    score += 15
+
+                # ═══════════════════════════════════════════════════════
+                # VALIDACIÓN ESTRICTA: debe tener nombre Y apellido
+                # en texto O en URL
+                # ═══════════════════════════════════════════════════════
+                tiene_primer_nombre = (
+                    primer_lower in texto or 
+                    primer_lower in url_slug_clean
                 )
+                tiene_apellido = (
+                    apellido_lower in texto or 
+                    apellido_lower in url_slug_clean
+                )
+                tiene_match_nombre = tiene_primer_nombre and tiene_apellido
                 
-                # Si peso < 60, DESCARTAR (no tiene nombre+apellido)
-                if peso < 60:
-                    logger.debug(
-                        f"[GOOGLE] Descartado: {link} (peso: {peso} < 60)"
-                    )
-                    continue
-                
+                # Scoring por empresa (solo si ya tiene match de nombre)
+                tiene_match_empresa = False
+                if empresa_lower and empresa_lower in texto:
+                    tiene_match_empresa = True
+                    score += 30
+
+                # ═══════════════════════════════════════════════════════
+                # SCORING POR UBICACIÓN (NUEVO)
+                # ═══════════════════════════════════════════════════════
+                if city_lower and city_lower in texto:
+                    score += 15
+                if province_lower and province_lower in texto:
+                    score += 10
+                if country_lower and country_lower in texto:
+                    score += 5
+
                 # Detectar rubros incompatibles
                 tiene_rubro_incompatible = False
-                tiene_match_empresa = empresa_lower in texto if empresa_lower else False
                 for rubro in rubros_incompatibles:
                     if rubro in texto and not tiene_match_empresa:
                         tiene_rubro_incompatible = True
@@ -1527,29 +1314,28 @@ async def _google_buscar_linkedin_interno(
 
                 if tiene_rubro_incompatible:
                     logger.info(
-                        f"[GOOGLE] Descartado (rubro incompatible): {link}"
-                    )
+                        f"[GOOGLE] Descartado (rubro incompatible): {link}")
                     continue
 
-                # Candidato válido
-                logger.info(
-                    f"[GOOGLE] ✓ Candidato: {link} (peso: {peso})"
-                )
-                candidatos.append({
-                    "url": link, 
-                    "confianza": peso,
-                    "score": peso,
-                    "tiene_empresa": tiene_match_empresa
-                })
+                if tiene_match_nombre and score >= umbral_score:
+                    logger.info(
+                        f"[GOOGLE] Candidato: {link} "
+                        f"(nombre: {tiene_match_nombre}, "
+                        f"empresa: {tiene_match_empresa}, score: {score})")
+                    candidatos.append({
+                        "url": link, 
+                        "score": score,
+                        "tiene_empresa": tiene_match_empresa
+                    })
 
-            candidatos.sort(key=lambda x: x["confianza"], reverse=True)
+            candidatos.sort(key=lambda x: x["score"], reverse=True)
 
             if candidatos:
                 # Devolver hasta 3 candidatos separados por " | "
                 resultados = []
                 for c in candidatos[:3]:
-                    # Usar el peso directamente como confianza
-                    resultados.append({"url": c["url"], "confianza": c["confianza"]})
+                    conf = min(95, confianza_base + (c["score"] - umbral_score))
+                    resultados.append({"url": c["url"], "confianza": conf})
                 
                 mejor = resultados[0]
                 if mejor["confianza"] > confianza_actual:

@@ -460,10 +460,7 @@ Formato (omitir campos "No encontrado"):
 - Facebook: {facebook_empresa}
 
 🚨 REGLA PARA REDES SOCIALES NO ENCONTRADAS:
-⛔ NUNCA mostrar mensaje sobre redes sociales si AMBAS están encontradas.
-⛔ NUNCA mencionar WhatsApp en el contexto de redes sociales.
-
-SOLO si instagram_empresa = "No encontrado" O facebook_empresa = "No encontrado":
+Si instagram_empresa = "No encontrado" O facebook_empresa = "No encontrado":
 Después de mostrar el reporte, agregar:
 
 "No encontré tu Instagram/Facebook en tu web. 
@@ -477,9 +474,6 @@ Si el usuario dice "no tengo" o similar:
 - Dejar como "No encontrado"
 - Continuar al siguiente paso
 
-⛔ Si AMBAS redes están encontradas (LinkedIn, Instagram Y Facebook), 
-NO mostrar ningún mensaje adicional sobre redes sociales.
-
 📰 Noticias
 {noticias_empresa}
 
@@ -487,21 +481,15 @@ NO mostrar ningún mensaje adicional sobre redes sociales.
 
 PASO 4: Preguntar confirmación
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 VERIFICAR PRIMERO si las redes sociales están presentes:
-
-SI instagram_empresa = "No encontrado" O facebook_empresa = "No encontrado":
-→ Decir: "No encontré tu Instagram/Facebook en tu web. 
+SI instagram_empresa O facebook_empresa = "No encontrado":
+Decir: "No encontré tu Instagram/Facebook en tu web. 
 ¿Tenés redes sociales de la empresa que quieras compartir?
 
 Cuando me las pases (o si no tenés), confirmame si el 
 resto de los datos están correctos."
 
-SI AMBAS redes (Instagram Y Facebook) están encontradas 
-Y tienen URLs válidas (no "No encontrado"):
-→ Decir SOLO: "¿Está todo correcto o necesitás corregir algo?"
-
-⛔ NUNCA preguntar por redes sociales si ya están en el reporte.
-⛔ NUNCA mencionar WhatsApp cuando se habla de redes sociales.
+SI AMBAS redes están encontradas:
+Decir: "¿Está todo correcto o necesitás corregir algo?"
 
 ⛔ ESPERAR respuesta del usuario antes de continuar.
 
