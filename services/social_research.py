@@ -40,9 +40,19 @@ def es_url_valida_noticia(url: str, texto: str, empresa: str) -> bool:
         return False
 
     dominios_basura = [
+        # Académicos/documentos
         'pdfcoffee', 'scribd', 'academia.edu', 'slideshare', 'coursehero',
         'repositorio', 'bitstream', 'handle/', 'thesis', 'tesis',
-        'icj-cij.org', 'cancilleria.gob', 'boletinoficial'
+        # Gobierno/legal
+        'icj-cij.org', 'cancilleria.gob', 'boletinoficial',
+        'sidof.segob.gob', 'segob.gob.mx',
+        # Ecommerce/spam
+        'cityfilespress', 'amazon.com', 'mercadolibre', 'aliexpress',
+        'ebay.com', 'alibaba.com', 'wish.com', 'shopee',
+        'olx.com', 'craiglist', 'segundamano', 'vibbo',
+        # Redes sociales (NO son noticias)
+        'linkedin.com', 'facebook.com', 'instagram.com', 
+        'twitter.com', 'x.com', 'youtube.com', 'tiktok.com',
     ]
     if any(d in url_lower for d in dominios_basura):
         return False
@@ -113,6 +123,85 @@ def es_registro_legal(url: str, texto: str) -> bool:
         return True
 
     return False
+
+
+def calcular_peso_linkedin(
+    url: str,
+    texto: str,
+    primer_nombre: str,
+    apellido: str,
+    empresa: str = "",
+    provincia: str = "",
+    ciudad: str = ""
+) -> int:
+    """
+    Calcula el peso de un perfil de LinkedIn.
+    
+    PESO MÁXIMO 100:
+    - Nombre (obligatorio): 40 puntos
+    - Apellido (obligatorio): 40 puntos
+    - Empresa: 10 puntos
+    - Provincia/Ciudad: 10 puntos
+    
+    Si no tiene nombre Y apellido, retorna 0 (descartar).
+    """
+    url_lower = url.lower()
+    texto_lower = texto.lower()
+    
+    # Extraer slug de la URL
+    slug = ""
+    if "/in/" in url_lower:
+        slug = url_lower.split("/in/")[1].split("/")[0].split("?")[0]
+    slug_clean = slug.replace("-", " ").replace("_", " ")
+    
+    # Combinar texto y slug para búsqueda
+    contenido = f"{texto_lower} {slug_clean}"
+    
+    primer_lower = primer_nombre.lower().strip()
+    apellido_lower = apellido.lower().strip()
+    empresa_lower = empresa.lower().strip() if empresa else ""
+    provincia_lower = provincia.lower().strip() if provincia else ""
+    ciudad_lower = ciudad.lower().strip() if ciudad else ""
+    
+    peso = 0
+    tiene_nombre = False
+    tiene_apellido = False
+    
+    # Verificar nombre (40 puntos)
+    if primer_lower and len(primer_lower) > 1:
+        if primer_lower in contenido:
+            peso += 40
+            tiene_nombre = True
+    
+    # Verificar apellido (40 puntos)
+    if apellido_lower and len(apellido_lower) > 1:
+        if apellido_lower in contenido:
+            peso += 40
+            tiene_apellido = True
+    
+    # Si no tiene nombre Y apellido, descartar
+    if not (tiene_nombre and tiene_apellido):
+        return 0
+    
+    # Verificar empresa (10 puntos)
+    if empresa_lower and len(empresa_lower) > 2:
+        # Buscar empresa completa o palabras clave
+        palabras_empresa = [
+            p for p in empresa_lower.split() 
+            if len(p) > 2
+        ]
+        if empresa_lower in contenido:
+            peso += 10
+        elif any(p in contenido for p in palabras_empresa):
+            peso += 5
+    
+    # Verificar ubicación (10 puntos)
+    if provincia_lower and provincia_lower in contenido:
+        peso += 5
+    if ciudad_lower and ciudad_lower in contenido:
+        peso += 5
+    
+    return min(peso, 100)
 
 
 async def research_person_and_company(nombre_persona: str,
@@ -235,22 +324,22 @@ async def research_person_and_company(nombre_persona: str,
                     f"[TAVILY] ✓ Nombre verificado: {nombre_verificado}")
 
         # ═══════════════════════════════════════════════════════════════
-        # PASO 3: LINKEDIN PERSONAL - ORDEN DE BÚSQUEDA
+        # PASO 3: LINKEDIN PERSONAL - BÚSQUEDA CON PESO
         # ═══════════════════════════════════════════════════════════════
-        # 3A: Buscar en contenido web del cliente (si tenemos website)
-        # 3B: Buscar por email (si lo tenemos)
-        # 3C: Buscar por nombre+empresa (Tavily/Google)
+        # Buscar en TODAS las fuentes, calcular peso, mostrar los mejores
         # ═══════════════════════════════════════════════════════════════
         
-        linkedin_encontrados = []
+        candidatos_linkedin = []  # Lista de {url, peso, source}
+        
+        primer_nombre_busqueda = results["primer_nombre"]
+        apellido_busqueda = results["apellido"]
         
         # ───────────────────────────────────────────────────────────────
-        # 3A: BUSCAR EN WEB DEL CLIENTE (más confiable)
+        # 3A: BUSCAR EN WEB DEL CLIENTE
         # ───────────────────────────────────────────────────────────────
         if tiene_website:
-            logger.info(f"[LINKEDIN] PASO 3A: Buscando en web del cliente...")
+            logger.info(f"[LINKEDIN] PASO 3A: Buscando en web...")
             try:
-                # Extraer contenido de páginas clave
                 paginas = [
                     f"https://{website_limpio}",
                     f"https://{website_limpio}/nosotros",
@@ -275,128 +364,221 @@ async def research_person_and_company(nombre_persona: str,
                             continue
                 
                 if contenido_web:
-                    urls_web = await buscar_linkedin_en_web(
-                        contenido_web,
-                        results["primer_nombre"],
-                        results["apellido"]
-                    )
-                    for url in urls_web:
-                        if url not in linkedin_encontrados:
-                            linkedin_encontrados.append(url)
-                            logger.info(f"[LINKEDIN-WEB] ✓ {url}")
+                    # Buscar URLs de LinkedIn en el contenido
+                    pattern = r'https?://(?:www\.)?(?:ar\.)?linkedin\.com/in/([a-zA-Z0-9_~-]+)'
+                    matches = re.findall(pattern, contenido_web, re.IGNORECASE)
                     
-                    if linkedin_encontrados:
-                        results["linkedin_personal"] = " | ".join(
-                            linkedin_encontrados[:3])
-                        results["linkedin_personal_confianza"] = 90
-                        results["linkedin_personal_source"] = "web_cliente"
-                        logger.info(
-                            f"[LINKEDIN] ✓ Encontrado en web: "
-                            f"{results['linkedin_personal']}"
+                    for slug in matches:
+                        if slug.lower() in ['company', 'jobs', 'pulse']:
+                            continue
+                        
+                        url = f"https://linkedin.com/in/{slug}"
+                        peso = calcular_peso_linkedin(
+                            url=url,
+                            texto=contenido_web,
+                            primer_nombre=primer_nombre_busqueda,
+                            apellido=apellido_busqueda,
+                            empresa=empresa_busqueda,
+                            provincia=province,
+                            ciudad=city
                         )
+                        
+                        if peso >= 60:
+                            ya_existe = any(
+                                c["url"] == url for c in candidatos_linkedin
+                            )
+                            if not ya_existe:
+                                candidatos_linkedin.append({
+                                    "url": url,
+                                    "peso": peso,
+                                    "source": "web_cliente"
+                                })
+                                logger.info(
+                                    f"[LINKEDIN-WEB] ✓ {url} (peso: {peso})"
+                                )
+                        else:
+                            logger.info(
+                                f"[LINKEDIN-WEB] ✗ {url} descartado "
+                                f"(peso: {peso} < 60)"
+                            )
             except Exception as e:
                 logger.warning(f"[LINKEDIN-WEB] Error: {e}")
         
         # ───────────────────────────────────────────────────────────────
-        # 3B: BUSCAR POR EMAIL (si no encontramos en web)
+        # 3B: BUSCAR POR EMAIL
         # ───────────────────────────────────────────────────────────────
-        if not linkedin_encontrados:
-            # email_contacto viene como parámetro de la función
-            if email_contacto and email_contacto != "No encontrado":
-                logger.info(
-                    f"[LINKEDIN] PASO 3B: Buscando por email {email_contacto}..."
+        if email_contacto and email_contacto != "No encontrado":
+            logger.info(f"[LINKEDIN] PASO 3B: Buscando por email...")
+            linkedin_email = await buscar_linkedin_por_email(email_contacto)
+            if linkedin_email:
+                peso = calcular_peso_linkedin(
+                    url=linkedin_email,
+                    texto=email_contacto,
+                    primer_nombre=primer_nombre_busqueda,
+                    apellido=apellido_busqueda,
+                    empresa=empresa_busqueda,
+                    provincia=province,
+                    ciudad=city
                 )
-                linkedin_email = await buscar_linkedin_por_email(email_contacto)
-                if linkedin_email:
-                    linkedin_encontrados.append(linkedin_email)
-                    results["linkedin_personal"] = linkedin_email
-                    results["linkedin_personal_confianza"] = 85
-                    results["linkedin_personal_source"] = "email"
-                    logger.info(f"[LINKEDIN-EMAIL] ✓ {linkedin_email}")
-        
-        # ───────────────────────────────────────────────────────────────
-        # 3C: BUSCAR POR NOMBRE+EMPRESA (Tavily/Google)
-        # ───────────────────────────────────────────────────────────────
-        if not linkedin_encontrados and TAVILY_API_KEY:
-            logger.info(f"[TAVILY] PASO 3C: Buscando LinkedIn personal...")
-            linkedin_result = await tavily_buscar_linkedin_personal(
-                results["nombre"], empresa_busqueda, results["primer_nombre"],
-                results["apellido"], ubicacion_completa, city, province,
-                country)
-            if linkedin_result:
-                results["linkedin_personal"] = linkedin_result.get(
-                    "url", "No encontrado")
-                results["linkedin_personal_confianza"] = linkedin_result.get(
-                    "confianza", 0)
-                results["linkedin_personal_source"] = "tavily"
-                logger.info(
-                    f"[TAVILY] ✓ LinkedIn: {results['linkedin_personal']} "
-                    f"(conf: {results['linkedin_personal_confianza']})")
-
-        # ═══════════════════════════════════════════════════════════════
-        # PASO 4: GOOGLE - FALLBACK LINKEDIN PERSONAL (2 FASES)
-        # ═══════════════════════════════════════════════════════════════
-        if (not linkedin_encontrados and 
-            (results["linkedin_personal"] == "No encontrado"
-             or results["linkedin_personal_confianza"] < 70) and 
-            GOOGLE_API_KEY and GOOGLE_SEARCH_CX):
-            logger.info(f"[GOOGLE] Fallback: buscando LinkedIn personal...")
-            google_linkedin = await google_buscar_linkedin_personal(
-                results["nombre"], empresa_busqueda, results["primer_nombre"],
-                results["apellido"], results["linkedin_personal_confianza"],
-                ubicacion_completa, city, province, country)
-            if google_linkedin:
-                nueva_conf = google_linkedin.get("confianza", 0)
-                if nueva_conf > results["linkedin_personal_confianza"]:
-                    results["linkedin_personal"] = google_linkedin.get(
-                        "url", results["linkedin_personal"])
-                    results["linkedin_personal_confianza"] = nueva_conf
-                    results["linkedin_personal_source"] = "google"
+                # Email tiene peso mínimo 70 si encontró algo
+                peso = max(peso, 70)
+                ya_existe = any(
+                    c["url"] == linkedin_email for c in candidatos_linkedin
+                )
+                if not ya_existe:
+                    candidatos_linkedin.append({
+                        "url": linkedin_email,
+                        "peso": peso,
+                        "source": "email"
+                    })
                     logger.info(
-                        f"[GOOGLE] ✓ LinkedIn: {results['linkedin_personal']}")
-
-        # ═══════════════════════════════════════════════════════════════
-        # PASO 4B: BÚSQUEDAS ADICIONALES DE LINKEDIN
-        # ═══════════════════════════════════════════════════════════════
-        linkedin_adicionales = []
+                        f"[LINKEDIN-EMAIL] ✓ {linkedin_email} (peso: {peso})"
+                    )
         
-        # 4B.1: Buscar por cargo (fundador/CEO/etc)
-        if results["linkedin_personal_confianza"] < 80:
-            logger.info("[CARGO] Buscando LinkedIn por cargo...")
+        # ───────────────────────────────────────────────────────────────
+        # 3C: BUSCAR POR NOMBRE+EMPRESA (Tavily)
+        # ───────────────────────────────────────────────────────────────
+        if TAVILY_API_KEY:
+            logger.info(f"[LINKEDIN] PASO 3C: Buscando en Tavily...")
+            linkedin_result = await tavily_buscar_linkedin_personal(
+                results["nombre"], 
+                empresa_busqueda, 
+                primer_nombre_busqueda,
+                apellido_busqueda, 
+                ubicacion_completa, 
+                city, 
+                province,
+                country
+            )
+            if linkedin_result:
+                urls_tavily = linkedin_result.get("url", "")
+                confianza = linkedin_result.get("confianza", 0)
+                
+                # Puede venir una URL o varias separadas por |
+                for url in urls_tavily.split(" | "):
+                    url = url.strip()
+                    if not url or url == "No encontrado":
+                        continue
+                    
+                    ya_existe = any(
+                        c["url"] == url for c in candidatos_linkedin
+                    )
+                    if not ya_existe:
+                        candidatos_linkedin.append({
+                            "url": url,
+                            "peso": confianza,
+                            "source": "tavily"
+                        })
+                        logger.info(
+                            f"[LINKEDIN-TAVILY] ✓ {url} (peso: {confianza})"
+                        )
+        
+        # ───────────────────────────────────────────────────────────────
+        # 3D: BUSCAR CON GOOGLE (fallback)
+        # ───────────────────────────────────────────────────────────────
+        if GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
+            logger.info(f"[LINKEDIN] PASO 3D: Buscando en Google...")
+            google_result = await google_buscar_linkedin_personal(
+                results["nombre"], 
+                empresa_busqueda, 
+                primer_nombre_busqueda,
+                apellido_busqueda, 
+                0,  # confianza_actual
+                ubicacion_completa, 
+                city, 
+                province, 
+                country
+            )
+            if google_result:
+                urls_google = google_result.get("url", "")
+                confianza = google_result.get("confianza", 0)
+                
+                for url in urls_google.split(" | "):
+                    url = url.strip()
+                    if not url or url == "No encontrado":
+                        continue
+                    
+                    ya_existe = any(
+                        c["url"] == url for c in candidatos_linkedin
+                    )
+                    if not ya_existe:
+                        candidatos_linkedin.append({
+                            "url": url,
+                            "peso": confianza,
+                            "source": "google"
+                        })
+                        logger.info(
+                            f"[LINKEDIN-GOOGLE] ✓ {url} (peso: {confianza})"
+                        )
+        
+        # ───────────────────────────────────────────────────────────────
+        # 3E: BUSCAR POR CARGO (CEO/fundador)
+        # ───────────────────────────────────────────────────────────────
+        if len(candidatos_linkedin) < 2:
+            logger.info(f"[LINKEDIN] PASO 3E: Buscando por cargo...")
             por_cargo = await buscar_linkedin_por_cargo(
                 empresa=empresa_busqueda,
                 ubicacion=ubicacion_completa
             )
             for url in por_cargo:
-                if url not in linkedin_adicionales and \
-                   url != results["linkedin_personal"]:
-                    linkedin_adicionales.append(url)
+                peso = calcular_peso_linkedin(
+                    url=url,
+                    texto=f"{empresa_busqueda} {ubicacion_completa}",
+                    primer_nombre=primer_nombre_busqueda,
+                    apellido=apellido_busqueda,
+                    empresa=empresa_busqueda,
+                    provincia=province,
+                    ciudad=city
+                )
+                if peso >= 60:
+                    ya_existe = any(
+                        c["url"] == url for c in candidatos_linkedin
+                    )
+                    if not ya_existe:
+                        candidatos_linkedin.append({
+                            "url": url,
+                            "peso": peso,
+                            "source": "cargo"
+                        })
+                        logger.info(
+                            f"[LINKEDIN-CARGO] ✓ {url} (peso: {peso})"
+                        )
         
-        # 4B.2: Buscar por email si lo tenemos
-        # (el email viene del contexto, hay que pasarlo como parámetro)
-        
-        # 4B.3: Combinar resultados
-        if linkedin_adicionales:
-            if results["linkedin_personal"] == "No encontrado":
-                results["linkedin_personal"] = linkedin_adicionales[0]
-                results["linkedin_personal_confianza"] = 60
-                results["linkedin_personal_source"] = "cargo_search"
-                if len(linkedin_adicionales) > 1:
-                    results["linkedin_personal"] += " | " + \
-                        " | ".join(linkedin_adicionales[1:3])
-            else:
-                # Agregar como adicionales
-                actual = results["linkedin_personal"]
-                todos = [actual] + [
-                    u for u in linkedin_adicionales 
-                    if u != actual
-                ][:2]
-                results["linkedin_personal"] = " | ".join(todos)
-            
-            logger.info(
-                f"[LINKEDIN] Total encontrados: "
-                f"{results['linkedin_personal']}"
+        # ───────────────────────────────────────────────────────────────
+        # CONSOLIDAR RESULTADOS
+        # ───────────────────────────────────────────────────────────────
+        if candidatos_linkedin:
+            # Ordenar por peso (mayor a menor)
+            candidatos_linkedin.sort(
+                key=lambda x: x["peso"], 
+                reverse=True
             )
+            
+            # Filtrar solo los que tienen peso >= 60
+            validos = [
+                c for c in candidatos_linkedin 
+                if c["peso"] >= 60
+            ]
+            
+            if validos:
+                # Formato: uno por línea
+                urls_finales = [c["url"] for c in validos[:5]]
+                results["linkedin_personal"] = "\n".join(urls_finales)
+                results["linkedin_personal_confianza"] = validos[0]["peso"]
+                results["linkedin_personal_source"] = validos[0]["source"]
+                
+                logger.info(
+                    f"[LINKEDIN] ✓ {len(urls_finales)} perfiles encontrados"
+                )
+                for c in validos[:5]:
+                    logger.info(
+                        f"  - {c['url']} (peso: {c['peso']}, "
+                        f"source: {c['source']})"
+                    )
+            else:
+                logger.info("[LINKEDIN] ✗ Ningún candidato con peso >= 60")
+        else:
+            logger.info("[LINKEDIN] ✗ No se encontraron candidatos")
 
         # ═══════════════════════════════════════════════════════════════
         # PASO 5: NOTICIAS - GOOGLE PRIMERO (RÁPIDO) + APIFY PARALELO
@@ -433,18 +615,12 @@ async def research_person_and_company(nombre_persona: str,
             for n in noticias[:10]:
                 titulo = n.get("titulo", "Sin título")
                 url = n.get("url", "")
-                source = n.get("source", "web")
 
-                if 'linkedin.com' in url.lower():
-                    source_label = 'LINKEDIN'
-                elif 'facebook.com' in url.lower():
-                    source_label = 'FACEBOOK'
-                elif 'instagram.com' in url.lower():
-                    source_label = 'INSTAGRAM'
-                elif source == 'apify':
-                    source_label = url.split('/')[2].replace(
-                        'www.', '').split('.')[0].upper()
-                else:
+                # Extraer nombre del dominio como label
+                try:
+                    dominio = url.split('/')[2].replace('www.', '')
+                    source_label = dominio.split('.')[0].upper()
+                except:
                     source_label = 'WEB'
 
                 linea = f"• {titulo} [{source_label}]"
@@ -1255,7 +1431,6 @@ async def apify_buscar_noticias(empresa_busqueda: str,
 
             empresa_lower = empresa_busqueda.lower()
             noticias = []
-            noticias_redes_sociales = []
 
             for item in items:
                 url = item.get("url", "")
@@ -1263,9 +1438,8 @@ async def apify_buscar_noticias(empresa_busqueda: str,
                 texto = item.get("text", "") or ""
                 texto_lower = texto.lower()
 
-                # Detectar si es red social de empresa
-                es_red_social_empresa = (es_red_social(url)
-                                         and empresa_lower in texto_lower)
+                # Las redes sociales ya se filtran en es_url_valida_noticia
+                # No las procesamos como noticias
 
                 # Saltar buscadores y registros legales
                 if es_buscador(url):
@@ -1291,12 +1465,9 @@ async def apify_buscar_noticias(empresa_busqueda: str,
                         "source": "apify"
                     }
 
-                    if es_red_social_empresa:
-                        noticias_redes_sociales.append(noticia)
-                    else:
-                        noticias.append(noticia)
+                    noticias.append(noticia)
 
-            noticias_finales = noticias_redes_sociales + noticias
+            noticias_finales = noticias
 
             logger.info(
                 f"[APIFY] ✓ {len(noticias_finales)} noticias procesadas")
@@ -1358,7 +1529,6 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str,
             palabras_clave = [p for p in empresa_lower.split() if len(p) > 2]
 
             noticias = []
-            noticias_redes_sociales = []
 
             for item in items:
                 url = item.get("link", "")
@@ -1367,8 +1537,8 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str,
                 texto = f"{titulo} {snippet}"
                 texto_lower = texto.lower()
 
-                es_red_social_empresa = (es_red_social(url)
-                                         and empresa_lower in texto_lower)
+                # Las redes sociales ya se filtran en es_url_valida_noticia
+                # No las procesamos como noticias
 
                 if es_buscador(url):
                     continue
@@ -1388,12 +1558,9 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str,
                         "source": "google"
                     }
 
-                    if es_red_social_empresa:
-                        noticias_redes_sociales.append(noticia)
-                    else:
-                        noticias.append(noticia)
+                    noticias.append(noticia)
 
-            noticias_finales = noticias_redes_sociales + noticias
+            noticias_finales = noticias
 
             logger.info(
                 f"[GOOGLE] ✓ {len(noticias_finales)} noticias encontradas")
