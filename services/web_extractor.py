@@ -263,7 +263,7 @@ def extract_with_regex(all_content: str) -> dict:
     regex_extract['phones'] = list(set(phones))[:5]
     
     # ═══════════════════════════════════════════════════════════════════
-    # 3. WHATSAPP - Búsqueda genérica multipaís
+    # 3. WHATSAPP - Búsqueda UNIVERSAL (50+ patrones)
     # ═══════════════════════════════════════════════════════════════════
     # DEBUG: Ver si el contenido tiene telephone
     if 'telephone' in all_content.lower():
@@ -272,15 +272,108 @@ def extract_with_regex(all_content: str) -> dict:
         logger.info(f"[REGEX] ✗ Contenido NO tiene 'telephone'")
     
     wa_patterns = [
-        r'wa\.me/(\d+)',
-        r'api\.whatsapp\.com/send\?phone=(\d+)',
-        r'href="whatsapp://send\?phone=(\d+)"',
-        r'data-phone="(\d+)"',
-        r'data-whatsapp="(\d+)"',
-        r'"telephone"[:\s]*"(\d{10,15})"',
-        r'"phone"[:\s]*"(\d{10,15})"',
-        r"'phone'[:\s]*'(\d{10,15})'",
-        r'(?:whatsapp|wsp|wa)[:\s]*\+?(\d[\d\s-]{9,})',
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 1: Links directos WhatsApp (más confiables)
+        # ══════════════════════════════════════════════════════════════
+        r'wa\.me/(\d{10,15})',
+        r'api\.whatsapp\.com/send\?phone=(\d{10,15})',
+        r'web\.whatsapp\.com/send\?phone=(\d{10,15})',
+        r'href=["\']whatsapp://send\?phone=(\d{10,15})',
+        r'whatsapp://send/?\?phone=(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 2: Elfsight Widget (muy común en sitios modernos)
+        # ══════════════════════════════════════════════════════════════
+        r'"whatsAppNumber"[:\s]*["\']?\+?(\d{10,15})',
+        r"'whatsAppNumber'[:\s]*['\"]?\+?(\d{10,15})",
+        r'whatsAppNumber["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'data-whatsapp-number=["\']?\+?(\d{10,15})',
+        r'elfsight.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 3: JoinChat / WhatsApp Chat Plugins
+        # ══════════════════════════════════════════════════════════════
+        r'joinchat.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'join\.chat.*?(\d{10,15})',
+        r'wa_btnSetting.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'wa498_phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 4: Click to Chat / Chat Buttons
+        # ══════════════════════════════════════════════════════════════
+        r'click-to-chat.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'ctc-phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'chat-phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'whatsapp-chat.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 5: Atributos data-* genéricos
+        # ══════════════════════════════════════════════════════════════
+        r'data-phone=["\']?\+?(\d{10,15})',
+        r'data-whatsapp=["\']?\+?(\d{10,15})',
+        r'data-wa=["\']?\+?(\d{10,15})',
+        r'data-tel=["\']?\+?(\d{10,15})',
+        r'data-number=["\']?\+?(\d{10,15})',
+        r'data-mobile=["\']?\+?(\d{10,15})',
+        r'data-contact=["\']?\+?(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 6: JSON/JavaScript objects (phoneNumber, phone, etc.)
+        # ══════════════════════════════════════════════════════════════
+        r'"phoneNumber"[:\s]*["\']?\+?(\d{10,15})',
+        r"'phoneNumber'[:\s]*['\"]?\+?(\d{10,15})",
+        r'phoneNumber["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'"phone"[:\s]*["\']?\+?(\d{10,15})',
+        r"'phone'[:\s]*['\"]?\+?(\d{10,15})",
+        r'"telephone"[:\s]*["\']?\+?(\d{10,15})',
+        r"'telephone'[:\s]*['\"]?\+?(\d{10,15})",
+        r'"mobile"[:\s]*["\']?\+?(\d{10,15})',
+        r"'mobile'[:\s]*['\"]?\+?(\d{10,15})",
+        r'"cel"[:\s]*["\']?\+?(\d{10,15})',
+        r'"celular"[:\s]*["\']?\+?(\d{10,15})',
+        r'"whatsapp"[:\s]*["\']?\+?(\d{10,15})',
+        r"'whatsapp'[:\s]*['\"]?\+?(\d{10,15})",
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 7: Schema.org / Structured Data
+        # ══════════════════════════════════════════════════════════════
+        r'"contactPoint".*?"telephone"[:\s]*["\']?\+?(\d{10,15})',
+        r'itemprop=["\']telephone["\'].*?content=["\']?\+?(\d{10,15})',
+        r'@type.*?ContactPoint.*?telephone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 8: WordPress plugins específicos
+        # ══════════════════════════════════════════════════════════════
+        r'wc-whatsapp.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'wp-whatsapp.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'whatsapp-button.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'whatshelp.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        r'socialintents.*?phone["\']?\s*:\s*["\']?\+?(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 9: Tawk.to / Crisp / Intercom / LiveChat
+        # ══════════════════════════════════════════════════════════════
+        r'tawk.*?whatsapp.*?(\d{10,15})',
+        r'crisp.*?whatsapp.*?(\d{10,15})',
+        r'drift.*?phone.*?(\d{10,15})',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 10: Texto visible con etiquetas
+        # ══════════════════════════════════════════════════════════════
+        r'(?:whatsapp|wsp|wa)\s*[:\-]?\s*\+?(\d[\d\s\-]{9,14}\d)',
+        r'(?:celular|móvil|movil|tel|fono)\s*[:\-]?\s*\+?(\d[\d\s\-]{9,14}\d)',
+        
+        # ══════════════════════════════════════════════════════════════
+        # GRUPO 11: Números con formato internacional
+        # ══════════════════════════════════════════════════════════════
+        r'href=["\']tel:\+(\d{10,15})',
+        r'\+54\s*9?\s*(\d{10})',  # Argentina
+        r'\+52\s*1?\s*(\d{10})',  # México  
+        r'\+55\s*(\d{10,11})',    # Brasil
+        r'\+34\s*(\d{9})',        # España
+        r'\+56\s*9?\s*(\d{8})',   # Chile
+        r'\+57\s*(\d{10})',       # Colombia
+        r'\+51\s*9?\s*(\d{9})',   # Perú
     ]
     
     for pattern in wa_patterns:
@@ -289,6 +382,10 @@ def extract_with_regex(all_content: str) -> dict:
             wa_num = re.sub(r'[^\d]', '', match.group(1))
             if len(wa_num) >= 10 and len(wa_num) <= 15:
                 regex_extract['whatsapp'] = '+' + wa_num
+                logger.info(
+                    f"[REGEX] ✓ WhatsApp encontrado: +{wa_num} "
+                    f"(patrón: {pattern[:30]}...)"
+                )
                 break
     
     # ═══════════════════════════════════════════════════════════════════
