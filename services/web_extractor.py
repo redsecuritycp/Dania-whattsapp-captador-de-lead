@@ -905,33 +905,154 @@ async def extraer_paginas_secundarias(website: str) -> str:
     return contenido_extra
 
 
+async def buscar_whatsapp_en_html_crudo(website: str) -> str:
+    """
+    Hace GET directo al sitio y busca WhatsApp en el HTML crudo,
+    incluyendo scripts JS donde los widgets guardan el número.
+
+    Soporta: Elfsight, Joinchat, SocialChat, Click to Chat,
+    WhatsApp Chat Button, y widgets genéricos.
+    """
+    if not website:
+        return ""
+
+    url = website if website.startswith("http") else f"https://{website}"
+
+    logger.info(f"[WA-HTML] Buscando WhatsApp en HTML crudo: {url}")
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0,
+                                     follow_redirects=True) as client:
+            response = await client.get(
+                url,
+                headers={
+                    "User-Agent":
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 Chrome/120.0.0.0"
+                })
+
+            if response.status_code != 200:
+                logger.warning(
+                    f"[WA-HTML] Error {response.status_code} en {url}")
+                return ""
+
+            html = response.text
+            logger.info(f"[WA-HTML] {len(html)} bytes descargados")
+
+            # ═══════════════════════════════════════════════════════════
+            # PATRONES PARA WIDGETS DE WHATSAPP EN SCRIPTS
+            # Ordenados por especificidad (más específicos primero)
+            # ═══════════════════════════════════════════════════════════
+
+            patrones_widgets = [
+                # wa.me links (el más confiable)
+                r'wa\.me/(\d{10,15})',
+                r'api\.whatsapp\.com/send\?phone=(\d{10,15})',
+                r'web\.whatsapp\.com/send\?phone=(\d{10,15})',
+
+                # Joinchat (WordPress plugin muy popular)
+                r'joinchat[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'joinchat[^}]*?"telephone"[:\s]*"?\+?(\d{10,15})',
+                r'"telephone"[:\s]*"\+?(\d{10,15})"[^}]*joinchat',
+
+                # Elfsight WhatsApp Chat
+                r'elfsight[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'elfsight[^}]*?"whatsapp"[:\s]*"?\+?(\d{10,15})',
+
+                # Click to Chat / Social Chat
+                r'click-to-chat[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'socialchat[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'social-chat[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+
+                # WhatsApp Button / Chat Button genéricos
+                r'whatsapp-button[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'whatsapp-chat[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'wc-button[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'wa-button[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+
+                # WP WhatsApp / WhatsApp for WordPress
+                r'wp-whatsapp[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+                r'wc-whatsapp[^}]*?"phone"[:\s]*"?\+?(\d{10,15})',
+
+                # Data attributes en HTML
+                r'data-phone="?\+?(\d{10,15})"?',
+                r'data-whatsapp="?\+?(\d{10,15})"?',
+                r'data-wa-phone="?\+?(\d{10,15})"?',
+                r'data-number="?\+?(\d{10,15})"?',
+                r'data-telephone="?\+?(\d{10,15})"?',
+
+                # JSON genérico en scripts (WhatsApp context)
+                r'whatsapp[^}]{0,100}"phone"[\s]*:[\s]*"?\+?(\d{10,15})',
+                r'"phone"[\s]*:[\s]*"?\+?(\d{10,15})"?[^}]{0,100}whatsapp',
+                r'"whatsapp"[\s]*:[\s]*"?\+?(\d{10,15})"?',
+                r'"wa_phone"[\s]*:[\s]*"?\+?(\d{10,15})"?',
+                r'"whatsappNumber"[\s]*:[\s]*"?\+?(\d{10,15})"?',
+                r'"waNumber"[\s]*:[\s]*"?\+?(\d{10,15})"?',
+                r"'phone'[\s]*:[\s]*'?\+?(\d{10,15})'?",
+            ]
+
+            numeros_encontrados = []
+
+            for patron in patrones_widgets:
+                matches = re.findall(patron, html, re.IGNORECASE)
+                for match in matches:
+                    # Limpiar número
+                    num = re.sub(r'[^\d]', '', match)
+
+                    # Validar longitud (10-15 dígitos)
+                    if len(num) < 10 or len(num) > 15:
+                        continue
+
+                    # ═══════════════════════════════════════════════════
+                    # FILTRAR FIJOS ARGENTINOS
+                    # Fijos AR: +54 + área (sin 9) = NO es WhatsApp
+                    # Celulares AR: +54 9 + área = SÍ es WhatsApp
+                    # ═══════════════════════════════════════════════════
+                    if num.startswith('54') and len(num) >= 12:
+                        if not num.startswith('549'):
+                            logger.debug(
+                                f"[WA-HTML] Descartando fijo AR: +{num}")
+                            continue
+
+                    # Evitar duplicados
+                    if num not in numeros_encontrados:
+                        numeros_encontrados.append(num)
+                        logger.info(f"[WA-HTML] ✓ WhatsApp encontrado: +{num}")
+
+            if numeros_encontrados:
+                return '+' + numeros_encontrados[0]
+
+            logger.info("[WA-HTML] No se encontró WhatsApp en HTML")
+            return ""
+
+    except httpx.TimeoutException:
+        logger.warning(f"[WA-HTML] Timeout en {url}")
+        return ""
+    except Exception as e:
+        logger.error(f"[WA-HTML] Error: {e}")
+        return ""
+
+
 async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
     """
-    Busca WhatsApp de la empresa en fuentes externas.
+    Busca WhatsApp de la empresa en fuentes externas (directorios).
     Útil cuando el widget está en JS y no lo capturamos.
-    Soporta números internacionales.
-    MEJORADO: Más patrones para ZoomInfo, directorios, etc.
     """
     if not TAVILY_API_KEY:
         logger.warning("[WA-EXTERNO] No hay TAVILY_API_KEY")
         return ""
 
-    # Limpiar dominio
     dominio = website.replace("https://",
                               "").replace("http://",
                                           "").replace("www.", "").split("/")[0]
 
-    # Queries a intentar (en orden de prioridad)
     queries = [
         f'"{dominio}" whatsapp contacto',
         f'"{dominio}" teléfono celular',
-        f'site:zoominfo.com "{dominio}"',
     ]
 
-    # Si tenemos nombre de empresa, agregar queries adicionales
     if empresa and empresa != "No encontrado":
-        queries.insert(0, f'"{empresa}" whatsapp argentina')
-        queries.append(f'"{empresa}" teléfono contacto')
+        queries.insert(0, f'"{empresa}" whatsapp')
 
     for query in queries:
         logger.info(f"[WA-EXTERNO] Buscando: {query}")
@@ -948,78 +1069,45 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
                                              })
 
                 if response.status_code != 200:
-                    logger.warning(
-                        f"[WA-EXTERNO] Tavily error: {response.status_code}")
                     continue
 
                 data = response.json()
                 results = data.get("results", [])
-                logger.info(
-                    f"[WA-EXTERNO] {len(results)} resultados para: {query}")
 
-                # Patrones MEJORADOS para WhatsApp (internacionales)
                 wa_patterns = [
-                    # Links directos de WhatsApp
                     r'wa\.me/(\d{10,15})',
-                    r'api\.whatsapp\.com/send\?phone=(\d{10,15})',
-                    r'web\.whatsapp\.com/send\?phone=(\d{10,15})',
-
-                    # ZoomInfo y directorios: "phone number is +54..."
+                    r'whatsapp\.com/send\?phone=(\d{10,15})',
                     r'phone\s+(?:number\s+)?(?:is\s+)?\+?(\d[\d\s\-]{9,14})',
                     r'teléfono[:\s]+\+?(\d[\d\s\-]{9,14})',
-                    r'telefono[:\s]+\+?(\d[\d\s\-]{9,14})',
-                    r'tel[:\s]+\+?(\d[\d\s\-]{9,14})',
                     r'celular[:\s]+\+?(\d[\d\s\-]{9,14})',
-                    r'móvil[:\s]+\+?(\d[\d\s\-]{9,14})',
-                    r'movil[:\s]+\+?(\d[\d\s\-]{9,14})',
                     r'whatsapp[:\s]+\+?(\d[\d\s\-]{9,14})',
-
-                    # Números con + al inicio (cualquier país)
                     r'\+(\d{2,4}\s?\d{6,12})',
-
-                    # Números argentinos específicos
-                    r'\+?(54\s?9?\s?\d{10})',
-                    r'\+?(549\d{10})',
-
-                    # Formato con paréntesis
-                    r'\+?(\d{2,4})\s*\(?\d{2,4}\)?\s*[\d\s\-]{6,10}',
                 ]
 
                 for r in results:
                     texto = f"{r.get('title', '')} {r.get('content', '')}"
                     url = r.get('url', '')
 
-                    # Log para debug
-                    logger.debug(f"[WA-EXTERNO] Analizando: {url[:60]}...")
-
                     for pattern in wa_patterns:
                         matches = re.findall(pattern, texto, re.IGNORECASE)
                         for match in matches:
-                            # Limpiar: solo dígitos
                             num = re.sub(r'[^\d]', '', match)
 
-                            # Validar longitud (10-15 dígitos)
                             if len(num) < 10 or len(num) > 15:
                                 continue
 
-                            # Evitar números que son años o IDs
-                            if num.startswith('20') and len(num) == 4:
-                                continue
-                            if num.startswith('19') and len(num) == 4:
-                                continue
-
-                            # Evitar números genéricos/inválidos
-                            if num in ['0000000000', '1111111111']:
-                                continue
+                            # Filtrar fijos argentinos
+                            if num.startswith('54') and len(num) >= 12:
+                                if not num.startswith('549'):
+                                    continue
 
                             resultado = '+' + num
                             logger.info(
-                                f"[WA-EXTERNO] ✓ Encontrado: {resultado} "
-                                f"(fuente: {url[:50]})")
+                                f"[WA-EXTERNO] ✓ Encontrado: {resultado}")
                             return resultado
 
         except Exception as e:
-            logger.error(f"[WA-EXTERNO] Error en query '{query}': {e}")
+            logger.error(f"[WA-EXTERNO] Error: {e}")
             continue
 
     logger.info("[WA-EXTERNO] No encontrado en fuentes externas")
@@ -1122,18 +1210,26 @@ async def extract_web_data(website: str) -> dict:
                               website_full)
 
     # ═══════════════════════════════════════════════════════════════
-    # BÚSQUEDA EXTERNA DE WHATSAPP (si no lo encontramos)
+    # BÚSQUEDA DE WHATSAPP EN HTML CRUDO (widgets JS)
+    # Primero intentamos extraer del HTML directo (más confiable)
     # ═══════════════════════════════════════════════════════════════
     if resultado.get('_necesita_wa_externo'):
-        empresa_nombre = resultado.get('business_name', '')
-        wa_externo = await buscar_whatsapp_externo(website_clean,
-                                                   empresa_nombre)
-        if wa_externo:
-            resultado['whatsapp_empresa'] = wa_externo
-            resultado['whatsapp_source'] = 'externo'
+        # Paso 1: Buscar en HTML crudo (scripts, widgets)
+        wa_html = await buscar_whatsapp_en_html_crudo(website_clean)
+        if wa_html:
+            resultado['whatsapp_empresa'] = wa_html
+            resultado['whatsapp_source'] = 'html_widget'
+            resultado.pop('_necesita_wa_externo', None)
+        else:
+            # Paso 2: Buscar en fuentes externas (directorios)
+            empresa_nombre = resultado.get('business_name', '')
+            wa_externo = await buscar_whatsapp_externo(website_clean,
+                                                       empresa_nombre)
+            if wa_externo:
+                resultado['whatsapp_empresa'] = wa_externo
+                resultado['whatsapp_source'] = 'externo'
 
-        # Limpiar flag temporal
-        resultado.pop('_necesita_wa_externo', None)
+            resultado.pop('_necesita_wa_externo', None)
 
     # ═══════════════════════════════════════════════════════════════
     # BÚSQUEDA DE LINKEDIN PERSONAL EN CONTENIDO WEB
