@@ -1317,27 +1317,32 @@ def calcular_peso_linkedin(url: str,
     """
     Calcula el peso de un perfil de LinkedIn.
 
-    PESO MÁXIMO 100:
-    - Nombre (obligatorio): 40 puntos
-    - Apellido (obligatorio): 40 puntos
-    - Empresa: 10 puntos
-    - Ubicación (provincia/ciudad/país): 10 puntos
+    VALIDACIÓN ESTRICTA EN URL SLUG:
+    - Nombre Y Apellido DEBEN estar en el SLUG de la URL
+    - Si no están ambos en el slug → retorna 0 (descartar)
+    - Empresa/ubicación: bonus en texto (no obligatorio)
 
-    Si no tiene nombre Y apellido EXACTOS, retorna 0 (descartar).
-    Usa variantes de ubicación para mejor matching.
+    PESO MÁXIMO 100:
+    - Nombre en slug (obligatorio): 40 puntos
+    - Apellido en slug (obligatorio): 40 puntos
+    - Empresa en texto: 10 puntos
+    - Ubicación en texto: 10 puntos
     """
     url_lower = url.lower()
     texto_lower = texto.lower()
 
-    # Extraer slug de la URL
+    # ═══════════════════════════════════════════════════════════════════
+    # EXTRAER SLUG DE LA URL - ESTO ES LO ÚNICO QUE IMPORTA
+    # ═══════════════════════════════════════════════════════════════════
     slug = ""
     if "/in/" in url_lower:
         slug = url_lower.split("/in/")[1].split("/")[0].split("?")[0]
     slug_clean = slug.replace("-", " ").replace("_", " ")
 
-    # Combinar texto y slug para búsqueda
-    contenido = f"{texto_lower} {slug_clean}"
-
+    # ═══════════════════════════════════════════════════════════════════
+    # CRÍTICO: Validar nombre y apellido SOLO en el SLUG
+    # NO usar texto del snippet - solo la URL
+    # ═══════════════════════════════════════════════════════════════════
     primer_lower = primer_nombre.lower().strip()
     apellido_lower = apellido.lower().strip()
     empresa_lower = empresa.lower().strip() if empresa else ""
@@ -1347,60 +1352,57 @@ def calcular_peso_linkedin(url: str,
     tiene_apellido = False
 
     # ═══════════════════════════════════════════════════════════════════
-    # VERIFICACIÓN ESTRICTA DE NOMBRE (40 puntos)
-    # El nombre DEBE estar en el contenido
+    # VERIFICACIÓN DE NOMBRE EN SLUG (40 puntos)
     # ═══════════════════════════════════════════════════════════════════
     if primer_lower and len(primer_lower) > 1:
-        if primer_lower in contenido:
+        if primer_lower in slug_clean:
             peso += 40
             tiene_nombre = True
 
     # ═══════════════════════════════════════════════════════════════════
-    # VERIFICACIÓN ESTRICTA DE APELLIDO (40 puntos)
-    # El apellido DEBE estar en el contenido
+    # VERIFICACIÓN DE APELLIDO EN SLUG (40 puntos)
     # ═══════════════════════════════════════════════════════════════════
     if apellido_lower and len(apellido_lower) > 1:
-        if apellido_lower in contenido:
+        if apellido_lower in slug_clean:
             peso += 40
             tiene_apellido = True
 
     # ═══════════════════════════════════════════════════════════════════
-    # CRÍTICO: Si no tiene AMBOS (nombre Y apellido), DESCARTAR
-    # Esto evita falsos positivos como Samuel Rodriguez
+    # CRÍTICO: Si no tiene AMBOS en el SLUG, DESCARTAR
+    # Esto evita falsos positivos como jose-filippini o samuel-rodriguez
+    # cuando buscamos rafael-driuzzi
     # ═══════════════════════════════════════════════════════════════════
     if not (tiene_nombre and tiene_apellido):
         return 0
 
-    # Verificar empresa (10 puntos)
+    # ═══════════════════════════════════════════════════════════════════
+    # BONUS: Empresa en TEXTO (no slug) - 10 puntos máximo
+    # ═══════════════════════════════════════════════════════════════════
     if empresa_lower and len(empresa_lower) > 2:
         palabras_empresa = [p for p in empresa_lower.split() if len(p) > 2]
-        if empresa_lower in contenido:
+        if empresa_lower in texto_lower:
             peso += 10
-        elif any(p in contenido for p in palabras_empresa):
+        elif any(p in texto_lower for p in palabras_empresa):
             peso += 5
 
     # ═══════════════════════════════════════════════════════════════════
-    # VERIFICACIÓN DE UBICACIÓN CON VARIANTES (10 puntos máximo)
-    # Usa el diccionario UBICACIONES_VARIANTES para mejor matching
+    # BONUS: Ubicación en TEXTO (no slug) - 10 puntos máximo
     # ═══════════════════════════════════════════════════════════════════
     puntos_ubicacion = 0
 
-    # Provincia/Estado (5 puntos)
-    if provincia and ubicacion_en_texto(provincia, contenido):
+    if provincia and ubicacion_en_texto(provincia, texto_lower):
         puntos_ubicacion += 5
 
-    # Ciudad (5 puntos)
-    if ciudad and ubicacion_en_texto(ciudad, contenido):
+    if ciudad and ubicacion_en_texto(ciudad, texto_lower):
         puntos_ubicacion += 5
 
-    # País (3 puntos, solo si no sumó por provincia/ciudad)
     if pais and puntos_ubicacion == 0:
-        if ubicacion_en_texto(pais, contenido):
+        if ubicacion_en_texto(pais, texto_lower):
             puntos_ubicacion += 3
 
     peso += min(puntos_ubicacion, 10)
 
-    return min(peso, 100)
+    return peso
 
 
 async def research_person_and_company(nombre_persona: str,
