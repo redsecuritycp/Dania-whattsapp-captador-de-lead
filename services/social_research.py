@@ -1617,18 +1617,23 @@ async def research_person_and_company(nombre_persona: str,
                     empresa=empresa_busqueda,
                     provincia=province,
                     ciudad=city)
-                # Email tiene peso mínimo 70 si encontró algo
-                peso = max(peso, 70)
-                ya_existe = any(c["url"] == linkedin_email
-                                for c in candidatos_linkedin)
-                if not ya_existe:
-                    candidatos_linkedin.append({
-                        "url": linkedin_email,
-                        "peso": peso,
-                        "source": "email"
-                    })
+                # SOLO agregar si nombre+apellido están en el slug
+                if peso >= 60:
+                    ya_existe = any(c["url"] == linkedin_email
+                                    for c in candidatos_linkedin)
+                    if not ya_existe:
+                        candidatos_linkedin.append({
+                            "url": linkedin_email,
+                            "peso": peso,
+                            "source": "email"
+                        })
+                        logger.info(
+                            f"[LINKEDIN-EMAIL] ✓ {linkedin_email} "
+                            f"(peso: {peso})")
+                else:
                     logger.info(
-                        f"[LINKEDIN-EMAIL] ✓ {linkedin_email} (peso: {peso})")
+                        f"[LINKEDIN-EMAIL] ✗ {linkedin_email} descartado "
+                        f"(peso: {peso} < 60)")
 
         # ───────────────────────────────────────────────────────────────
         # 3C: BUSCAR POR NOMBRE+EMPRESA (Tavily)
@@ -1640,12 +1645,28 @@ async def research_person_and_company(nombre_persona: str,
                 apellido_busqueda, ubicacion_completa, city, province, country)
             if linkedin_result:
                 urls_tavily = linkedin_result.get("url", "")
-                confianza = linkedin_result.get("confianza", 0)
 
                 # Puede venir una URL o varias separadas por |
+                # RE-VALIDAR cada una con calcular_peso_linkedin
                 for url in urls_tavily.split(" | "):
                     url = url.strip()
                     if not url or url == "No encontrado":
+                        continue
+
+                    # Re-validar: nombre+apellido deben estar en slug
+                    peso = calcular_peso_linkedin(
+                        url=url,
+                        texto=f"{results['nombre']} {empresa_busqueda}",
+                        primer_nombre=primer_nombre_busqueda,
+                        apellido=apellido_busqueda,
+                        empresa=empresa_busqueda,
+                        provincia=province,
+                        ciudad=city)
+
+                    if peso < 60:
+                        logger.info(
+                            f"[LINKEDIN-TAVILY] ✗ {url} descartado "
+                            f"(peso: {peso} < 60)")
                         continue
 
                     ya_existe = any(c["url"] == url
@@ -1653,11 +1674,11 @@ async def research_person_and_company(nombre_persona: str,
                     if not ya_existe:
                         candidatos_linkedin.append({
                             "url": url,
-                            "peso": confianza,
+                            "peso": peso,
                             "source": "tavily"
                         })
                         logger.info(
-                            f"[LINKEDIN-TAVILY] ✓ {url} (peso: {confianza})")
+                            f"[LINKEDIN-TAVILY] ✓ {url} (peso: {peso})")
 
         # ───────────────────────────────────────────────────────────────
         # 3D: BUSCAR CON GOOGLE (fallback)
@@ -1676,11 +1697,27 @@ async def research_person_and_company(nombre_persona: str,
                 country)
             if google_result:
                 urls_google = google_result.get("url", "")
-                confianza = google_result.get("confianza", 0)
 
+                # RE-VALIDAR cada URL con calcular_peso_linkedin
                 for url in urls_google.split(" | "):
                     url = url.strip()
                     if not url or url == "No encontrado":
+                        continue
+
+                    # Re-validar: nombre+apellido deben estar en slug
+                    peso = calcular_peso_linkedin(
+                        url=url,
+                        texto=f"{results['nombre']} {empresa_busqueda}",
+                        primer_nombre=primer_nombre_busqueda,
+                        apellido=apellido_busqueda,
+                        empresa=empresa_busqueda,
+                        provincia=province,
+                        ciudad=city)
+
+                    if peso < 60:
+                        logger.info(
+                            f"[LINKEDIN-GOOGLE] ✗ {url} descartado "
+                            f"(peso: {peso} < 60)")
                         continue
 
                     ya_existe = any(c["url"] == url
@@ -1688,11 +1725,11 @@ async def research_person_and_company(nombre_persona: str,
                     if not ya_existe:
                         candidatos_linkedin.append({
                             "url": url,
-                            "peso": confianza,
+                            "peso": peso,
                             "source": "google"
                         })
                         logger.info(
-                            f"[LINKEDIN-GOOGLE] ✓ {url} (peso: {confianza})")
+                            f"[LINKEDIN-GOOGLE] ✓ {url} (peso: {peso})")
 
         # ───────────────────────────────────────────────────────────────
         # 3E: BUSCAR POR CARGO (CEO/fundador)
@@ -2269,28 +2306,35 @@ async def _tavily_buscar_linkedin_interno(
                         "url": url.split("?")[0],
                         "confianza": min(score, 100),
                         "score": score,
+                        "peso_slug": peso_verificacion,
                         "tiene_empresa": tiene_match_empresa
                     })
 
             candidatos.sort(key=lambda x: x["confianza"], reverse=True)
 
             if candidatos:
-                # Devolver hasta 3 candidatos separados por " | "
+                # Devolver cada URL con su peso real (del slug)
                 resultados = []
                 for c in candidatos[:3]:
-                    conf = min(95,
-                               confianza_base + (c["score"] - umbral_score))
-                    resultados.append({"url": c["url"], "confianza": conf})
-
-                mejor_conf = resultados[0]["confianza"]
+                    resultados.append({
+                        "url": c["url"],
+                        "confianza": c.get("peso_slug", c["confianza"])
+                    })
 
                 if len(resultados) == 1:
                     logger.info(f"[TAVILY] ✓ LinkedIn: {resultados[0]['url']}")
                     return resultados[0]
                 else:
-                    urls = [r["url"] for r in resultados]
-                    logger.info(f"[TAVILY] ✓ LinkedIn múltiples: {len(urls)}")
-                    return {"url": " | ".join(urls), "confianza": mejor_conf}
+                    # Devolver URLs separadas, cada una con su confianza
+                    urls_str = " | ".join([r["url"] for r in resultados])
+                    # Guardar lista completa para re-validación
+                    logger.info(
+                        f"[TAVILY] ✓ LinkedIn múltiples: {len(resultados)}")
+                    return {
+                        "url": urls_str,
+                        "confianza": resultados[0]["confianza"],
+                        "urls_detalle": resultados
+                    }
 
             return None
 
@@ -2518,18 +2562,20 @@ async def _google_buscar_linkedin_interno(
                     candidatos.append({
                         "url": link,
                         "score": score,
+                        "peso_slug": peso_verificacion,
                         "tiene_empresa": tiene_match_empresa
                     })
 
             candidatos.sort(key=lambda x: x["score"], reverse=True)
 
             if candidatos:
-                # Devolver hasta 3 candidatos separados por " | "
+                # Devolver cada URL con su peso real
                 resultados = []
                 for c in candidatos[:3]:
-                    conf = min(95,
-                               confianza_base + (c["score"] - umbral_score))
-                    resultados.append({"url": c["url"], "confianza": conf})
+                    resultados.append({
+                        "url": c["url"],
+                        "confianza": c.get("peso_slug", c["score"])
+                    })
 
                 mejor = resultados[0]
                 if mejor["confianza"] > confianza_actual:
@@ -2537,12 +2583,14 @@ async def _google_buscar_linkedin_interno(
                         logger.info(f"[GOOGLE] ✓ LinkedIn: {mejor['url']}")
                         return mejor
                     else:
-                        urls = [r["url"] for r in resultados]
+                        # Devolver URLs separadas, cada una con su confianza
+                        urls_str = " | ".join([r["url"] for r in resultados])
                         logger.info(
-                            f"[GOOGLE] ✓ LinkedIn múltiples: {len(urls)}")
+                            f"[GOOGLE] ✓ LinkedIn múltiples: {len(resultados)}")
                         return {
-                            "url": " | ".join(urls),
-                            "confianza": mejor["confianza"]
+                            "url": urls_str,
+                            "confianza": mejor["confianza"],
+                            "urls_detalle": resultados
                         }
 
             return None
