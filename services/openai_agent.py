@@ -8,9 +8,15 @@ from typing import Optional
 from openai import OpenAI
 
 from config import OPENAI_API_KEY, OPENAI_MODEL
-from services.mongodb import (save_lead, find_lead_by_phone,
-                              update_lead_calcom_email, save_chat_message,
-                              get_chat_history, update_lead_summary)
+from services.mongodb import (
+    save_lead, 
+    find_lead_by_phone, 
+    update_lead_calcom_email,
+    save_chat_message,
+    get_chat_history, 
+    update_lead_summary,
+    get_lead_field
+)
 from services.web_extractor import extract_web_data
 from services.social_research import research_person_and_company
 from services.gmail import send_lead_notification
@@ -465,24 +471,28 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
 
             elif action == "buscar_reserva":
                 lead = find_lead_by_phone(phone)
-                if lead and lead.get("booking_uid"):
+                booking_uid = get_lead_field(lead, "booking_uid", "")
+                if lead and booking_uid:
                     logger.info(
                         f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                     return {
-                        "found":
-                        True,
-                        "booking_uid":
-                        lead.get("booking_uid"),
-                        "booking_status":
-                        lead.get("booking_status"),
-                        "booking_start_time":
-                        lead.get("booking_start_time"),
-                        "booking_cancel_link":
-                        lead.get("booking_cancel_link"),
-                        "booking_reschedule_link":
-                        lead.get("booking_reschedule_link"),
-                        "booking_zoom_url":
-                        lead.get("booking_zoom_url")
+                        "found": True,
+                        "booking_uid": booking_uid,
+                        "booking_status": get_lead_field(
+                            lead, "booking_status", ""
+                        ),
+                        "booking_start_time": get_lead_field(
+                            lead, "booking_start_time", ""
+                        ),
+                        "booking_cancel_link": get_lead_field(
+                            lead, "booking_cancel_link", ""
+                        ),
+                        "booking_reschedule_link": get_lead_field(
+                            lead, "booking_reschedule_link", ""
+                        ),
+                        "booking_zoom_url": get_lead_field(
+                            lead, "booking_zoom_url", ""
+                        )
                     }
                 else:
                     logger.info(

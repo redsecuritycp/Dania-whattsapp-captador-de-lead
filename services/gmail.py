@@ -9,6 +9,7 @@ import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from urllib.parse import quote
+from services.mongodb import get_lead_field
 
 logger = logging.getLogger(__name__)
 
@@ -173,8 +174,8 @@ def send_lead_notification(lead_data: dict) -> dict:
         
         msg = MIMEMultipart("alternative")
         
-        business_name = lead_data.get("business_name", "Sin empresa")
-        name = lead_data.get("name", "Sin nombre")
+        business_name = get_lead_field(lead_data, "business_name", "Sin empresa")
+        name = get_lead_field(lead_data, "name", "Sin nombre")
         
         msg["Subject"] = f"Nuevo lead guardado — {business_name} | {name}"
         msg["From"] = gmail_user
@@ -184,14 +185,14 @@ def send_lead_notification(lead_data: dict) -> dict:
         text_content = f"""
 Nuevo Lead: {name}
 Empresa: {business_name}
-WhatsApp: {lead_data.get('phone_whatsapp', 'N/A')}
-Email: {lead_data.get('email', 'N/A')}
-País: {lead_data.get('country_detected', 'N/A')}
-Actividad: {lead_data.get('business_activity', 'N/A')}
-Sitio Web: {lead_data.get('website', 'N/A')}
-Tamaño Equipo: {lead_data.get('team_size', 'N/A')}
-Conocimiento IA: {lead_data.get('ai_knowledge', 'N/A')}
-Desafío: {lead_data.get('main_challenge', 'N/A')}
+WhatsApp: {get_lead_field(lead_data, 'phone_whatsapp', 'N/A')}
+Email: {get_lead_field(lead_data, 'email', 'N/A')}
+País: {get_lead_field(lead_data, 'country_detected', 'N/A')}
+Actividad: {get_lead_field(lead_data, 'business_activity', 'N/A')}
+Sitio Web: {get_lead_field(lead_data, 'website', 'N/A')}
+Tamaño Equipo: {get_lead_field(lead_data, 'team_size', 'N/A')}
+Conocimiento IA: {get_lead_field(lead_data, 'ai_knowledge', 'N/A')}
+Desafío: {get_lead_field(lead_data, 'main_challenge', 'N/A')}
 """
         
         html_content = generate_lead_email_html(lead_data)

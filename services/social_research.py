@@ -27,7 +27,7 @@ from config import (TAVILY_API_KEY, GOOGLE_API_KEY, GOOGLE_SEARCH_CX,
 logger = logging.getLogger(__name__)
 
 HTTP_TIMEOUT = 30.0
-APIFY_TIMEOUT = 45.0  # Reducido de 200s a 45s
+APIFY_TIMEOUT = 45.0
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DICCIONARIO DE UBICACIONES COMPLETO - VARIANTES Y ABREVIACIONES
@@ -36,410 +36,147 @@ APIFY_TIMEOUT = 45.0  # Reducido de 200s a 45s
 # ═══════════════════════════════════════════════════════════════════════════════
 UBICACIONES_VARIANTES = {
     # ═══════════════════════════════════════════════════════════════════════════
-    # PAÍSES
+    # PAÍSES - Códigos ISO, gentilicios, códigos WhatsApp
     # ═══════════════════════════════════════════════════════════════════════════
     "paises": {
-        "argentina":
-        ["argentina", "ar", "arg", "argentine", "argentino", "🇦🇷"],
-        "mexico":
-        ["mexico", "méxico", "mx", "mex", "mexican", "mexicano", "🇲🇽"],
-        "espana":
-        ["españa", "espana", "spain", "es", "esp", "spanish", "español", "🇪🇸"],
-        "colombia": ["colombia", "co", "col", "colombian", "colombiano", "🇨🇴"],
-        "chile": ["chile", "cl", "chi", "chilean", "chileno", "🇨🇱"],
-        "peru": ["peru", "perú", "pe", "per", "peruvian", "peruano", "🇵🇪"],
-        "venezuela":
-        ["venezuela", "ve", "ven", "venezuelan", "venezolano", "🇻🇪"],
-        "ecuador": ["ecuador", "ec", "ecu", "ecuadorian", "ecuatoriano", "🇪🇨"],
-        "bolivia": ["bolivia", "bo", "bol", "bolivian", "boliviano", "🇧🇴"],
-        "paraguay": ["paraguay", "py", "par", "paraguayan", "paraguayo", "🇵🇾"],
-        "uruguay": ["uruguay", "uy", "uru", "uruguayan", "uruguayo", "🇺🇾"],
-        "cuba": ["cuba", "cu", "cub", "cuban", "cubano", "🇨🇺"],
+        "argentina": ["argentina", "ar", "arg", "🇦🇷", "+54"],
+        "brasil": ["brasil", "brazil", "br", "bra", "🇧🇷", "+55"],
+        "chile": ["chile", "cl", "chi", "🇨🇱", "+56"],
+        "colombia": ["colombia", "co", "col", "🇨🇴", "+57"],
+        "peru": ["peru", "perú", "pe", "per", "🇵🇪", "+51"],
+        "venezuela": ["venezuela", "ve", "ven", "🇻🇪", "+58"],
+        "ecuador": ["ecuador", "ec", "ecu", "🇪🇨", "+593"],
+        "bolivia": ["bolivia", "bo", "bol", "🇧🇴", "+591"],
+        "paraguay": ["paraguay", "py", "par", "🇵🇾", "+595"],
+        "uruguay": ["uruguay", "uy", "uru", "🇺🇾", "+598"],
+        "guatemala": ["guatemala", "gt", "gua", "🇬🇹", "+502"],
+        "honduras": ["honduras", "hn", "hon", "🇭🇳", "+504"],
+        "el_salvador": ["el salvador", "sv", "sal", "🇸🇻", "+503"],
+        "nicaragua": ["nicaragua", "ni", "nic", "🇳🇮", "+505"],
+        "costa_rica": ["costa rica", "cr", "cri", "🇨🇷", "+506"],
+        "panama": ["panama", "panamá", "pa", "pan", "🇵🇦", "+507"],
+        "cuba": ["cuba", "cu", "cub", "🇨🇺", "+53"],
         "dominicana": [
-            "dominicana", "república dominicana", "dominican republic", "do",
-            "dom", "rd", "🇩🇴"
+            "dominicana", "república dominicana", "do", "dom", "rd", "🇩🇴",
+            "+1809", "+1829", "+1849"
         ],
         "puerto_rico":
-        ["puerto rico", "pr", "puertorriqueño", "boricua", "🇵🇷"],
-        "guatemala": ["guatemala", "gt", "gua", "guatemalteco", "🇬🇹"],
-        "honduras": ["honduras", "hn", "hon", "hondureño", "🇭🇳"],
-        "el_salvador":
-        ["el salvador", "salvador", "sv", "sal", "salvadoreño", "🇸🇻"],
-        "nicaragua": ["nicaragua", "ni", "nic", "nicaragüense", "🇳🇮"],
-        "costa_rica":
-        ["costa rica", "cr", "cri", "costarricense", "tico", "🇨🇷"],
-        "panama": ["panama", "panamá", "pa", "pan", "panameño", "🇵🇦"],
-        "brasil":
-        ["brasil", "brazil", "br", "bra", "brazilian", "brasileiro", "🇧🇷"],
+        ["puerto rico", "pr", "boricua", "🇵🇷", "+1787", "+1939"],
+        "mexico": ["mexico", "méxico", "mx", "mex", "🇲🇽", "+52"],
         "usa": [
-            "usa", "united states", "estados unidos", "us", "ee.uu", "eeuu",
-            "america", "american", "estadounidense", "🇺🇸"
+            "usa", "united states", "estados unidos", "us", "eeuu", "ee.uu",
+            "🇺🇸", "+1"
         ],
-        "canada":
-        ["canada", "canadá", "ca", "can", "canadian", "canadiense", "🇨🇦"],
-        "alemania": [
-            "alemania", "germany", "de", "deu", "ger", "german", "alemán",
-            "deutschland", "🇩🇪"
-        ],
-        "francia":
-        ["francia", "france", "fr", "fra", "french", "francés", "🇫🇷"],
-        "italia":
-        ["italia", "italy", "it", "ita", "italian", "italiano", "🇮🇹"],
-        "portugal": ["portugal", "pt", "por", "portuguese", "portugués", "🇵🇹"],
+        "canada": ["canada", "canadá", "ca", "can", "🇨🇦", "+1"],
+        "espana": ["españa", "espana", "spain", "es", "🇪🇸", "+34"],
+        "portugal": ["portugal", "pt", "por", "🇵🇹", "+351"],
+        "italia": ["italia", "italy", "it", "ita", "🇮🇹", "+39"],
+        "francia": ["francia", "france", "fr", "fra", "🇫🇷", "+33"],
+        "alemania":
+        ["alemania", "germany", "de", "deu", "deutschland", "🇩🇪", "+49"],
         "reino_unido": [
-            "reino unido", "united kingdom", "uk", "gb", "gbr", "britain",
-            "british", "británico", "england", "inglaterra", "🇬🇧"
+            "reino unido", "united kingdom", "uk", "gb", "britain", "england",
+            "inglaterra", "🇬🇧", "+44"
         ],
         "paises_bajos": [
-            "países bajos", "holanda", "netherlands", "holland", "nl", "ned",
-            "dutch", "holandés", "🇳🇱"
+            "países bajos", "paises bajos", "holanda", "netherlands", "nl",
+            "🇳🇱", "+31"
         ],
-        "belgica": [
-            "bélgica", "belgica", "belgium", "be", "bel", "belgian", "belga",
-            "🇧🇪"
-        ],
-        "suiza": ["suiza", "switzerland", "ch", "sui", "swiss", "suizo", "🇨🇭"],
-        "austria": ["austria", "at", "aut", "austrian", "austriaco", "🇦🇹"],
+        "belgica": ["bélgica", "belgica", "belgium", "be", "🇧🇪", "+32"],
+        "suiza": ["suiza", "switzerland", "ch", "sui", "🇨🇭", "+41"],
+        "austria": ["austria", "at", "aut", "🇦🇹", "+43"],
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # ARGENTINA - 24 PROVINCIAS + CIUDADES PRINCIPALES
+    # ARGENTINA
     # ═══════════════════════════════════════════════════════════════════════════
     "argentina": {
         "provincias": {
-            "buenos_aires": [
-                "buenos aires", "bs as", "bs. as.", "bsas", "ba", "pba",
-                "provincia de buenos aires", "pcia bs as"
-            ],
+            "buenos_aires":
+            ["buenos aires", "bs as", "bs. as.", "bsas", "ba", "pba"],
             "caba": [
                 "caba", "capital federal", "ciudad autónoma",
-                "ciudad autonoma", "c.a.b.a", "buenos aires ciudad",
-                "cdad de buenos aires", "ciudad de buenos aires"
+                "ciudad autonoma", "c.a.b.a"
             ],
-            "catamarca":
-            ["catamarca", "cat", "san fernando del valle de catamarca"],
-            "chaco": ["chaco", "cha", "resistencia"],
-            "chubut": ["chubut", "chu", "rawson"],
-            "cordoba":
-            ["córdoba", "cordoba", "cba", "cba.", "provincia de córdoba"],
+            "catamarca": ["catamarca", "cat"],
+            "chaco": ["chaco", "cha"],
+            "chubut": ["chubut", "chu"],
+            "cordoba": ["córdoba", "cordoba", "cba"],
             "corrientes": ["corrientes", "corr", "ctes"],
-            "entre_rios":
-            ["entre ríos", "entre rios", "er", "e. ríos", "e rios"],
-            "formosa": ["formosa", "for", "fsa"],
-            "jujuy":
-            ["jujuy", "juj", "s.s. de jujuy", "san salvador de jujuy"],
-            "la_pampa": ["la pampa", "lpampa", "l. pampa", "santa rosa"],
-            "la_rioja": ["la rioja", "rioja", "lrioja", "l rioja"],
-            "mendoza": ["mendoza", "mza", "mdz", "mend"],
-            "misiones": ["misiones", "mis", "posadas"],
-            "neuquen": ["neuquén", "neuquen", "nqn", "neuq"],
-            "rio_negro":
-            ["río negro", "rio negro", "rn", "r. negro", "viedma"],
-            "salta": ["salta", "sal", "sla"],
-            "san_juan": ["san juan", "sj", "s. juan", "s juan"],
-            "san_luis": ["san luis", "sl", "s. luis", "s luis"],
-            "santa_cruz":
-            ["santa cruz", "sc", "s. cruz", "s cruz", "rio gallegos"],
-            "santa_fe": [
-                "santa fe", "sf", "sta fe", "sta. fe", "s. fe", "sfe",
-                "pcia santa fe", "prov santa fe", "provincia de santa fe"
-            ],
-            "santiago_estero": [
-                "santiago del estero", "sgo estero", "sde", "stgo del estero",
-                "santiago estero", "sgo del estero"
-            ],
-            "tierra_fuego": [
-                "tierra del fuego", "tdf", "t. del fuego", "ushuaia",
-                "tierra del fuego antártida e islas del atlántico sur"
-            ],
-            "tucuman": [
-                "tucumán", "tucuman", "tuc", "smt", "san miguel de tucumán",
-                "san miguel de tucuman"
-            ],
+            "entre_rios": ["entre ríos", "entre rios", "er"],
+            "formosa": ["formosa", "for"],
+            "jujuy": ["jujuy", "juj"],
+            "la_pampa": ["la pampa", "lpampa", "lp"],
+            "la_rioja": ["la rioja", "rioja", "lr"],
+            "mendoza": ["mendoza", "mza", "mdz"],
+            "misiones": ["misiones", "mis"],
+            "neuquen": ["neuquén", "neuquen", "nqn"],
+            "rio_negro": ["río negro", "rio negro", "rn"],
+            "salta": ["salta", "sal"],
+            "san_juan": ["san juan", "sj"],
+            "san_luis": ["san luis", "sl"],
+            "santa_cruz": ["santa cruz", "sc"],
+            "santa_fe": ["santa fe", "sf", "sta fe", "sta. fe", "santafe"],
+            "santiago_estero": ["santiago del estero", "sgo estero", "sde"],
+            "tierra_fuego": ["tierra del fuego", "tdf"],
+            "tucuman": ["tucumán", "tucuman", "tuc"],
         },
         "ciudades": {
-            # CABA y GBA
             "caba_ciudad": ["buenos aires", "caba", "capital federal"],
-            "la_plata": ["la plata", "laplata"],
+            "la_plata": ["la plata"],
             "mar_del_plata": ["mar del plata", "mdp", "mdq", "mardel"],
-            "bahia_blanca": ["bahía blanca", "bahia blanca", "bb"],
+            "bahia_blanca": ["bahía blanca", "bahia blanca"],
             "tandil": ["tandil"],
             "olavarria": ["olavarría", "olavarria"],
-            "pergamino": ["pergamino"],
-            "zarate": ["zárate", "zarate"],
-            "campana": ["campana"],
-            "pilar": ["pilar"],
-            "tigre": ["tigre"],
-            "san_isidro": ["san isidro"],
-            "vicente_lopez": ["vicente lópez", "vicente lopez"],
-            "avellaneda": ["avellaneda"],
-            "lanus": ["lanús", "lanus"],
-            "lomas_zamora": ["lomas de zamora", "lomas"],
-            "quilmes": ["quilmes"],
-            "berazategui": ["berazategui"],
-            "florencio_varela": ["florencio varela"],
-            "almirante_brown": ["almirante brown"],
-            "moron": ["morón", "moron"],
-            "ituzaingo": ["ituzaingó", "ituzaingo"],
-            "hurlingham": ["hurlingham"],
-            "san_martin": ["san martín", "san martin", "gral san martín"],
-            "san_miguel": ["san miguel"],
-            "jose_paz": ["josé c. paz", "jose c paz", "jose c. paz"],
-            "malvinas_argentinas": ["malvinas argentinas"],
-            "escobar": ["escobar"],
-            "san_fernando": ["san fernando"],
-            "san_nicolas": ["san nicolás", "san nicolas"],
-            "junin": ["junín", "junin"],
-            "chivilcoy": ["chivilcoy"],
-            "mercedes": ["mercedes"],
-            "lujan": ["luján", "lujan"],
-            "necochea": ["necochea"],
-            "tres_arroyos": ["tres arroyos"],
-            "azul": ["azul"],
-
-            # Santa Fe provincia
             "rosario": ["rosario", "ros"],
-            "santa_fe_ciudad":
-            ["santa fe ciudad", "santa fe capital", "santa fe"],
+            "santa_fe_ciudad": ["santa fe ciudad", "santa fe capital"],
             "rafaela": ["rafaela"],
             "venado_tuerto": ["venado tuerto"],
             "reconquista": ["reconquista"],
-            "san_lorenzo": ["san lorenzo"],
-            "casilda": ["casilda"],
+            "san_jorge": ["san jorge"],
             "esperanza": ["esperanza"],
             "san_justo": ["san justo"],
-            "villa_constitucion": ["villa constitución", "villa constitucion"],
-            "san_jorge": ["san jorge"],
-            "galvez": ["gálvez", "galvez"],
-            "ceres": ["ceres"],
-            "sunchales": ["sunchales"],
-            "armstrong": ["armstrong"],
-            "firmat": ["firmat"],
-            "rufino": ["rufino"],
-            "totoras": ["totoras"],
-            "carcarana": ["carcarañá", "carcarana"],
-            "fray_luis_beltran": ["fray luis beltrán", "fray luis beltran"],
-            "granadero_baigorria": ["granadero baigorria"],
-            "puerto_san_martin":
-            ["puerto general san martín", "puerto san martin"],
-            "capitan_bermudez": ["capitán bermúdez", "capitan bermudez"],
-            "santo_tome": ["santo tomé", "santo tome"],
-            "san_carlos_centro": ["san carlos centro"],
-            "carlos_pellegrini": ["carlos pellegrini", "pellegrini"],
-            "vera": ["vera"],
-            "tostado": ["tostado"],
-            "las_parejas": ["las parejas"],
-            "las_rosas": ["las rosas"],
-            "coronda": ["coronda"],
-            "avellaneda_sf": ["avellaneda"],
-
-            # Córdoba provincia
-            "cordoba_ciudad": [
-                "córdoba ciudad", "córdoba capital", "cordoba capital",
-                "córdoba", "cordoba"
-            ],
+            "cordoba_ciudad": ["córdoba ciudad", "córdoba capital"],
             "villa_maria": ["villa maría", "villa maria"],
-            "rio_cuarto": ["río cuarto", "rio cuarto", "río iv", "rio iv"],
+            "rio_cuarto": ["río cuarto", "rio cuarto"],
             "san_francisco": ["san francisco"],
-            "villa_carlos_paz": ["villa carlos paz", "carlos paz"],
-            "jesus_maria": ["jesús maría", "jesus maria"],
-            "alta_gracia": ["alta gracia"],
-            "cosquin": ["cosquín", "cosquin"],
-            "la_falda": ["la falda"],
-            "bell_ville": ["bell ville"],
-            "marcos_juarez": ["marcos juárez", "marcos juarez"],
-            "rio_tercero": ["río tercero", "rio tercero"],
-            "villa_dolores": ["villa dolores"],
-            "dean_funes": ["deán funes", "dean funes"],
-            "arroyito": ["arroyito"],
-
-            # Mendoza provincia
-            "mendoza_ciudad": ["mendoza ciudad", "mendoza capital", "mendoza"],
+            "mendoza_ciudad": ["mendoza ciudad", "mendoza capital"],
             "san_rafael": ["san rafael"],
-            "godoy_cruz": ["godoy cruz"],
-            "guaymallen": ["guaymallén", "guaymallen"],
-            "las_heras_mza": ["las heras"],
-            "maipu_mza": ["maipú", "maipu"],
-            "lujan_cuyo": ["luján de cuyo", "lujan de cuyo"],
-            "tunuyan": ["tunuyán", "tunuyan"],
-            "general_alvear": ["general alvear"],
-            "malargue": ["malargüe", "malargue"],
-
-            # Tucumán provincia
-            "tucuman_ciudad": [
-                "san miguel de tucumán", "tucumán capital", "tucuman capital",
-                "tucumán", "tucuman"
-            ],
-            "yerba_buena": ["yerba buena"],
-            "tafi_viejo": ["tafí viejo", "tafi viejo"],
-            "banda_rio_sali": ["banda del río salí", "banda del rio sali"],
-            "concepcion_tuc": ["concepción"],
-            "aguilares": ["aguilares"],
-            "monteros": ["monteros"],
-
-            # Salta provincia
-            "salta_ciudad": ["salta ciudad", "salta capital", "salta"],
-            "oran": ["san ramón de la nueva orán", "orán", "oran"],
-            "tartagal": ["tartagal"],
-            "general_guemes": ["general güemes", "general guemes"],
-            "metan": ["metán", "metan"],
-            "cafayate": ["cafayate"],
-
-            # Entre Ríos provincia
+            "tucuman_ciudad": ["san miguel de tucumán", "tucumán capital"],
+            "salta_ciudad": ["salta ciudad", "salta capital"],
             "parana": ["paraná", "parana"],
             "concordia": ["concordia"],
-            "gualeguaychu": ["gualeguaychú", "gualeguaychu"],
-            "concepcion_uruguay": ["concepción del uruguay"],
-            "gualeguay": ["gualeguay"],
-            "villaguay": ["villaguay"],
-            "chajari": ["chajarí", "chajari"],
-            "colon": ["colón", "colon"],
-            "federacion": ["federación", "federacion"],
-            "victoria": ["victoria"],
-            "la_paz_er": ["la paz"],
-            "crespo": ["crespo"],
-            "diamante": ["diamante"],
-
-            # Chaco provincia
-            "resistencia": ["resistencia"],
-            "saenz_pena":
-            ["presidencia roque sáenz peña", "sáenz peña", "saenz pena"],
-            "villa_angela": ["villa ángela", "villa angela"],
-            "charata": ["charata"],
-            "barranqueras": ["barranqueras"],
-            "quitilipi": ["quitilipi"],
-
-            # Corrientes provincia
-            "corrientes_ciudad":
-            ["corrientes ciudad", "corrientes capital", "corrientes"],
-            "goya": ["goya"],
-            "paso_libres": ["paso de los libres"],
-            "curuzu_cuatia": ["curuzú cuatiá", "curuzu cuatia"],
-            "mercedes_ctes": ["mercedes"],
-            "monte_caseros": ["monte caseros"],
-            "bella_vista": ["bella vista"],
-
-            # Misiones provincia
-            "posadas": ["posadas"],
-            "obera": ["oberá", "obera"],
-            "eldorado": ["eldorado"],
-            "puerto_iguazu": ["puerto iguazú", "iguazú", "iguazu"],
-            "apostoles": ["apóstoles", "apostoles"],
-
-            # Neuquén provincia
-            "neuquen_ciudad": [
-                "neuquén ciudad", "neuquén capital", "neuquen capital",
-                "neuquén", "neuquen"
-            ],
-            "centenario": ["centenario"],
-            "plottier": ["plottier"],
-            "cutral_co": ["cutral có", "cutral co"],
-            "plaza_huincul": ["plaza huincul"],
-            "zapala": ["zapala"],
-            "san_martin_andes": ["san martín de los andes"],
-
-            # Río Negro provincia
-            "viedma": ["viedma"],
+            "neuquen_ciudad": ["neuquén ciudad", "neuquén capital"],
             "bariloche": ["san carlos de bariloche", "bariloche"],
-            "general_roca": ["general roca"],
-            "cipolletti": ["cipolletti"],
-            "allen": ["allen"],
-            "el_bolson": ["el bolsón", "el bolson"],
-
-            # Chubut provincia
-            "rawson_chu": ["rawson"],
             "comodoro_rivadavia": ["comodoro rivadavia", "comodoro"],
-            "trelew": ["trelew"],
-            "puerto_madryn": ["puerto madryn", "madryn"],
-            "esquel": ["esquel"],
-
-            # Santa Cruz provincia
-            "rio_gallegos": ["río gallegos", "rio gallegos"],
-            "caleta_olivia": ["caleta olivia"],
-            "el_calafate": ["el calafate", "calafate"],
-            "puerto_deseado": ["puerto deseado"],
-
-            # San Juan provincia
-            "san_juan_ciudad":
-            ["san juan ciudad", "san juan capital", "san juan"],
-            "rawson_sj": ["rawson"],
-            "chimbas": ["chimbas"],
-            "pocito": ["pocito"],
-            "caucete": ["caucete"],
-
-            # San Luis provincia
-            "san_luis_ciudad":
-            ["san luis ciudad", "san luis capital", "san luis"],
-            "villa_mercedes": ["villa mercedes"],
-            "merlo_sl": ["merlo"],
-            "la_punta": ["la punta"],
-
-            # Jujuy provincia
-            "san_salvador_jujuy": [
-                "san salvador de jujuy", "s.s. de jujuy", "jujuy capital",
-                "jujuy"
-            ],
-            "palpala": ["palpalá", "palpala"],
-            "san_pedro_juj": ["san pedro"],
-            "libertador_san_martin": ["libertador general san martín"],
-            "humahuaca": ["humahuaca"],
-            "la_quiaca": ["la quiaca"],
-            "tilcara": ["tilcara"],
-
-            # La Rioja provincia
-            "la_rioja_ciudad":
-            ["la rioja ciudad", "la rioja capital", "la rioja"],
-            "chilecito": ["chilecito"],
-            "aimogasta": ["aimogasta"],
-
-            # Catamarca provincia
-            "catamarca_ciudad": [
-                "san fernando del valle de catamarca", "catamarca capital",
-                "catamarca"
-            ],
-            "belen": ["belén", "belen"],
-            "andalgala": ["andalgalá", "andalgala"],
-            "tinogasta": ["tinogasta"],
-
-            # La Pampa provincia
-            "santa_rosa_lp": ["santa rosa"],
-            "general_pico": ["general pico"],
-            "toay": ["toay"],
-
-            # Tierra del Fuego
             "ushuaia": ["ushuaia"],
-            "rio_grande_tdf": ["río grande", "rio grande"],
-            "tolhuin": ["tolhuin"],
-        }
+            "rio_gallegos": ["río gallegos", "rio gallegos"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # MÉXICO - 32 ESTADOS + CIUDADES PRINCIPALES
+    # MÉXICO
     # ═══════════════════════════════════════════════════════════════════════════
     "mexico": {
         "estados": {
             "aguascalientes": ["aguascalientes", "ags"],
-            "baja_california":
-            ["baja california", "bc", "baja california norte"],
+            "baja_california": ["baja california", "bc"],
             "baja_california_sur": ["baja california sur", "bcs"],
             "campeche": ["campeche", "camp"],
-            "chiapas": ["chiapas", "chis", "chps"],
+            "chiapas": ["chiapas", "chis"],
             "chihuahua": ["chihuahua", "chih"],
-            "coahuila": ["coahuila", "coah", "coahuila de zaragoza"],
+            "coahuila": ["coahuila", "coah"],
             "colima": ["colima", "col"],
             "cdmx": [
-                "ciudad de méxico", "cdmx", "df", "distrito federal",
-                "ciudad de mexico", "méxico df", "mexico df"
+                "cdmx", "ciudad de méxico", "ciudad de mexico", "df", "d.f.",
+                "distrito federal"
             ],
             "durango": ["durango", "dgo"],
             "guanajuato": ["guanajuato", "gto"],
             "guerrero": ["guerrero", "gro"],
             "hidalgo": ["hidalgo", "hgo"],
             "jalisco": ["jalisco", "jal"],
-            "estado_mexico": [
-                "estado de méxico", "estado de mexico", "edomex", "edo mex",
-                "mex"
-            ],
+            "estado_mexico": ["estado de méxico", "edomex", "edo mex"],
             "michoacan": ["michoacán", "michoacan", "mich"],
             "morelos": ["morelos", "mor"],
             "nayarit": ["nayarit", "nay"],
@@ -447,7 +184,7 @@ UBICACIONES_VARIANTES = {
             "oaxaca": ["oaxaca", "oax"],
             "puebla": ["puebla", "pue"],
             "queretaro": ["querétaro", "queretaro", "qro"],
-            "quintana_roo": ["quintana roo", "qroo", "q roo"],
+            "quintana_roo": ["quintana roo", "qroo"],
             "san_luis_potosi": ["san luis potosí", "san luis potosi", "slp"],
             "sinaloa": ["sinaloa", "sin"],
             "sonora": ["sonora", "son"],
@@ -459,724 +196,170 @@ UBICACIONES_VARIANTES = {
             "zacatecas": ["zacatecas", "zac"],
         },
         "ciudades": {
-            "ciudad_mexico":
-            ["ciudad de méxico", "cdmx", "df", "méxico df", "mexico city"],
+            "cdmx_ciudad": ["ciudad de méxico", "cdmx", "df", "mexico city"],
             "guadalajara": ["guadalajara", "gdl"],
             "monterrey": ["monterrey", "mty"],
             "puebla_ciudad": ["puebla"],
             "tijuana": ["tijuana", "tj"],
             "leon": ["león", "leon"],
-            "juarez": ["ciudad juárez", "juarez", "ciudad juarez"],
-            "zapopan": ["zapopan"],
-            "ecatepec": ["ecatepec", "ecatepec de morelos"],
-            "naucalpan": ["naucalpan"],
+            "juarez": ["ciudad juárez", "juárez", "juarez"],
             "merida": ["mérida", "merida"],
-            "aguascalientes_ciudad": ["aguascalientes"],
-            "san_luis_potosi_ciudad": ["san luis potosí", "san luis potosi"],
-            "hermosillo": ["hermosillo"],
-            "chihuahua_ciudad": ["chihuahua"],
-            "saltillo": ["saltillo"],
-            "mexicali": ["mexicali"],
-            "culiacan": ["culiacán", "culiacan"],
+            "cancun": ["cancún", "cancun"],
             "queretaro_ciudad": ["querétaro", "queretaro"],
             "morelia": ["morelia"],
-            "cancun": ["cancún", "cancun"],
-            "acapulco": ["acapulco"],
             "veracruz_ciudad": ["veracruz"],
-            "toluca": ["toluca"],
-            "durango_ciudad": ["durango"],
-            "torreon": ["torreón", "torreon"],
-            "reynosa": ["reynosa"],
-            "tuxtla_gutierrez": ["tuxtla gutiérrez", "tuxtla"],
-            "mazatlan": ["mazatlán", "mazatlan"],
             "oaxaca_ciudad": ["oaxaca"],
-            "villahermosa": ["villahermosa"],
-            "cuernavaca": ["cuernavaca"],
-            "playa_carmen": ["playa del carmen"],
-            "tampico": ["tampico"],
-            "nuevo_laredo": ["nuevo laredo"],
-            "tepic": ["tepic"],
-            "la_paz_mx": ["la paz"],
-            "campeche_ciudad": ["campeche"],
-            "colima_ciudad": ["colima"],
-            "pachuca": ["pachuca"],
-            "zacatecas_ciudad": ["zacatecas"],
-            "xalapa": ["xalapa", "jalapa"],
-            "irapuato": ["irapuato"],
-            "celaya": ["celaya"],
-        }
+            "playa_del_carmen": ["playa del carmen"],
+            "los_cabos": ["los cabos", "cabo san lucas"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # ESPAÑA - 17 COMUNIDADES AUTÓNOMAS + CIUDADES PRINCIPALES
+    # ESPAÑA
     # ═══════════════════════════════════════════════════════════════════════════
     "espana": {
         "comunidades": {
             "andalucia": ["andalucía", "andalucia", "and"],
             "aragon": ["aragón", "aragon", "ara"],
             "asturias": ["asturias", "principado de asturias", "ast"],
-            "baleares": ["islas baleares", "baleares", "illes balears", "ib"],
-            "canarias": ["canarias", "islas canarias", "can"],
+            "baleares": ["islas baleares", "baleares", "ib"],
+            "canarias": ["canarias", "islas canarias", "ic"],
             "cantabria": ["cantabria", "cant"],
+            "castilla_mancha": ["castilla-la mancha", "clm"],
             "castilla_leon": ["castilla y león", "castilla y leon", "cyl"],
-            "castilla_mancha":
-            ["castilla-la mancha", "castilla la mancha", "clm"],
-            "cataluna": ["cataluña", "catalunya", "cataluna", "cat"],
-            "ceuta": ["ceuta"],
+            "cataluna": ["cataluña", "catalunya", "cat"],
             "extremadura": ["extremadura", "ext"],
             "galicia": ["galicia", "gal"],
-            "la_rioja_esp": ["la rioja", "rioja"],
             "madrid": ["madrid", "comunidad de madrid", "mad"],
-            "melilla": ["melilla"],
-            "murcia": ["región de murcia", "murcia", "mur"],
-            "navarra": ["navarra", "comunidad foral de navarra", "nav"],
-            "pais_vasco": ["país vasco", "euskadi", "pais vasco", "pv"],
-            "valencia":
-            ["comunidad valenciana", "valencia", "país valenciano", "val"],
+            "murcia": ["murcia", "región de murcia", "mur"],
+            "navarra": ["navarra", "nav"],
+            "pais_vasco": ["país vasco", "pais vasco", "euskadi", "pv"],
+            "la_rioja": ["la rioja", "rioja", "rio"],
+            "valencia": ["comunidad valenciana", "valencia", "val"],
         },
         "ciudades": {
             "madrid_ciudad": ["madrid"],
-            "barcelona": ["barcelona", "bcn"],
+            "barcelona": ["barcelona", "bcn", "barna"],
             "valencia_ciudad": ["valencia", "valència"],
             "sevilla": ["sevilla"],
-            "zaragoza": ["zaragoza"],
+            "zaragoza": ["zaragoza", "zgz"],
             "malaga": ["málaga", "malaga"],
-            "murcia_ciudad": ["murcia"],
-            "palma": ["palma de mallorca", "palma"],
-            "las_palmas": ["las palmas de gran canaria", "las palmas"],
             "bilbao": ["bilbao"],
-            "alicante": ["alicante", "alacant"],
-            "cordoba_esp": ["córdoba", "cordoba"],
+            "alicante": ["alicante"],
+            "cordoba_es": ["córdoba", "cordoba"],
             "valladolid": ["valladolid"],
-            "vigo": ["vigo"],
-            "gijon": ["gijón", "gijon"],
-            "la_coruna": ["a coruña", "la coruña"],
             "granada": ["granada"],
-            "vitoria": ["vitoria-gasteiz", "vitoria"],
-            "elche": ["elche", "elx"],
-            "oviedo": ["oviedo"],
-            "santa_cruz_tenerife": ["santa cruz de tenerife"],
-            "pamplona": ["pamplona", "iruña"],
-            "almeria": ["almería", "almeria"],
-            "san_sebastian": ["san sebastián", "donostia", "san sebastian"],
+            "san_sebastian": ["san sebastián", "donostia"],
             "santander": ["santander"],
-            "burgos": ["burgos"],
-            "albacete": ["albacete"],
-            "logrono": ["logroño", "logrono"],
             "salamanca": ["salamanca"],
-            "badajoz": ["badajoz"],
-            "huelva": ["huelva"],
-            "lleida": ["lleida", "lérida", "lerida"],
-            "tarragona": ["tarragona"],
-            "leon_esp": ["león", "leon"],
-            "cadiz": ["cádiz", "cadiz"],
-            "marbella": ["marbella"],
-            "jaen": ["jaén", "jaen"],
-            "girona": ["girona", "gerona"],
-            "santiago_compostela": ["santiago de compostela"],
-            "toledo": ["toledo"],
-        }
+            "pamplona": ["pamplona", "iruña"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # COLOMBIA - 33 DEPARTAMENTOS + CIUDADES PRINCIPALES
+    # COLOMBIA
     # ═══════════════════════════════════════════════════════════════════════════
     "colombia": {
         "departamentos": {
-            "amazonas_col": ["amazonas"],
             "antioquia": ["antioquia", "ant"],
-            "arauca": ["arauca"],
             "atlantico": ["atlántico", "atlantico", "atl"],
-            "bolivar_col": ["bolívar", "bolivar", "bol"],
-            "boyaca": ["boyacá", "boyaca", "boy"],
-            "caldas": ["caldas", "cal"],
-            "caqueta": ["caquetá", "caqueta"],
-            "casanare": ["casanare"],
-            "cauca": ["cauca"],
-            "cesar": ["cesar", "ces"],
-            "choco": ["chocó", "choco"],
-            "cordoba_col": ["córdoba", "cordoba"],
+            "bolivar_col": ["bolívar", "bolivar"],
+            "boyaca": ["boyacá", "boyaca"],
+            "caldas": ["caldas"],
             "cundinamarca": ["cundinamarca", "cund"],
-            "guainia": ["guainía", "guainia"],
-            "guaviare": ["guaviare"],
             "huila": ["huila"],
-            "la_guajira": ["la guajira", "guajira"],
-            "magdalena": ["magdalena", "mag"],
             "meta": ["meta"],
             "narino": ["nariño", "narino"],
-            "norte_santander": ["norte de santander", "n santander"],
-            "putumayo": ["putumayo"],
-            "quindio": ["quindío", "quindio"],
+            "norte_santander": ["norte de santander"],
             "risaralda": ["risaralda"],
-            "san_andres": ["san andrés y providencia", "san andres"],
-            "santander": ["santander", "sant"],
-            "sucre": ["sucre"],
-            "tolima": ["tolima", "tol"],
+            "santander": ["santander", "stder"],
+            "tolima": ["tolima"],
             "valle_cauca": ["valle del cauca", "valle"],
-            "vaupes": ["vaupés", "vaupes"],
-            "vichada": ["vichada"],
-            "bogota_dc":
-            ["bogotá d.c.", "bogota", "bogotá", "distrito capital"],
+            "bogota_dc": ["bogotá d.c.", "bogota dc", "bogotá", "bogota"],
         },
         "ciudades": {
-            "bogota": ["bogotá", "bogota"],
-            "medellin": ["medellín", "medellin"],
-            "cali": ["cali"],
-            "barranquilla": ["barranquilla"],
-            "cartagena_col": ["cartagena"],
+            "bogota": ["bogotá", "bogota", "bog"],
+            "medellin": ["medellín", "medellin", "med"],
+            "cali": ["cali", "santiago de cali"],
+            "barranquilla": ["barranquilla", "baq"],
+            "cartagena_col": ["cartagena", "cartagena de indias"],
             "cucuta": ["cúcuta", "cucuta"],
             "bucaramanga": ["bucaramanga"],
             "pereira": ["pereira"],
             "santa_marta": ["santa marta"],
-            "ibague": ["ibagué", "ibague"],
-            "villavicencio": ["villavicencio"],
             "manizales": ["manizales"],
-            "pasto": ["pasto"],
-            "neiva": ["neiva"],
-            "armenia": ["armenia"],
-            "soacha": ["soacha"],
-            "valledupar": ["valledupar"],
-            "monteria": ["montería", "monteria"],
-            "sincelejo": ["sincelejo"],
-            "popayan": ["popayán", "popayan"],
-            "floridablanca": ["floridablanca"],
-            "palmira": ["palmira"],
-            "buenaventura": ["buenaventura"],
-            "tunja": ["tunja"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # CHILE - 16 REGIONES + CIUDADES PRINCIPALES
+    # CHILE
     # ═══════════════════════════════════════════════════════════════════════════
     "chile": {
         "regiones": {
-            "arica_parinacota":
-            ["arica y parinacota", "xv región", "xv region"],
-            "tarapaca": ["tarapacá", "tarapaca", "i región", "i region"],
-            "antofagasta_reg": ["antofagasta", "ii región", "ii region"],
-            "atacama": ["atacama", "iii región", "iii region"],
-            "coquimbo_reg": ["coquimbo", "iv región", "iv region"],
-            "valparaiso_reg":
-            ["valparaíso", "valparaiso", "v región", "v region"],
-            "metropolitana":
-            ["metropolitana", "región metropolitana", "rm", "santiago"],
-            "ohiggins": ["o'higgins", "ohiggins", "vi región", "vi region"],
-            "maule": ["maule", "vii región", "vii region"],
-            "nuble": ["ñuble", "nuble", "xvi región"],
-            "biobio": ["biobío", "biobio", "viii región", "viii region"],
-            "araucania": ["araucanía", "araucania", "ix región", "ix region"],
-            "los_rios": ["los ríos", "los rios", "xiv región"],
-            "los_lagos": ["los lagos", "x región", "x region"],
-            "aysen": ["aysén", "aysen", "xi región", "xi region"],
-            "magallanes": ["magallanes", "xii región", "xii region"],
+            "arica_parinacota": ["arica y parinacota", "arica", "xv"],
+            "tarapaca": ["tarapacá", "tarapaca", "i"],
+            "antofagasta": ["antofagasta", "ii"],
+            "atacama": ["atacama", "iii"],
+            "coquimbo": ["coquimbo", "iv"],
+            "valparaiso": ["valparaíso", "valparaiso", "v"],
+            "ohiggins": ["o'higgins", "ohiggins", "vi"],
+            "maule": ["maule", "vii"],
+            "biobio": ["biobío", "biobio", "viii"],
+            "araucania": ["araucanía", "araucania", "ix"],
+            "los_rios": ["los ríos", "los rios", "xiv"],
+            "los_lagos": ["los lagos", "x"],
+            "aysen": ["aysén", "aysen", "xi"],
+            "magallanes": ["magallanes", "xii"],
+            "metropolitana": ["metropolitana", "rm", "santiago", "xiii"],
         },
         "ciudades": {
             "santiago": ["santiago", "santiago de chile", "stgo"],
-            "puente_alto": ["puente alto"],
-            "maipu_cl": ["maipú", "maipu"],
-            "la_florida": ["la florida"],
+            "valparaiso_ciudad": ["valparaíso", "valparaiso", "valpo"],
+            "concepcion": ["concepción", "concepcion"],
+            "vina_del_mar": ["viña del mar", "vina del mar"],
             "antofagasta_ciudad": ["antofagasta"],
-            "vina_mar": ["viña del mar", "vina del mar"],
-            "valparaiso_ciudad": ["valparaíso", "valparaiso"],
-            "san_bernardo": ["san bernardo"],
             "temuco": ["temuco"],
-            "las_condes": ["las condes"],
-            "iquique": ["iquique"],
-            "concepcion_cl": ["concepción", "concepcion"],
-            "rancagua": ["rancagua"],
-            "talca": ["talca"],
-            "arica": ["arica"],
-            "coquimbo_ciudad": ["coquimbo"],
-            "la_serena": ["la serena"],
             "puerto_montt": ["puerto montt"],
-            "chillan": ["chillán", "chillan"],
-            "talcahuano": ["talcahuano"],
-            "osorno": ["osorno"],
-            "valdivia": ["valdivia"],
-            "calama": ["calama"],
-            "copiapo": ["copiapó", "copiapo"],
-            "los_angeles_cl": ["los ángeles", "los angeles"],
+            "la_serena": ["la serena"],
             "punta_arenas": ["punta arenas"],
-            "curico": ["curicó", "curico"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # PERÚ - 25 DEPARTAMENTOS + CIUDADES PRINCIPALES
+    # PERÚ
     # ═══════════════════════════════════════════════════════════════════════════
     "peru": {
         "departamentos": {
             "amazonas_pe": ["amazonas"],
-            "ancash": ["áncash", "ancash"],
-            "apurimac": ["apurímac", "apurimac"],
-            "arequipa_dep": ["arequipa"],
+            "arequipa": ["arequipa", "aqp"],
             "ayacucho": ["ayacucho"],
             "cajamarca": ["cajamarca"],
-            "callao": ["callao", "provincia constitucional del callao"],
             "cusco": ["cusco", "cuzco"],
-            "huancavelica": ["huancavelica"],
             "huanuco": ["huánuco", "huanuco"],
             "ica": ["ica"],
             "junin": ["junín", "junin"],
             "la_libertad": ["la libertad"],
             "lambayeque": ["lambayeque"],
-            "lima_dep": ["lima"],
+            "lima": ["lima"],
             "loreto": ["loreto"],
-            "madre_dios": ["madre de dios"],
-            "moquegua": ["moquegua"],
-            "pasco": ["pasco"],
-            "piura_dep": ["piura"],
-            "puno_dep": ["puno"],
-            "san_martin_pe": ["san martín", "san martin"],
-            "tacna_dep": ["tacna"],
-            "tumbes": ["tumbes"],
-            "ucayali": ["ucayali"],
+            "piura": ["piura"],
+            "puno": ["puno"],
+            "tacna": ["tacna"],
         },
         "ciudades": {
-            "lima_ciudad": ["lima"],
+            "lima_ciudad": ["lima", "lima metropolitana"],
             "arequipa_ciudad": ["arequipa"],
             "trujillo": ["trujillo"],
             "chiclayo": ["chiclayo"],
             "piura_ciudad": ["piura"],
             "iquitos": ["iquitos"],
             "cusco_ciudad": ["cusco", "cuzco"],
-            "chimbote": ["chimbote"],
             "huancayo": ["huancayo"],
-            "tacna_ciudad": ["tacna"],
-            "pucallpa": ["pucallpa"],
-            "juliaca": ["juliaca"],
-            "ica_ciudad": ["ica"],
-            "cajamarca_ciudad": ["cajamarca"],
-            "sullana": ["sullana"],
-            "ayacucho_ciudad": ["ayacucho"],
-            "huanuco_ciudad": ["huánuco", "huanuco"],
-            "puno_ciudad": ["puno"],
-            "tarapoto": ["tarapoto"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # USA - 50 ESTADOS + CIUDADES PRINCIPALES
-    # ═══════════════════════════════════════════════════════════════════════════
-    "usa": {
-        "estados": {
-            "alabama": ["alabama", "al"],
-            "alaska": ["alaska", "ak"],
-            "arizona": ["arizona", "az"],
-            "arkansas": ["arkansas", "ar"],
-            "california": ["california", "ca", "calif"],
-            "colorado": ["colorado", "co"],
-            "connecticut": ["connecticut", "ct", "conn"],
-            "delaware": ["delaware", "de"],
-            "florida": ["florida", "fl", "fla"],
-            "georgia_us": ["georgia", "ga"],
-            "hawaii": ["hawaii", "hi"],
-            "idaho": ["idaho", "id"],
-            "illinois": ["illinois", "il"],
-            "indiana": ["indiana", "in"],
-            "iowa": ["iowa", "ia"],
-            "kansas": ["kansas", "ks"],
-            "kentucky": ["kentucky", "ky"],
-            "louisiana": ["louisiana", "la"],
-            "maine": ["maine", "me"],
-            "maryland": ["maryland", "md"],
-            "massachusetts": ["massachusetts", "ma", "mass"],
-            "michigan": ["michigan", "mi", "mich"],
-            "minnesota": ["minnesota", "mn", "minn"],
-            "mississippi": ["mississippi", "ms", "miss"],
-            "missouri": ["missouri", "mo"],
-            "montana": ["montana", "mt"],
-            "nebraska": ["nebraska", "ne"],
-            "nevada": ["nevada", "nv"],
-            "new_hampshire": ["new hampshire", "nh"],
-            "new_jersey": ["new jersey", "nj"],
-            "new_mexico": ["new mexico", "nm"],
-            "new_york_state": ["new york", "ny"],
-            "north_carolina": ["north carolina", "nc"],
-            "north_dakota": ["north dakota", "nd"],
-            "ohio": ["ohio", "oh"],
-            "oklahoma": ["oklahoma", "ok"],
-            "oregon": ["oregon", "or"],
-            "pennsylvania": ["pennsylvania", "pa", "penn"],
-            "rhode_island": ["rhode island", "ri"],
-            "south_carolina": ["south carolina", "sc"],
-            "south_dakota": ["south dakota", "sd"],
-            "tennessee": ["tennessee", "tn", "tenn"],
-            "texas": ["texas", "tx"],
-            "utah": ["utah", "ut"],
-            "vermont": ["vermont", "vt"],
-            "virginia": ["virginia", "va"],
-            "washington_state": ["washington", "wa", "wash"],
-            "west_virginia": ["west virginia", "wv"],
-            "wisconsin": ["wisconsin", "wi", "wis"],
-            "wyoming": ["wyoming", "wy"],
-            "dc": ["district of columbia", "dc", "d.c.", "washington dc"],
-        },
-        "ciudades": {
-            "new_york": ["new york city", "nyc", "new york", "manhattan"],
-            "los_angeles": ["los angeles", "la", "l.a."],
-            "chicago": ["chicago", "chi"],
-            "houston": ["houston"],
-            "phoenix": ["phoenix"],
-            "philadelphia": ["philadelphia", "philly"],
-            "san_antonio": ["san antonio"],
-            "san_diego": ["san diego"],
-            "dallas": ["dallas"],
-            "san_jose": ["san jose"],
-            "austin": ["austin"],
-            "jacksonville": ["jacksonville"],
-            "fort_worth": ["fort worth"],
-            "columbus": ["columbus"],
-            "charlotte": ["charlotte"],
-            "san_francisco": ["san francisco", "sf"],
-            "indianapolis": ["indianapolis"],
-            "seattle": ["seattle"],
-            "denver": ["denver"],
-            "washington_dc": ["washington", "washington dc"],
-            "boston": ["boston"],
-            "el_paso": ["el paso"],
-            "nashville": ["nashville"],
-            "detroit": ["detroit"],
-            "oklahoma_city": ["oklahoma city"],
-            "portland": ["portland"],
-            "las_vegas": ["las vegas", "vegas"],
-            "memphis": ["memphis"],
-            "louisville": ["louisville"],
-            "baltimore": ["baltimore"],
-            "milwaukee": ["milwaukee"],
-            "albuquerque": ["albuquerque"],
-            "tucson": ["tucson"],
-            "fresno": ["fresno"],
-            "sacramento": ["sacramento"],
-            "atlanta": ["atlanta", "atl"],
-            "miami": ["miami"],
-            "oakland": ["oakland"],
-            "minneapolis": ["minneapolis"],
-            "cleveland": ["cleveland"],
-            "tampa": ["tampa"],
-            "new_orleans": ["new orleans", "nola"],
-            "pittsburgh": ["pittsburgh"],
-            "st_louis": ["st. louis", "st louis", "saint louis"],
-            "cincinnati": ["cincinnati"],
-            "orlando": ["orlando"],
-            "salt_lake_city": ["salt lake city", "slc"],
-        }
-    },
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # BRASIL - 27 ESTADOS + CIUDADES PRINCIPALES
-    # ═══════════════════════════════════════════════════════════════════════════
-    "brasil": {
-        "estados": {
-            "acre": ["acre", "ac"],
-            "alagoas": ["alagoas", "al"],
-            "amapa": ["amapá", "amapa", "ap"],
-            "amazonas_br": ["amazonas", "am"],
-            "bahia": ["bahia", "ba"],
-            "ceara": ["ceará", "ceara", "ce"],
-            "distrito_federal":
-            ["distrito federal", "df", "brasília", "brasilia"],
-            "espirito_santo": ["espírito santo", "espirito santo", "es"],
-            "goias": ["goiás", "goias", "go"],
-            "maranhao": ["maranhão", "maranhao", "ma"],
-            "mato_grosso": ["mato grosso", "mt"],
-            "mato_grosso_sul": ["mato grosso do sul", "ms"],
-            "minas_gerais": ["minas gerais", "mg"],
-            "para": ["pará", "para", "pa"],
-            "paraiba": ["paraíba", "paraiba", "pb"],
-            "parana": ["paraná", "parana", "pr"],
-            "pernambuco": ["pernambuco", "pe"],
-            "piaui": ["piauí", "piaui", "pi"],
-            "rio_janeiro": ["rio de janeiro", "rj"],
-            "rio_grande_norte": ["rio grande do norte", "rn"],
-            "rio_grande_sul": ["rio grande do sul", "rs"],
-            "rondonia": ["rondônia", "rondonia", "ro"],
-            "roraima": ["roraima", "rr"],
-            "santa_catarina": ["santa catarina", "sc"],
-            "sao_paulo_estado": ["são paulo", "sao paulo", "sp"],
-            "sergipe": ["sergipe", "se"],
-            "tocantins": ["tocantins", "to"],
-        },
-        "ciudades": {
-            "sao_paulo_ciudad": ["são paulo", "sao paulo", "sp"],
-            "rio_janeiro_ciudad": ["rio de janeiro", "rio"],
-            "brasilia": ["brasília", "brasilia"],
-            "salvador": ["salvador"],
-            "fortaleza": ["fortaleza"],
-            "belo_horizonte": ["belo horizonte", "bh"],
-            "manaus": ["manaus"],
-            "curitiba": ["curitiba"],
-            "recife": ["recife"],
-            "porto_alegre": ["porto alegre", "poa"],
-            "goiania": ["goiânia", "goiania"],
-            "belem": ["belém", "belem"],
-            "guarulhos": ["guarulhos"],
-            "campinas": ["campinas"],
-            "sao_luis": ["são luís", "sao luis"],
-            "maceio": ["maceió", "maceio"],
-            "natal": ["natal"],
-            "teresina": ["teresina"],
-            "campo_grande": ["campo grande"],
-            "joao_pessoa": ["joão pessoa", "joao pessoa"],
-            "santo_andre": ["santo andré", "santo andre"],
-            "ribeirao_preto": ["ribeirão preto", "ribeirao preto"],
-            "uberlandia": ["uberlândia", "uberlandia"],
-            "sorocaba": ["sorocaba"],
-            "aracaju": ["aracaju"],
-            "feira_santana": ["feira de santana"],
-            "cuiaba": ["cuiabá", "cuiaba"],
-            "joinville": ["joinville"],
-            "londrina": ["londrina"],
-            "juiz_fora": ["juiz de fora"],
-            "florianopolis": ["florianópolis", "florianopolis", "floripa"],
-            "santos": ["santos"],
-            "vitoria_br": ["vitória", "vitoria"],
-            "porto_velho": ["porto velho"],
-        }
-    },
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # OTROS PAÍSES LATINOAMERICANOS
-    # ═══════════════════════════════════════════════════════════════════════════
-    "venezuela": {
-        "estados": {
-            "amazonas_ve": ["amazonas"],
-            "anzoategui": ["anzoátegui", "anzoategui"],
-            "apure": ["apure"],
-            "aragua": ["aragua"],
-            "barinas": ["barinas"],
-            "bolivar_ve": ["bolívar", "bolivar"],
-            "carabobo": ["carabobo"],
-            "cojedes": ["cojedes"],
-            "delta_amacuro": ["delta amacuro"],
-            "distrito_capital": ["distrito capital", "caracas"],
-            "falcon": ["falcón", "falcon"],
-            "guarico": ["guárico", "guarico"],
-            "lara": ["lara"],
-            "merida_ve": ["mérida", "merida"],
-            "miranda": ["miranda"],
-            "monagas": ["monagas"],
-            "nueva_esparta": ["nueva esparta"],
-            "portuguesa": ["portuguesa"],
-            "sucre_ve": ["sucre"],
-            "tachira": ["táchira", "tachira"],
-            "trujillo": ["trujillo"],
-            "vargas": ["vargas", "la guaira"],
-            "yaracuy": ["yaracuy"],
-            "zulia": ["zulia"],
-        },
-        "ciudades": {
-            "caracas": ["caracas"],
-            "maracaibo": ["maracaibo"],
-            "valencia_ve": ["valencia"],
-            "barquisimeto": ["barquisimeto"],
-            "maracay": ["maracay"],
-            "ciudad_guayana": ["ciudad guayana"],
-            "san_cristobal": ["san cristóbal", "san cristobal"],
-            "maturin": ["maturín", "maturin"],
-            "barcelona_ve": ["barcelona"],
-            "cumana": ["cumaná", "cumana"],
-            "puerto_la_cruz": ["puerto la cruz"],
-            "merida_ciudad": ["mérida", "merida"],
-            "cabimas": ["cabimas"],
-            "barinas_ciudad": ["barinas"],
-            "punto_fijo": ["punto fijo"],
-            "los_teques": ["los teques"],
-            "ciudad_bolivar": ["ciudad bolívar", "ciudad bolivar"],
-            "guarenas": ["guarenas"],
-            "turmero": ["turmero"],
-            "acarigua": ["acarigua"],
-            "valera": ["valera"],
-            "coro": ["coro"],
-        }
-    },
-    "ecuador": {
-        "provincias": {
-            "azuay": ["azuay"],
-            "bolivar_ec": ["bolívar", "bolivar"],
-            "canar": ["cañar", "canar"],
-            "carchi": ["carchi"],
-            "chimborazo": ["chimborazo"],
-            "cotopaxi": ["cotopaxi"],
-            "el_oro": ["el oro"],
-            "esmeraldas": ["esmeraldas"],
-            "galapagos": ["galápagos", "galapagos"],
-            "guayas": ["guayas"],
-            "imbabura": ["imbabura"],
-            "loja": ["loja"],
-            "los_rios_ec": ["los ríos", "los rios"],
-            "manabi": ["manabí", "manabi"],
-            "morona_santiago": ["morona santiago"],
-            "napo": ["napo"],
-            "orellana": ["orellana"],
-            "pastaza": ["pastaza"],
-            "pichincha": ["pichincha"],
-            "santa_elena": ["santa elena"],
-            "santo_domingo": ["santo domingo de los tsáchilas"],
-            "sucumbios": ["sucumbíos", "sucumbios"],
-            "tungurahua": ["tungurahua"],
-            "zamora_chinchipe": ["zamora chinchipe"],
-        },
-        "ciudades": {
-            "quito": ["quito"],
-            "guayaquil": ["guayaquil"],
-            "cuenca": ["cuenca"],
-            "santo_domingo_ciudad": ["santo domingo"],
-            "ambato": ["ambato"],
-            "portoviejo": ["portoviejo"],
-            "machala": ["machala"],
-            "duran": ["durán", "duran"],
-            "manta": ["manta"],
-            "loja_ciudad": ["loja"],
-            "riobamba": ["riobamba"],
-            "esmeraldas_ciudad": ["esmeraldas"],
-            "quevedo": ["quevedo"],
-            "ibarra": ["ibarra"],
-            "latacunga": ["latacunga"],
-            "milagro": ["milagro"],
-            "tulcan": ["tulcán", "tulcan"],
-            "babahoyo": ["babahoyo"],
-        }
-    },
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # BOLIVIA - 9 DEPARTAMENTOS + CIUDADES
-    # ═══════════════════════════════════════════════════════════════════════════
-    "bolivia": {
-        "departamentos": {
-            "chuquisaca": ["chuquisaca"],
-            "cochabamba": ["cochabamba", "cbba"],
-            "beni": ["beni"],
-            "la_paz_bo": ["la paz"],
-            "oruro": ["oruro"],
-            "pando": ["pando"],
-            "potosi": ["potosí", "potosi"],
-            "santa_cruz_bo": ["santa cruz"],
-            "tarija": ["tarija"],
-        },
-        "ciudades": {
-            "la_paz_ciudad": ["la paz"],
-            "santa_cruz_ciudad": ["santa cruz de la sierra", "santa cruz"],
-            "cochabamba_ciudad": ["cochabamba"],
-            "sucre": ["sucre"],
-            "oruro_ciudad": ["oruro"],
-            "tarija_ciudad": ["tarija"],
-            "potosi_ciudad": ["potosí", "potosi"],
-            "sacaba": ["sacaba"],
-            "quillacollo": ["quillacollo"],
-            "montero": ["montero"],
-            "trinidad": ["trinidad"],
-            "warnes": ["warnes"],
-            "yacuiba": ["yacuiba"],
-            "riberalta": ["riberalta"],
-            "el_alto": ["el alto"],
-        }
-    },
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # PARAGUAY - 17 DEPARTAMENTOS + CIUDADES
-    # ═══════════════════════════════════════════════════════════════════════════
-    "paraguay": {
-        "departamentos": {
-            "alto_paraguay": ["alto paraguay"],
-            "alto_parana": ["alto paraná", "alto parana"],
-            "amambay": ["amambay"],
-            "boqueron": ["boquerón", "boqueron"],
-            "caaguazu": ["caaguazú", "caaguazu"],
-            "caazapa": ["caazapá", "caazapa"],
-            "canindeyu": ["canindeyú", "canindeyu"],
-            "central_py": ["central"],
-            "concepcion_py": ["concepción", "concepcion"],
-            "cordillera": ["cordillera"],
-            "guaira": ["guairá", "guaira"],
-            "itapua": ["itapúa", "itapua"],
-            "misiones_py": ["misiones"],
-            "neembucu": ["ñeembucú", "neembucu"],
-            "paraguari": ["paraguarí", "paraguari"],
-            "presidente_hayes": ["presidente hayes"],
-            "san_pedro_py": ["san pedro"],
-            "asuncion_dep": ["asunción", "asuncion", "distrito capital"],
-        },
-        "ciudades": {
-            "asuncion": ["asunción", "asuncion"],
-            "ciudad_este": ["ciudad del este"],
-            "san_lorenzo": ["san lorenzo"],
-            "luque": ["luque"],
-            "capiata": ["capiatá", "capiata"],
-            "lambare": ["lambaré", "lambare"],
-            "fernando_mora": ["fernando de la mora"],
-            "limpio": ["limpio"],
-            "nemby": ["ñemby", "nemby"],
-            "encarnacion": ["encarnación", "encarnacion"],
-            "mariano_alonso": ["mariano roque alonso"],
-            "pedro_caballero": ["pedro juan caballero"],
-            "villa_elisa": ["villa elisa"],
-            "caaguazu_ciudad": ["caaguazú", "caaguazu"],
-            "coronel_oviedo": ["coronel oviedo"],
-            "presidente_franco": ["presidente franco"],
-            "itaugua": ["itauguá", "itaugua"],
-            "villeta": ["villeta"],
-            "caacupe": ["caacupé", "caacupe"],
-            "concepcion_ciudad_py": ["concepción", "concepcion"],
-        }
-    },
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # URUGUAY - 19 DEPARTAMENTOS + CIUDADES
-    # ═══════════════════════════════════════════════════════════════════════════
-    "uruguay": {
-        "departamentos": {
-            "artigas": ["artigas"],
-            "canelones": ["canelones"],
-            "cerro_largo": ["cerro largo"],
-            "colonia": ["colonia"],
-            "durazno": ["durazno"],
-            "flores": ["flores"],
-            "florida_uy": ["florida"],
-            "lavalleja": ["lavalleja"],
-            "maldonado": ["maldonado"],
-            "montevideo": ["montevideo", "mdeo"],
-            "paysandu": ["paysandú", "paysandu"],
-            "rio_negro_uy": ["río negro", "rio negro"],
-            "rivera": ["rivera"],
-            "rocha": ["rocha"],
-            "salto_uy": ["salto"],
-            "san_jose_uy": ["san josé", "san jose"],
-            "soriano": ["soriano"],
-            "tacuarembo": ["tacuarembó", "tacuarembo"],
-            "treinta_tres": ["treinta y tres"],
-        },
-        "ciudades": {
-            "montevideo_ciudad": ["montevideo"],
-            "salto_ciudad": ["salto"],
-            "ciudad_costa": ["ciudad de la costa"],
-            "paysandu_ciudad": ["paysandú", "paysandu"],
-            "las_piedras": ["las piedras"],
-            "rivera_ciudad": ["rivera"],
-            "maldonado_ciudad": ["maldonado"],
-            "tacuarembo_ciudad": ["tacuarembó", "tacuarembo"],
-            "melo": ["melo"],
-            "mercedes_uy": ["mercedes"],
-            "artigas_ciudad": ["artigas"],
-            "minas": ["minas"],
-            "san_jose_ciudad": ["san josé de mayo", "san jose de mayo"],
-            "durazno_ciudad": ["durazno"],
-            "florida_ciudad": ["florida"],
-            "treinta_tres_ciudad": ["treinta y tres"],
-            "rocha_ciudad": ["rocha"],
-            "colonia_sacramento": ["colonia del sacramento", "colonia"],
-            "punta_este": ["punta del este"],
-            "fray_bentos": ["fray bentos"],
-            "carmelo": ["carmelo"],
-            "dolores_uy": ["dolores"],
-            "young": ["young"],
-            "nueva_helvecia": ["nueva helvecia"],
-        }
-    },
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # GUATEMALA - 22 DEPARTAMENTOS + CIUDADES
+    # GUATEMALA
     # ═══════════════════════════════════════════════════════════════════════════
     "guatemala": {
         "departamentos": {
@@ -1186,10 +369,10 @@ UBICACIONES_VARIANTES = {
             "chiquimula": ["chiquimula"],
             "el_progreso": ["el progreso"],
             "escuintla": ["escuintla"],
-            "guatemala_dep": ["guatemala"],
+            "guatemala_depto": ["guatemala"],
             "huehuetenango": ["huehuetenango"],
             "izabal": ["izabal"],
-            "jalapa": ["jalapa"],
+            "jalapa_gt": ["jalapa"],
             "jutiapa": ["jutiapa"],
             "peten": ["petén", "peten"],
             "quetzaltenango": ["quetzaltenango", "xela"],
@@ -1204,35 +387,18 @@ UBICACIONES_VARIANTES = {
             "zacapa": ["zacapa"],
         },
         "ciudades": {
-            "guatemala_ciudad":
-            ["ciudad de guatemala", "guatemala city", "guatemala"],
+            "ciudad_guatemala": ["ciudad de guatemala", "guatemala city"],
             "mixco": ["mixco"],
-            "villa_nueva_gt": ["villa nueva"],
+            "villa_nueva": ["villa nueva"],
             "quetzaltenango_ciudad": ["quetzaltenango", "xela"],
-            "san_juan_sacatepequez": ["san juan sacatepéquez"],
-            "petapa": ["petapa"],
             "escuintla_ciudad": ["escuintla"],
-            "chinautla": ["chinautla"],
-            "chimaltenango_ciudad": ["chimaltenango"],
-            "huehuetenango_ciudad": ["huehuetenango"],
-            "amatitlan": ["amatitlán", "amatitlan"],
             "coban": ["cobán", "coban"],
-            "jalapa_ciudad": ["jalapa"],
-            "puerto_barrios": ["puerto barrios"],
-            "santa_lucia_cotzumalguapa": ["santa lucía cotzumalguapa"],
             "antigua_guatemala": ["antigua guatemala", "antigua"],
-            "chiquimula_ciudad": ["chiquimula"],
-            "zacapa_ciudad": ["zacapa"],
-            "mazatenango": ["mazatenango"],
-            "retalhuleu_ciudad": ["retalhuleu"],
-            "solola_ciudad": ["sololá", "solola"],
-            "flores_peten": ["flores"],
-            "tikal": ["tikal"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # HONDURAS - 18 DEPARTAMENTOS + CIUDADES
+    # HONDURAS
     # ═══════════════════════════════════════════════════════════════════════════
     "honduras": {
         "departamentos": {
@@ -1242,17 +408,12 @@ UBICACIONES_VARIANTES = {
             "comayagua": ["comayagua"],
             "copan": ["copán", "copan"],
             "cortes": ["cortés", "cortes"],
-            "el_paraiso": ["el paraíso", "el paraiso"],
             "francisco_morazan": ["francisco morazán", "francisco morazan"],
-            "gracias_dios": ["gracias a dios"],
             "intibuca": ["intibucá", "intibuca"],
-            "islas_bahia": ["islas de la bahía", "islas de la bahia"],
             "la_paz_hn": ["la paz"],
             "lempira": ["lempira"],
-            "ocotepeque": ["ocotepeque"],
             "olancho": ["olancho"],
             "santa_barbara_hn": ["santa bárbara", "santa barbara"],
-            "valle_hn": ["valle"],
             "yoro": ["yoro"],
         },
         "ciudades": {
@@ -1260,25 +421,13 @@ UBICACIONES_VARIANTES = {
             "san_pedro_sula": ["san pedro sula", "sps"],
             "choloma": ["choloma"],
             "la_ceiba": ["la ceiba"],
-            "el_progreso_hn": ["el progreso"],
-            "choluteca_ciudad": ["choluteca"],
             "comayagua_ciudad": ["comayagua"],
-            "puerto_cortes": ["puerto cortés", "puerto cortes"],
-            "la_lima": ["la lima"],
-            "danli": ["danlí", "danli"],
-            "siguatepeque": ["siguatepeque"],
-            "juticalpa": ["juticalpa"],
-            "villanueva_hn": ["villanueva"],
-            "tocoa": ["tocoa"],
-            "tela": ["tela"],
-            "santa_rosa_copan": ["santa rosa de copán", "santa rosa de copan"],
             "roatan": ["roatán", "roatan"],
-            "copan_ruinas": ["copán ruinas", "copan ruinas"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # EL SALVADOR - 14 DEPARTAMENTOS + CIUDADES
+    # EL SALVADOR
     # ═══════════════════════════════════════════════════════════════════════════
     "el_salvador": {
         "departamentos": {
@@ -1288,7 +437,7 @@ UBICACIONES_VARIANTES = {
             "cuscatlan": ["cuscatlán", "cuscatlan"],
             "la_libertad_sv": ["la libertad"],
             "la_paz_sv": ["la paz"],
-            "la_union": ["la unión", "la union"],
+            "la_union_sv": ["la unión", "la union"],
             "morazan": ["morazán", "morazan"],
             "san_miguel_sv": ["san miguel"],
             "san_salvador": ["san salvador"],
@@ -1301,26 +450,13 @@ UBICACIONES_VARIANTES = {
             "san_salvador_ciudad": ["san salvador"],
             "santa_ana_ciudad": ["santa ana"],
             "san_miguel_ciudad": ["san miguel"],
-            "mejicanos": ["mejicanos"],
-            "santa_tecla": ["santa tecla", "nueva san salvador"],
-            "apopa": ["apopa"],
+            "santa_tecla": ["santa tecla"],
             "soyapango": ["soyapango"],
-            "delgado": ["delgado", "ciudad delgado"],
-            "ilopango": ["ilopango"],
-            "sonsonate_ciudad": ["sonsonate"],
-            "usulutan_ciudad": ["usulután", "usulutan"],
-            "ahuachapan_ciudad": ["ahuachapán", "ahuachapan"],
-            "cojutepeque": ["cojutepeque"],
-            "zacatecoluca": ["zacatecoluca"],
-            "chalatenango_ciudad": ["chalatenango"],
-            "la_libertad_ciudad": ["la libertad"],
-            "san_vicente_ciudad": ["san vicente"],
-            "sensuntepeque": ["sensuntepeque"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # NICARAGUA - 15 DEPARTAMENTOS + 2 REGIONES AUTÓNOMAS + CIUDADES
+    # NICARAGUA
     # ═══════════════════════════════════════════════════════════════════════════
     "nicaragua": {
         "departamentos": {
@@ -1333,90 +469,53 @@ UBICACIONES_VARIANTES = {
             "jinotega": ["jinotega"],
             "leon_ni": ["león", "leon"],
             "madriz": ["madriz"],
-            "managua_dep": ["managua"],
-            "masaya_dep": ["masaya"],
+            "managua": ["managua"],
+            "masaya": ["masaya"],
             "matagalpa": ["matagalpa"],
             "nueva_segovia": ["nueva segovia"],
             "rivas": ["rivas"],
-            "rio_san_juan": ["río san juan", "rio san juan"],
-            "raccn": [
-                "raccn", "región autónoma costa caribe norte", "raan",
-                "atlántico norte"
-            ],
-            "raccs": [
-                "raccs", "región autónoma costa caribe sur", "raas",
-                "atlántico sur"
-            ],
+            "raccn": ["raccn", "raan", "costa caribe norte"],
+            "raccs": ["raccs", "raas", "costa caribe sur"],
         },
         "ciudades": {
-            "managua": ["managua"],
+            "managua_ciudad": ["managua"],
             "leon_ciudad": ["león", "leon"],
-            "masaya": ["masaya"],
-            "tipitapa": ["tipitapa"],
+            "masaya_ciudad": ["masaya"],
             "chinandega_ciudad": ["chinandega"],
-            "matagalpa_ciudad": ["matagalpa"],
-            "esteli_ciudad": ["estelí", "esteli"],
-            "granada_ciudad": ["granada"],
-            "ciudad_sandino": ["ciudad sandino"],
-            "jinotega_ciudad": ["jinotega"],
-            "juigalpa": ["juigalpa"],
-            "el_viejo": ["el viejo"],
-            "bluefields": ["bluefields"],
-            "puerto_cabezas": ["puerto cabezas", "bilwi"],
-            "rivas_ciudad": ["rivas"],
-            "ocotal": ["ocotal"],
-            "somoto": ["somoto"],
-            "boaco_ciudad": ["boaco"],
-            "diriamba": ["diriamba"],
-            "jinotepe": ["jinotepe"],
-            "san_juan_sur": ["san juan del sur"],
-        }
+            "granada_ciudad_ni": ["granada"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # COSTA RICA - 7 PROVINCIAS + CIUDADES
+    # COSTA RICA
     # ═══════════════════════════════════════════════════════════════════════════
     "costa_rica": {
         "provincias": {
-            "alajuela": ["alajuela"],
-            "cartago_cr": ["cartago"],
-            "guanacaste": ["guanacaste"],
-            "heredia": ["heredia"],
-            "limon": ["limón", "limon"],
-            "puntarenas": ["puntarenas"],
             "san_jose_cr": ["san josé", "san jose"],
+            "alajuela": ["alajuela"],
+            "cartago": ["cartago"],
+            "heredia": ["heredia"],
+            "guanacaste": ["guanacaste"],
+            "puntarenas": ["puntarenas"],
+            "limon": ["limón", "limon"],
         },
         "ciudades": {
-            "san_jose_ciudad": ["san josé", "san jose"],
-            "limon_ciudad": ["limón", "limon"],
+            "san_jose_ciudad_cr": ["san josé", "san jose"],
             "alajuela_ciudad": ["alajuela"],
-            "heredia_ciudad": ["heredia"],
-            "puntarenas_ciudad": ["puntarenas"],
             "cartago_ciudad": ["cartago"],
-            "liberia_cr": ["liberia"],
-            "paraiso": ["paraíso", "paraiso"],
-            "san_isidro_general":
-            ["san isidro de el general", "pérez zeledón"],
-            "curridabat": ["curridabat"],
-            "san_francisco_heredia": ["san francisco"],
-            "desamparados": ["desamparados"],
-            "nicoya": ["nicoya"],
-            "santa_cruz_cr": ["santa cruz"],
-            "san_carlos_cr": ["san carlos", "ciudad quesada"],
-            "turrialba": ["turrialba"],
-            "grecia": ["grecia"],
-            "san_ramon_cr": ["san ramón", "san ramon"],
-            "puerto_limon": ["puerto limón", "puerto limon"],
+            "heredia_ciudad": ["heredia"],
+            "liberia": ["liberia"],
+            "puntarenas_ciudad": ["puntarenas"],
+            "escazu": ["escazú", "escazu"],
+            "santa_ana_cr": ["santa ana"],
             "tamarindo": ["tamarindo"],
             "jaco": ["jacó", "jaco"],
-            "manuel_antonio": ["manuel antonio"],
-            "monteverde": ["monteverde"],
             "la_fortuna": ["la fortuna"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # PANAMÁ - 10 PROVINCIAS + 3 COMARCAS + CIUDADES
+    # PANAMÁ
     # ═══════════════════════════════════════════════════════════════════════════
     "panama": {
         "provincias": {
@@ -1427,39 +526,22 @@ UBICACIONES_VARIANTES = {
             "darien": ["darién", "darien"],
             "herrera": ["herrera"],
             "los_santos": ["los santos"],
-            "panama_dep": ["panamá", "panama"],
+            "panama_prov": ["panamá", "panama"],
             "panama_oeste": ["panamá oeste", "panama oeste"],
             "veraguas": ["veraguas"],
-            "guna_yala": ["guna yala", "kuna yala", "san blas"],
-            "embera_wounaan": ["emberá-wounaan", "embera wounaan"],
-            "ngabe_bugle": ["ngäbe-buglé", "ngabe bugle"],
         },
         "ciudades": {
-            "panama_ciudad": [
-                "ciudad de panamá", "panamá city", "panama city", "panamá",
-                "panama"
-            ],
-            "san_miguelito": ["san miguelito"],
-            "juan_diaz": ["juan díaz", "juan diaz"],
-            "david": ["david"],
-            "arraijan": ["arraiján", "arraijan"],
+            "panama_ciudad": ["ciudad de panamá", "panama city"],
             "colon_ciudad": ["colón", "colon"],
-            "la_chorrera": ["la chorrera"],
-            "tocumen": ["tocumen"],
-            "santiago_veraguas": ["santiago"],
+            "david": ["david"],
+            "santiago_pa": ["santiago"],
             "chitre": ["chitré", "chitre"],
-            "las_tablas": ["las tablas"],
-            "penonome": ["penonomé", "penonome"],
-            "aguadulce": ["aguadulce"],
-            "bocas_town": ["bocas town", "bocas del toro"],
             "boquete": ["boquete"],
-            "volcan": ["volcán", "volcan"],
-            "portobelo": ["portobelo"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # CUBA - 15 PROVINCIAS + CIUDADES
+    # CUBA
     # ═══════════════════════════════════════════════════════════════════════════
     "cuba": {
         "provincias": {
@@ -1468,8 +550,8 @@ UBICACIONES_VARIANTES = {
             "la_habana": ["la habana", "habana"],
             "mayabeque": ["mayabeque"],
             "matanzas": ["matanzas"],
-            "cienfuegos": ["cienfuegos"],
             "villa_clara": ["villa clara"],
+            "cienfuegos": ["cienfuegos"],
             "sancti_spiritus": ["sancti spíritus", "sancti spiritus"],
             "ciego_avila": ["ciego de ávila", "ciego de avila"],
             "camaguey": ["camagüey", "camaguey"],
@@ -1478,116 +560,59 @@ UBICACIONES_VARIANTES = {
             "granma": ["granma"],
             "santiago_cuba": ["santiago de cuba"],
             "guantanamo": ["guantánamo", "guantanamo"],
-            "isla_juventud": ["isla de la juventud"],
         },
         "ciudades": {
-            "habana_ciudad": ["la habana", "habana"],
+            "habana_ciudad": ["la habana", "habana", "havana"],
             "santiago_cuba_ciudad": ["santiago de cuba"],
             "camaguey_ciudad": ["camagüey", "camaguey"],
             "holguin_ciudad": ["holguín", "holguin"],
-            "guantanamo_ciudad": ["guantánamo", "guantanamo"],
             "santa_clara": ["santa clara"],
-            "bayamo": ["bayamo"],
-            "las_tunas_ciudad": ["las tunas"],
-            "cienfuegos_ciudad": ["cienfuegos"],
-            "pinar_rio_ciudad": ["pinar del río", "pinar del rio"],
-            "matanzas_ciudad": ["matanzas"],
-            "ciego_avila_ciudad": ["ciego de ávila", "ciego de avila"],
-            "sancti_spiritus_ciudad": ["sancti spíritus", "sancti spiritus"],
-            "manzanillo": ["manzanillo"],
-            "cardenas": ["cárdenas", "cardenas"],
-            "moron": ["morón", "moron"],
-            "nuevitas": ["nuevitas"],
-            "trinidad_cu": ["trinidad"],
             "varadero": ["varadero"],
-            "vinales": ["viñales", "vinales"],
-        }
+            "trinidad_cu": ["trinidad"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # REPÚBLICA DOMINICANA - 31 PROVINCIAS + DN + CIUDADES
+    # REPÚBLICA DOMINICANA
     # ═══════════════════════════════════════════════════════════════════════════
     "dominicana": {
         "provincias": {
-            "azua": ["azua"],
-            "bahoruco": ["bahoruco"],
-            "barahona": ["barahona"],
-            "dajabon": ["dajabón", "dajabon"],
-            "distrito_nacional": ["distrito nacional", "dn", "santo domingo"],
-            "duarte": ["duarte"],
-            "el_seibo": ["el seibo"],
-            "elias_pina": ["elías piña", "elias pina"],
-            "espaillat": ["espaillat"],
-            "hato_mayor": ["hato mayor"],
-            "hermanas_mirabal": ["hermanas mirabal", "salcedo"],
-            "independencia": ["independencia"],
-            "la_altagracia": ["la altagracia"],
-            "la_romana": ["la romana"],
-            "la_vega": ["la vega"],
-            "maria_trinidad_sanchez":
-            ["maría trinidad sánchez", "maria trinidad sanchez"],
-            "monsenor_nouel": ["monseñor nouel", "monsenor nouel"],
-            "monte_cristi": ["monte cristi", "montecristi"],
-            "monte_plata": ["monte plata"],
-            "pedernales": ["pedernales"],
-            "peravia": ["peravia"],
-            "puerto_plata": ["puerto plata"],
-            "samana": ["samaná", "samana"],
-            "san_cristobal_rd": ["san cristóbal", "san cristobal"],
-            "san_jose_ocoa": ["san josé de ocoa", "san jose de ocoa"],
-            "san_juan_rd": ["san juan"],
-            "san_pedro_macoris":
-            ["san pedro de macorís", "san pedro de macoris"],
-            "sanchez_ramirez": ["sánchez ramírez", "sanchez ramirez"],
-            "santiago_rd": ["santiago"],
-            "santiago_rodriguez": ["santiago rodríguez", "santiago rodriguez"],
+            "distrito_nacional": ["distrito nacional", "dn"],
             "santo_domingo_prov": ["santo domingo"],
-            "valverde": ["valverde", "mao"],
+            "santiago_rd": ["santiago"],
+            "la_vega": ["la vega"],
+            "san_cristobal_rd": ["san cristóbal", "san cristobal"],
+            "la_romana": ["la romana"],
+            "puerto_plata": ["puerto plata"],
+            "duarte": ["duarte"],
+            "san_pedro_macoris": ["san pedro de macorís"],
+            "la_altagracia": ["la altagracia"],
+            "espaillat": ["espaillat"],
+            "peravia": ["peravia"],
+            "samana": ["samaná", "samana"],
         },
         "ciudades": {
-            "santo_domingo": ["santo domingo"],
-            "santiago_rd_ciudad": ["santiago de los caballeros", "santiago"],
-            "santo_domingo_este": ["santo domingo este"],
-            "santo_domingo_norte": ["santo domingo norte"],
-            "santo_domingo_oeste": ["santo domingo oeste"],
-            "san_pedro_macoris_ciudad":
-            ["san pedro de macorís", "san pedro de macoris"],
+            "santo_domingo": ["santo domingo", "sd"],
+            "santiago_rd_ciudad": ["santiago de los caballeros"],
             "la_romana_ciudad": ["la romana"],
-            "san_cristobal_ciudad": ["san cristóbal", "san cristobal"],
             "puerto_plata_ciudad": ["puerto plata"],
-            "san_francisco_macoris":
-            ["san francisco de macorís", "san francisco de macoris"],
-            "la_vega_ciudad": ["la vega"],
             "higuey": ["higüey", "higuey"],
-            "moca": ["moca"],
-            "bani": ["baní", "bani"],
-            "bonao": ["bonao"],
-            "azua_ciudad": ["azua"],
-            "barahona_ciudad": ["barahona"],
-            "nagua": ["nagua"],
-            "cotui": ["cotuí", "cotui"],
-            "punta_cana": ["punta cana"],
-            "bavaro": ["bávaro", "bavaro"],
+            "san_pedro_ciudad": ["san pedro de macorís"],
+            "punta_cana": ["punta cana", "bávaro"],
             "samana_ciudad": ["samaná", "samana"],
-            "sosua": ["sosúa", "sosua"],
-            "cabarete": ["cabarete"],
-            "jarabacoa": ["jarabacoa"],
-            "constanza": ["constanza"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # PUERTO RICO - REGIONES + MUNICIPIOS PRINCIPALES
+    # PUERTO RICO
     # ═══════════════════════════════════════════════════════════════════════════
     "puerto_rico": {
         "regiones": {
-            "area_metro":
-            ["área metropolitana", "area metropolitana", "metro"],
-            "norte": ["norte", "north"],
-            "sur": ["sur", "south"],
-            "este": ["este", "east"],
-            "oeste": ["oeste", "west"],
-            "centro": ["centro", "central"],
+            "area_metro": ["área metropolitana", "metro"],
+            "norte": ["norte", "region norte"],
+            "sur": ["sur", "region sur"],
+            "este": ["este", "region este"],
+            "oeste": ["oeste", "region oeste"],
         },
         "ciudades": {
             "san_juan_pr": ["san juan"],
@@ -1595,288 +620,378 @@ UBICACIONES_VARIANTES = {
             "carolina": ["carolina"],
             "ponce": ["ponce"],
             "caguas": ["caguas"],
-            "guaynabo": ["guaynabo"],
             "mayaguez": ["mayagüez", "mayaguez"],
-            "toa_baja": ["toa baja"],
             "arecibo": ["arecibo"],
-            "trujillo_alto": ["trujillo alto"],
-            "fajardo": ["fajardo"],
-            "humacao": ["humacao"],
             "aguadilla": ["aguadilla"],
-            "vega_baja": ["vega baja"],
-            "catano": ["cataño", "catano"],
-            "isabela": ["isabela"],
-            "rio_piedras": ["río piedras", "rio piedras"],
-            "santurce": ["santurce"],
-            "condado": ["condado"],
-            "viejo_san_juan": ["viejo san juan"],
-            "rincon": ["rincón", "rincon"],
-            "cabo_rojo": ["cabo rojo"],
-            "dorado": ["dorado"],
-            "vieques": ["vieques"],
-            "culebra": ["culebra"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # PORTUGAL - 18 DISTRITOS + REGIONES AUTÓNOMAS + CIUDADES
+    # BOLIVIA
+    # ═══════════════════════════════════════════════════════════════════════════
+    "bolivia": {
+        "departamentos": {
+            "la_paz_bo": ["la paz"],
+            "santa_cruz_bo": ["santa cruz"],
+            "cochabamba": ["cochabamba"],
+            "potosi": ["potosí", "potosi"],
+            "chuquisaca": ["chuquisaca"],
+            "oruro": ["oruro"],
+            "tarija": ["tarija"],
+            "beni": ["beni"],
+            "pando": ["pando"],
+        },
+        "ciudades": {
+            "la_paz_ciudad": ["la paz"],
+            "santa_cruz_ciudad": ["santa cruz de la sierra", "santa cruz"],
+            "cochabamba_ciudad": ["cochabamba"],
+            "sucre": ["sucre"],
+            "oruro_ciudad": ["oruro"],
+            "tarija_ciudad": ["tarija"],
+            "el_alto": ["el alto"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PARAGUAY
+    # ═══════════════════════════════════════════════════════════════════════════
+    "paraguay": {
+        "departamentos": {
+            "asuncion_dc": ["asunción", "asuncion", "capital"],
+            "central_py": ["central"],
+            "alto_parana": ["alto paraná", "alto parana"],
+            "itapua": ["itapúa", "itapua"],
+            "caaguazu": ["caaguazú", "caaguazu"],
+            "san_pedro_py": ["san pedro"],
+            "cordillera_py": ["cordillera"],
+            "guaira": ["guairá", "guaira"],
+            "concepcion_py": ["concepción", "concepcion"],
+            "amambay": ["amambay"],
+        },
+        "ciudades": {
+            "asuncion_ciudad": ["asunción", "asuncion"],
+            "ciudad_del_este": ["ciudad del este", "cde"],
+            "san_lorenzo_py": ["san lorenzo"],
+            "luque": ["luque"],
+            "encarnacion": ["encarnación", "encarnacion"],
+            "pedro_juan": ["pedro juan caballero"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # URUGUAY
+    # ═══════════════════════════════════════════════════════════════════════════
+    "uruguay": {
+        "departamentos": {
+            "montevideo": ["montevideo", "mdeo"],
+            "canelones": ["canelones"],
+            "maldonado": ["maldonado"],
+            "salto_uy": ["salto"],
+            "paysandu": ["paysandú", "paysandu"],
+            "colonia": ["colonia"],
+            "rivera": ["rivera"],
+            "tacuarembo": ["tacuarembó", "tacuarembo"],
+            "cerro_largo": ["cerro largo"],
+            "rocha": ["rocha"],
+        },
+        "ciudades": {
+            "montevideo_ciudad": ["montevideo"],
+            "salto_ciudad": ["salto"],
+            "paysandu_ciudad": ["paysandú", "paysandu"],
+            "maldonado_ciudad": ["maldonado"],
+            "punta_del_este": ["punta del este"],
+            "colonia_sacramento": ["colonia del sacramento", "colonia"],
+            "rivera_ciudad": ["rivera"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # VENEZUELA
+    # ═══════════════════════════════════════════════════════════════════════════
+    "venezuela": {
+        "estados": {
+            "caracas_dc": ["distrito capital", "caracas", "dc"],
+            "miranda": ["miranda"],
+            "zulia": ["zulia"],
+            "carabobo": ["carabobo"],
+            "lara": ["lara"],
+            "aragua": ["aragua"],
+            "bolivar_ve": ["bolívar", "bolivar"],
+            "anzoategui": ["anzoátegui", "anzoategui"],
+            "tachira": ["táchira", "tachira"],
+            "merida_ve": ["mérida", "merida"],
+            "falcon": ["falcón", "falcon"],
+            "barinas": ["barinas"],
+        },
+        "ciudades": {
+            "caracas": ["caracas", "ccs"],
+            "maracaibo": ["maracaibo"],
+            "valencia_ve": ["valencia"],
+            "barquisimeto": ["barquisimeto"],
+            "maracay": ["maracay"],
+            "ciudad_guayana": ["ciudad guayana", "puerto ordaz"],
+            "merida_ciudad": ["mérida", "merida"],
+            "san_cristobal": ["san cristóbal", "san cristobal"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ECUADOR
+    # ═══════════════════════════════════════════════════════════════════════════
+    "ecuador": {
+        "provincias": {
+            "pichincha": ["pichincha"],
+            "guayas": ["guayas"],
+            "azuay": ["azuay"],
+            "manabi": ["manabí", "manabi"],
+            "tungurahua": ["tungurahua"],
+            "el_oro": ["el oro"],
+            "loja": ["loja"],
+            "esmeraldas": ["esmeraldas"],
+            "imbabura": ["imbabura"],
+            "chimborazo": ["chimborazo"],
+            "galapagos": ["galápagos", "galapagos"],
+        },
+        "ciudades": {
+            "quito": ["quito"],
+            "guayaquil": ["guayaquil", "gye"],
+            "cuenca": ["cuenca"],
+            "santo_domingo_ciudad": ["santo domingo"],
+            "machala": ["machala"],
+            "manta": ["manta"],
+            "portoviejo": ["portoviejo"],
+            "ambato": ["ambato"],
+            "riobamba": ["riobamba"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # USA
+    # ═══════════════════════════════════════════════════════════════════════════
+    "usa": {
+        "estados": {
+            "california": ["california", "ca", "calif"],
+            "texas": ["texas", "tx", "tex"],
+            "florida": ["florida", "fl", "fla"],
+            "new_york": ["new york", "ny"],
+            "pennsylvania": ["pennsylvania", "pa"],
+            "illinois": ["illinois", "il"],
+            "ohio": ["ohio", "oh"],
+            "georgia_us": ["georgia", "ga"],
+            "north_carolina": ["north carolina", "nc"],
+            "michigan": ["michigan", "mi"],
+            "new_jersey": ["new jersey", "nj"],
+            "virginia": ["virginia", "va"],
+            "washington": ["washington", "wa"],
+            "arizona": ["arizona", "az"],
+            "massachusetts": ["massachusetts", "ma"],
+            "tennessee": ["tennessee", "tn"],
+            "indiana": ["indiana", "in"],
+            "missouri": ["missouri", "mo"],
+            "maryland": ["maryland", "md"],
+            "colorado": ["colorado", "co"],
+            "minnesota": ["minnesota", "mn"],
+            "wisconsin": ["wisconsin", "wi"],
+            "dc": ["district of columbia", "dc", "washington dc"],
+        },
+        "ciudades": {
+            "new_york_city": ["new york city", "nyc", "nueva york"],
+            "los_angeles": ["los angeles", "la", "l.a."],
+            "chicago": ["chicago"],
+            "houston": ["houston"],
+            "phoenix": ["phoenix"],
+            "philadelphia": ["philadelphia", "philly"],
+            "san_antonio": ["san antonio"],
+            "san_diego": ["san diego"],
+            "dallas": ["dallas"],
+            "san_jose_us": ["san jose"],
+            "austin": ["austin"],
+            "san_francisco": ["san francisco", "sf"],
+            "seattle": ["seattle"],
+            "denver": ["denver"],
+            "boston": ["boston"],
+            "washington_dc": ["washington dc"],
+            "miami": ["miami"],
+            "atlanta": ["atlanta", "atl"],
+            "las_vegas": ["las vegas", "vegas"],
+            "portland": ["portland"],
+            "silicon_valley": ["silicon valley"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # BRASIL
+    # ═══════════════════════════════════════════════════════════════════════════
+    "brasil": {
+        "estados": {
+            "sao_paulo": ["são paulo", "sao paulo", "sp"],
+            "rio_janeiro": ["rio de janeiro", "rj"],
+            "minas_gerais": ["minas gerais", "mg"],
+            "bahia": ["bahia", "ba"],
+            "parana": ["paraná", "parana", "pr"],
+            "rio_grande_sul": ["rio grande do sul", "rs"],
+            "pernambuco": ["pernambuco", "pe"],
+            "ceara": ["ceará", "ceara", "ce"],
+            "santa_catarina": ["santa catarina", "sc"],
+            "goias": ["goiás", "goias", "go"],
+            "distrito_federal_br": ["distrito federal", "df", "brasília"],
+        },
+        "ciudades": {
+            "sao_paulo_cidade": ["são paulo", "sao paulo", "sp", "sampa"],
+            "rio_de_janeiro": ["rio de janeiro", "rio", "rj"],
+            "brasilia": ["brasília", "brasilia", "bsb"],
+            "salvador": ["salvador"],
+            "fortaleza": ["fortaleza"],
+            "belo_horizonte": ["belo horizonte", "bh"],
+            "manaus": ["manaus"],
+            "curitiba": ["curitiba"],
+            "recife": ["recife"],
+            "porto_alegre": ["porto alegre", "poa"],
+            "florianopolis": ["florianópolis", "florianopolis", "floripa"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CANADÁ
+    # ═══════════════════════════════════════════════════════════════════════════
+    "canada": {
+        "provincias": {
+            "ontario": ["ontario", "on"],
+            "quebec": ["quebec", "québec", "qc"],
+            "british_columbia": ["british columbia", "bc"],
+            "alberta": ["alberta", "ab"],
+            "manitoba": ["manitoba", "mb"],
+            "saskatchewan": ["saskatchewan", "sk"],
+            "nova_scotia": ["nova scotia", "ns"],
+            "new_brunswick": ["new brunswick", "nb"],
+        },
+        "ciudades": {
+            "toronto": ["toronto"],
+            "montreal": ["montreal", "montréal"],
+            "vancouver_ca": ["vancouver"],
+            "calgary": ["calgary"],
+            "edmonton": ["edmonton"],
+            "ottawa": ["ottawa"],
+            "winnipeg": ["winnipeg"],
+            "quebec_city": ["quebec city", "québec"],
+        },
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PORTUGAL
     # ═══════════════════════════════════════════════════════════════════════════
     "portugal": {
         "distritos": {
-            "aveiro": ["aveiro"],
-            "beja": ["beja"],
-            "braga": ["braga"],
-            "braganca": ["bragança", "braganca"],
-            "castelo_branco": ["castelo branco"],
-            "coimbra": ["coimbra"],
-            "evora": ["évora", "evora"],
-            "faro": ["faro", "algarve"],
-            "guarda": ["guarda"],
-            "leiria": ["leiria"],
             "lisboa": ["lisboa", "lisbon"],
-            "portalegre": ["portalegre"],
             "porto": ["porto", "oporto"],
-            "santarem": ["santarém", "santarem"],
+            "braga": ["braga"],
             "setubal": ["setúbal", "setubal"],
-            "viana_castelo": ["viana do castelo"],
-            "vila_real": ["vila real"],
-            "viseu": ["viseu"],
-            "acores": ["açores", "azores", "acores"],
+            "coimbra": ["coimbra"],
+            "faro": ["faro"],
+            "aveiro": ["aveiro"],
+            "leiria": ["leiria"],
             "madeira": ["madeira"],
+            "acores": ["açores", "acores", "azores"],
         },
         "ciudades": {
-            "lisboa_ciudad": ["lisboa", "lisbon"],
-            "porto_ciudad": ["porto", "oporto"],
-            "braga_ciudad": ["braga"],
-            "amadora": ["amadora"],
-            "almada": ["almada"],
-            "coimbra_ciudad": ["coimbra"],
+            "lisboa_cidade": ["lisboa", "lisbon"],
+            "porto_cidade": ["porto", "oporto"],
+            "braga_cidade": ["braga"],
+            "coimbra_cidade": ["coimbra"],
             "funchal": ["funchal"],
-            "setubal_ciudad": ["setúbal", "setubal"],
-            "agualva_cacem": ["agualva-cacém"],
-            "queluz": ["queluz"],
-            "vila_nova_gaia": ["vila nova de gaia", "gaia"],
-            "loures": ["loures"],
-            "guimaraes": ["guimarães", "guimaraes"],
-            "rio_tinto": ["rio tinto"],
-            "leiria_ciudad": ["leiria"],
-            "matosinhos": ["matosinhos"],
-            "aveiro_ciudad": ["aveiro"],
-            "evora_ciudad": ["évora", "evora"],
-            "faro_ciudad": ["faro"],
-            "viseu_ciudad": ["viseu"],
-            "viana_castelo_ciudad": ["viana do castelo"],
-            "ponta_delgada": ["ponta delgada"],
-            "sintra": ["sintra"],
+            "faro_cidade": ["faro"],
             "cascais": ["cascais"],
-            "lagos": ["lagos"],
-            "albufeira": ["albufeira"],
-            "portimao": ["portimão", "portimao"],
-        }
+            "sintra": ["sintra"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # ITALIA - 20 REGIONES + CIUDADES PRINCIPALES
+    # ITALIA
     # ═══════════════════════════════════════════════════════════════════════════
     "italia": {
         "regiones": {
-            "abruzzo": ["abruzzo", "abruzos"],
-            "basilicata": ["basilicata"],
-            "calabria": ["calabria"],
-            "campania": ["campania"],
-            "emilia_romagna":
-            ["emilia-romaña", "emilia romagna", "emilia-romagna"],
-            "friuli": ["friuli-venezia giulia", "friuli"],
+            "lombardia": ["lombardia", "lombardía"],
             "lazio": ["lazio", "lacio"],
-            "liguria": ["liguria"],
-            "lombardia": ["lombardía", "lombardia", "lombardy"],
-            "marche": ["marche", "marcas"],
-            "molise": ["molise"],
-            "piemonte": ["piemonte", "piamonte", "piedmont"],
-            "puglia": ["puglia", "apulia"],
-            "sardegna": ["sardegna", "cerdeña", "sardinia"],
+            "campania": ["campania"],
             "sicilia": ["sicilia", "sicily"],
-            "toscana": ["toscana", "tuscany"],
-            "trentino": ["trentino-alto adige", "trentino"],
-            "umbria": ["umbria", "umbría"],
-            "valle_aosta": ["valle d'aosta", "valle de aosta"],
             "veneto": ["veneto", "véneto"],
+            "piemonte": ["piemonte", "piamonte"],
+            "emilia_romagna": ["emilia-romagna", "emilia romagna"],
+            "toscana": ["toscana", "tuscany"],
+            "puglia": ["puglia", "apulia"],
+            "sardegna": ["sardegna", "cerdeña"],
         },
         "ciudades": {
             "roma": ["roma", "rome"],
             "milano": ["milano", "milán", "milan"],
             "napoli": ["napoli", "nápoles", "naples"],
-            "torino": ["torino", "turín", "turin"],
+            "torino": ["torino", "turín"],
             "palermo": ["palermo"],
-            "genova": ["genova", "génova", "genoa"],
+            "genova": ["genova", "génova"],
             "bologna": ["bologna", "bolonia"],
             "firenze": ["firenze", "florencia", "florence"],
-            "bari": ["bari"],
-            "catania": ["catania"],
             "venezia": ["venezia", "venecia", "venice"],
             "verona": ["verona"],
-            "messina": ["messina"],
-            "padova": ["padova", "padua"],
-            "trieste": ["trieste"],
-            "brescia": ["brescia"],
-            "parma": ["parma"],
-            "taranto": ["taranto"],
-            "prato": ["prato"],
-            "modena": ["modena"],
-            "reggio_calabria": ["reggio calabria"],
-            "reggio_emilia": ["reggio emilia"],
-            "perugia": ["perugia"],
-            "ravenna": ["ravenna", "rávena"],
-            "livorno": ["livorno"],
-            "cagliari": ["cagliari"],
-            "rimini": ["rimini", "rímini"],
-            "siena": ["siena"],
-            "pisa": ["pisa"],
-            "como": ["como"],
-            "bergamo": ["bergamo", "bérgamo"],
-            "trento": ["trento"],
-            "amalfi": ["amalfi"],
-            "positano": ["positano"],
-            "capri": ["capri"],
-            "sorrento": ["sorrento"],
-            "cinque_terre": ["cinque terre"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # FRANCIA - 18 REGIONES + CIUDADES PRINCIPALES
+    # FRANCIA
     # ═══════════════════════════════════════════════════════════════════════════
     "francia": {
         "regiones": {
-            "auvergne_rhone_alpes":
-            ["auvergne-rhône-alpes", "auvergne rhone alpes"],
-            "bourgogne_franche_comte":
-            ["bourgogne-franche-comté", "bourgogne franche comte", "borgoña"],
-            "bretagne": ["bretagne", "bretaña", "brittany"],
-            "centre_val_loire": ["centre-val de loire", "centre val de loire"],
-            "corse": ["corse", "córcega", "corsica"],
-            "grand_est": ["grand est"],
-            "hauts_de_france": ["hauts-de-france", "hauts de france"],
-            "ile_de_france":
-            ["île-de-france", "ile de france", "paris region"],
-            "normandie": ["normandie", "normandía", "normandy"],
-            "nouvelle_aquitaine": ["nouvelle-aquitaine", "nouvelle aquitaine"],
+            "ile_de_france": ["île-de-france", "ile de france"],
+            "provence": ["provence-alpes-côte d'azur", "provence", "paca"],
+            "auvergne": ["auvergne-rhône-alpes"],
             "occitanie": ["occitanie", "occitania"],
-            "pays_de_la_loire": ["pays de la loire"],
-            "provence_alpes":
-            ["provence-alpes-côte d'azur", "provence", "paca"],
-            "guadeloupe": ["guadeloupe", "guadalupe"],
-            "martinique": ["martinique", "martinica"],
-            "guyane": ["guyane", "guayana francesa", "french guiana"],
-            "reunion": ["réunion", "reunion"],
-            "mayotte": ["mayotte"],
+            "nouvelle_aquitaine": ["nouvelle-aquitaine"],
+            "bretagne": ["bretagne", "bretaña"],
+            "normandie": ["normandie", "normandía"],
+            "hauts_de_france": ["hauts-de-france"],
         },
         "ciudades": {
             "paris": ["paris", "parís"],
             "marseille": ["marseille", "marsella"],
-            "lyon": ["lyon", "lión"],
-            "toulouse": ["toulouse", "tolosa"],
+            "lyon": ["lyon"],
+            "toulouse": ["toulouse"],
             "nice": ["nice", "niza"],
             "nantes": ["nantes"],
-            "montpellier": ["montpellier"],
             "strasbourg": ["strasbourg", "estrasburgo"],
             "bordeaux": ["bordeaux", "burdeos"],
             "lille": ["lille"],
-            "rennes": ["rennes"],
-            "reims": ["reims"],
-            "saint_etienne": ["saint-étienne", "saint etienne"],
-            "le_havre": ["le havre"],
-            "toulon": ["toulon", "tolón"],
-            "grenoble": ["grenoble"],
-            "dijon": ["dijon"],
-            "angers": ["angers"],
-            "nimes": ["nîmes", "nimes"],
-            "aix_en_provence": ["aix-en-provence", "aix en provence"],
-            "clermont_ferrand": ["clermont-ferrand", "clermont ferrand"],
-            "le_mans": ["le mans"],
-            "brest": ["brest"],
-            "tours": ["tours"],
-            "amiens": ["amiens"],
-            "limoges": ["limoges"],
-            "perpignan": ["perpignan", "perpiñán"],
-            "metz": ["metz"],
-            "besancon": ["besançon", "besancon"],
-            "orleans": ["orléans", "orleans"],
-            "rouen": ["rouen", "ruan"],
-            "mulhouse": ["mulhouse"],
-            "caen": ["caen"],
-            "nancy": ["nancy"],
-            "avignon": ["avignon", "aviñón"],
-            "cannes": ["cannes"],
-            "saint_tropez": ["saint-tropez", "saint tropez"],
-            "monaco": ["monaco", "mónaco"],
-        }
+            "montpellier": ["montpellier"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # ALEMANIA - 16 ESTADOS FEDERADOS + CIUDADES
+    # ALEMANIA
     # ═══════════════════════════════════════════════════════════════════════════
     "alemania": {
         "estados": {
-            "baden_wurttemberg":
-            ["baden-württemberg", "baden wurttemberg", "bw"],
-            "bayern": ["bayern", "baviera", "bavaria", "by"],
-            "berlin": ["berlin", "berlín", "be"],
-            "brandenburg": ["brandenburg", "brandeburgo", "bb"],
-            "bremen": ["bremen", "hb"],
-            "hamburg": ["hamburg", "hamburgo", "hh"],
-            "hessen": ["hessen", "hesse", "he"],
-            "mecklenburg_vorpommern":
-            ["mecklenburg-vorpommern", "mecklenburg vorpommern", "mv"],
-            "niedersachsen":
-            ["niedersachsen", "baja sajonia", "lower saxony", "ni"],
-            "nordrhein_westfalen":
-            ["nordrhein-westfalen", "nrw", "renania del norte-westfalia"],
-            "rheinland_pfalz": ["rheinland-pfalz", "renania-palatinado", "rp"],
-            "saarland": ["saarland", "sarre", "sl"],
-            "sachsen": ["sachsen", "sajonia", "saxony", "sn"],
-            "sachsen_anhalt": ["sachsen-anhalt", "sajonia-anhalt", "st"],
-            "schleswig_holstein": ["schleswig-holstein", "sh"],
-            "thuringen": ["thüringen", "thuringen", "turingia", "th"],
+            "bayern": ["bayern", "baviera", "bavaria"],
+            "nordrhein_westfalen": ["nordrhein-westfalen", "nrw"],
+            "baden_wurttemberg": ["baden-württemberg"],
+            "niedersachsen": ["niedersachsen", "baja sajonia"],
+            "hessen": ["hessen", "hesse"],
+            "sachsen": ["sachsen", "sajonia"],
+            "berlin": ["berlin", "berlín"],
+            "hamburg": ["hamburg", "hamburgo"],
         },
         "ciudades": {
             "berlin_ciudad": ["berlin", "berlín"],
             "hamburg_ciudad": ["hamburg", "hamburgo"],
-            "munchen": ["münchen", "munchen", "múnich", "munich"],
-            "koln": ["köln", "koln", "colonia", "cologne"],
-            "frankfurt": ["frankfurt", "fráncfort", "frankfurt am main"],
+            "munchen": ["münchen", "munich", "múnich"],
+            "koln": ["köln", "cologne", "colonia"],
+            "frankfurt": ["frankfurt"],
             "stuttgart": ["stuttgart"],
-            "dusseldorf": ["düsseldorf", "dusseldorf"],
-            "dortmund": ["dortmund"],
-            "essen": ["essen"],
+            "dusseldorf": ["düsseldorf"],
             "leipzig": ["leipzig"],
-            "bremen_ciudad": ["bremen"],
-            "dresden": ["dresden", "dresde"],
-            "hannover": ["hannover", "hanóver"],
-            "nurnberg": ["nürnberg", "nurnberg", "núremberg", "nuremberg"],
-            "duisburg": ["duisburg"],
-            "bochum": ["bochum"],
-            "wuppertal": ["wuppertal"],
-            "bielefeld": ["bielefeld"],
-            "bonn": ["bonn"],
-            "munster": ["münster", "munster"],
-            "karlsruhe": ["karlsruhe"],
-            "mannheim": ["mannheim"],
-            "augsburg": ["augsburg", "augsburgo"],
-            "wiesbaden": ["wiesbaden"],
-            "mainz": ["mainz", "maguncia"],
-            "heidelberg": ["heidelberg"],
-            "freiburg": ["freiburg", "friburgo"],
-            "potsdam": ["potsdam"],
-            "lubeck": ["lübeck", "lubeck"],
-            "erfurt": ["erfurt"],
-            "rostock": ["rostock"],
-            "kiel": ["kiel"],
-        }
+            "dortmund": ["dortmund"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # REINO UNIDO - 4 NACIONES + REGIONES + CIUDADES
+    # REINO UNIDO
     # ═══════════════════════════════════════════════════════════════════════════
     "reino_unido": {
         "naciones": {
@@ -1885,325 +1000,121 @@ UBICACIONES_VARIANTES = {
             "wales": ["wales", "gales"],
             "northern_ireland": ["northern ireland", "irlanda del norte"],
         },
-        "regiones": {
-            "greater_london": ["greater london", "london", "londres"],
-            "south_east": ["south east", "sureste"],
-            "south_west": ["south west", "suroeste"],
-            "east_of_england": ["east of england", "este de inglaterra"],
-            "west_midlands": ["west midlands", "midlands occidentales"],
-            "east_midlands": ["east midlands", "midlands orientales"],
-            "yorkshire": ["yorkshire and the humber", "yorkshire"],
-            "north_west": ["north west", "noroeste"],
-            "north_east": ["north east", "noreste"],
-        },
         "ciudades": {
-            "london": ["london", "londres"],
+            "london_ciudad": ["london", "londres"],
             "birmingham": ["birmingham"],
-            "manchester": ["manchester", "mánchester"],
-            "leeds": ["leeds"],
+            "manchester": ["manchester"],
             "glasgow": ["glasgow"],
             "liverpool": ["liverpool"],
-            "newcastle": ["newcastle", "newcastle upon tyne"],
-            "sheffield": ["sheffield"],
-            "bristol": ["bristol"],
+            "leeds": ["leeds"],
             "edinburgh": ["edinburgh", "edimburgo"],
-            "leicester": ["leicester"],
+            "bristol": ["bristol"],
             "cardiff": ["cardiff"],
             "belfast": ["belfast"],
-            "nottingham": ["nottingham"],
-            "southampton": ["southampton"],
-            "brighton": ["brighton"],
-            "portsmouth": ["portsmouth"],
-            "reading": ["reading"],
-            "aberdeen": ["aberdeen"],
-            "cambridge": ["cambridge"],
             "oxford": ["oxford"],
-            "coventry": ["coventry"],
-            "hull": ["hull", "kingston upon hull"],
-            "stoke_on_trent": ["stoke-on-trent", "stoke on trent"],
-            "wolverhampton": ["wolverhampton"],
-            "plymouth": ["plymouth"],
-            "derby": ["derby"],
-            "swansea": ["swansea"],
-            "dundee": ["dundee"],
-            "inverness": ["inverness"],
-            "york": ["york"],
-            "bath": ["bath"],
-            "canterbury": ["canterbury"],
-            "stratford": ["stratford-upon-avon", "stratford upon avon"],
-        }
+            "cambridge": ["cambridge"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # PAÍSES BAJOS - 12 PROVINCIAS + CIUDADES
+    # PAÍSES BAJOS
     # ═══════════════════════════════════════════════════════════════════════════
     "paises_bajos": {
         "provincias": {
-            "drenthe": ["drenthe"],
-            "flevoland": ["flevoland"],
-            "friesland": ["friesland", "frisia"],
-            "gelderland": ["gelderland", "güeldres"],
-            "groningen": ["groningen"],
-            "limburg_nl": ["limburg", "limburgo"],
-            "noord_brabant":
-            ["noord-brabant", "noord brabant", "brabante septentrional"],
-            "noord_holland":
-            ["noord-holland", "noord holland", "holanda septentrional"],
-            "overijssel": ["overijssel"],
-            "utrecht_prov": ["utrecht"],
-            "zeeland": ["zeeland", "zelanda"],
-            "zuid_holland":
-            ["zuid-holland", "zuid holland", "holanda meridional"],
+            "noord_holland": ["noord-holland", "holanda septentrional"],
+            "zuid_holland": ["zuid-holland", "holanda meridional"],
+            "utrecht": ["utrecht"],
+            "noord_brabant": ["noord-brabant"],
+            "gelderland": ["gelderland"],
+            "limburg_nl": ["limburg"],
         },
         "ciudades": {
             "amsterdam": ["amsterdam", "ámsterdam"],
-            "rotterdam": ["rotterdam", "róterdam"],
-            "den_haag": ["den haag", "the hague", "la haya", "'s-gravenhage"],
-            "utrecht": ["utrecht"],
+            "rotterdam": ["rotterdam"],
+            "den_haag": ["den haag", "the hague", "la haya"],
+            "utrecht_ciudad": ["utrecht"],
             "eindhoven": ["eindhoven"],
             "tilburg": ["tilburg"],
-            "groningen_ciudad": ["groningen"],
-            "almere": ["almere"],
-            "breda": ["breda"],
-            "nijmegen": ["nijmegen", "nimega"],
-            "arnhem": ["arnhem"],
-            "haarlem": ["haarlem"],
-            "enschede": ["enschede"],
-            "zaanstad": ["zaanstad", "zaandam"],
-            "amersfoort": ["amersfoort"],
-            "apeldoorn": ["apeldoorn"],
-            "maastricht": ["maastricht"],
-            "leiden": ["leiden", "leyden"],
-            "dordrecht": ["dordrecht"],
-            "zoetermeer": ["zoetermeer"],
-            "zwolle": ["zwolle"],
-            "deventer": ["deventer"],
-            "delft": ["delft"],
-            "alkmaar": ["alkmaar"],
-            "heerlen": ["heerlen"],
-            "venlo": ["venlo"],
-        }
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # BÉLGICA - 10 PROVINCIAS + 3 REGIONES + CIUDADES
+    # BÉLGICA
     # ═══════════════════════════════════════════════════════════════════════════
     "belgica": {
-        "regiones": {
-            "flandes": ["flandes", "vlaanderen", "flanders"],
-            "valonia": ["valonia", "wallonie", "wallonia"],
-            "bruselas_region":
-            ["bruselas capital", "bruxelles capitale", "brussels capital"],
-        },
         "provincias": {
-            "amberes": ["amberes", "antwerpen", "antwerp"],
-            "brabante_flamenco": ["brabante flamenco", "vlaams-brabant"],
-            "brabante_valon": ["brabante valón", "brabant wallon"],
-            "flandes_occidental": ["flandes occidental", "west-vlaanderen"],
-            "flandes_oriental": ["flandes oriental", "oost-vlaanderen"],
-            "hainaut": ["henao", "hainaut"],
-            "lieja": ["lieja", "liège", "liege"],
-            "limburgo_be": ["limburgo", "limburg"],
-            "luxemburgo_be": ["luxemburgo", "luxembourg"],
-            "namur": ["namur"],
+            "antwerpen": ["antwerpen", "amberes"],
+            "bruselas": ["bruxelles", "brussels", "bruselas"],
+            "flandes_oriental": ["oost-vlaanderen"],
+            "flandes_occidental": ["west-vlaanderen"],
+            "liege": ["liège", "lieja"],
         },
         "ciudades": {
-            "bruselas": ["bruselas", "bruxelles", "brussels", "brussel"],
-            "amberes_ciudad": ["amberes", "antwerpen", "antwerp"],
-            "gante": ["gante", "gent", "ghent"],
-            "charleroi": ["charleroi"],
-            "lieja_ciudad": ["lieja", "liège", "liege"],
-            "brujas": ["brujas", "brugge", "bruges"],
-            "namur_ciudad": ["namur"],
-            "lovaina": ["lovaina", "leuven", "louvain"],
-            "mons": ["mons"],
-            "aalst": ["aalst"],
-            "mechelen": ["mechelen", "malinas"],
-            "la_louviere": ["la louvière", "la louviere"],
-            "kortrijk": ["kortrijk", "courtrai"],
-            "hasselt": ["hasselt"],
-            "ostende": ["ostende", "oostende", "ostend"],
-            "genk": ["genk"],
-            "sint_niklaas": ["sint-niklaas", "sint niklaas"],
-            "tournai": ["tournai", "doornik"],
-            "spa": ["spa"],
-            "dinant": ["dinant"],
-        }
+            "bruselas_ciudad": ["bruxelles", "brussels", "bruselas"],
+            "antwerpen_ciudad": ["antwerpen", "amberes"],
+            "gent": ["gent", "gante", "ghent"],
+            "brugge": ["brugge", "brujas", "bruges"],
+            "liege_ciudad": ["liège", "lieja"],
+            "leuven": ["leuven", "lovaina"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # SUIZA - 26 CANTONES + CIUDADES
+    # SUIZA
     # ═══════════════════════════════════════════════════════════════════════════
     "suiza": {
         "cantones": {
-            "aargau": ["aargau", "argovia"],
-            "appenzell_ar": ["appenzell ausserrhoden", "appenzell exterior"],
-            "appenzell_ir": ["appenzell innerrhoden", "appenzell interior"],
-            "basel_landschaft": ["basel-landschaft", "basilea-campiña"],
-            "basel_stadt": ["basel-stadt", "basilea-ciudad"],
-            "bern": ["bern", "berna"],
-            "fribourg": ["fribourg", "freiburg", "friburgo"],
-            "geneve": ["genève", "geneve", "genf", "ginebra", "geneva"],
-            "glarus": ["glarus", "glaris"],
-            "graubunden": ["graubünden", "graubunden", "grisones", "grisons"],
-            "jura": ["jura"],
-            "luzern": ["luzern", "lucerna", "lucerne"],
-            "neuchatel": ["neuchâtel", "neuchatel", "neuenburg"],
-            "nidwalden": ["nidwalden", "nidwald"],
-            "obwalden": ["obwalden", "obwald"],
-            "schaffhausen": ["schaffhausen", "schaffhouse", "escafusa"],
-            "schwyz": ["schwyz"],
-            "solothurn": ["solothurn", "soleure", "soleura"],
-            "st_gallen": ["st. gallen", "st gallen", "san galo"],
-            "thurgau": ["thurgau", "turgovia", "thurgovie"],
-            "ticino": ["ticino", "tesino", "tessin"],
-            "uri": ["uri"],
-            "valais": ["valais", "wallis", "valés"],
-            "vaud": ["vaud", "waadt"],
-            "zug": ["zug"],
-            "zurich": ["zürich", "zurich"],
+            "zurich": ["zürich", "zurich", "zúrich"],
+            "berna": ["bern", "berne", "berna"],
+            "ginebra": ["genève", "geneva", "ginebra"],
+            "vaud": ["vaud"],
+            "ticino": ["ticino", "tesino"],
+            "basilea": ["basel", "basilea"],
         },
         "ciudades": {
             "zurich_ciudad": ["zürich", "zurich"],
-            "ginebra_ciudad": ["ginebra", "genève", "geneva", "genf"],
-            "basilea": ["basilea", "basel", "bâle"],
-            "lausana": ["lausana", "lausanne"],
-            "berna_ciudad": ["berna", "bern", "berne"],
-            "winterthur": ["winterthur"],
-            "lucerna_ciudad": ["lucerna", "luzern", "lucerne"],
-            "st_gallen_ciudad": ["san galo", "st. gallen", "st gallen"],
+            "ginebra_ciudad": ["genève", "geneva", "ginebra"],
+            "basilea_ciudad": ["basel", "basilea"],
+            "lausana": ["lausanne", "lausana"],
+            "berna_ciudad": ["bern", "berna"],
             "lugano": ["lugano"],
-            "biel": ["biel", "bienne"],
-            "thun": ["thun"],
-            "koniz": ["köniz", "koniz"],
-            "la_chaux_de_fonds": ["la chaux-de-fonds"],
-            "fribourg_ciudad": ["friburgo", "fribourg", "freiburg"],
-            "schaffhausen_ciudad": ["schaffhausen", "escafusa"],
-            "chur": ["chur", "coira"],
-            "neuchatel_ciudad": ["neuchâtel", "neuchatel"],
-            "sion": ["sion", "sitten"],
-            "montreux": ["montreux"],
-            "interlaken": ["interlaken"],
             "zermatt": ["zermatt"],
-            "davos": ["davos"],
-            "st_moritz": ["st. moritz", "st moritz", "san moritz"],
-            "locarno": ["locarno"],
-            "bellinzona": ["bellinzona"],
-            "ascona": ["ascona"],
-        }
+            "interlaken": ["interlaken"],
+        },
     },
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # AUSTRIA - 9 ESTADOS + CIUDADES
+    # AUSTRIA
     # ═══════════════════════════════════════════════════════════════════════════
     "austria": {
         "estados": {
-            "burgenland": ["burgenland"],
-            "carintia": ["carintia", "kärnten", "carinthia"],
-            "baja_austria":
-            ["baja austria", "niederösterreich", "lower austria"],
-            "alta_austria":
-            ["alta austria", "oberösterreich", "upper austria"],
-            "salzburgo": ["salzburgo", "salzburg"],
-            "estiria": ["estiria", "steiermark", "styria"],
+            "viena": ["wien", "vienna", "viena"],
+            "salzburgo": ["salzburg", "salzburgo"],
             "tirol": ["tirol", "tyrol"],
-            "vorarlberg": ["vorarlberg"],
-            "viena": ["viena", "wien", "vienna"],
+            "estiria": ["steiermark", "styria", "estiria"],
+            "alta_austria": ["oberösterreich", "upper austria"],
+            "baja_austria": ["niederösterreich", "lower austria"],
         },
         "ciudades": {
-            "viena_ciudad": ["viena", "wien", "vienna"],
+            "viena_ciudad": ["wien", "vienna", "viena"],
             "graz": ["graz"],
             "linz": ["linz"],
-            "salzburgo_ciudad": ["salzburgo", "salzburg"],
+            "salzburgo_ciudad": ["salzburg", "salzburgo"],
             "innsbruck": ["innsbruck"],
             "klagenfurt": ["klagenfurt"],
-            "villach": ["villach"],
-            "wels": ["wels"],
-            "sankt_polten": ["sankt pölten", "st. pölten", "st polten"],
-            "dornbirn": ["dornbirn"],
-            "wiener_neustadt": ["wiener neustadt"],
-            "steyr": ["steyr"],
-            "feldkirch": ["feldkirch"],
-            "bregenz": ["bregenz"],
-            "klosterneuburg": ["klosterneuburg"],
-            "baden": ["baden bei wien", "baden"],
-            "leoben": ["leoben"],
-            "krems": ["krems an der donau", "krems"],
-            "traun": ["traun"],
-            "amstetten": ["amstetten"],
-            "wolfsberg": ["wolfsberg"],
-            "hallstatt": ["hallstatt"],
-            "zell_am_see": ["zell am see"],
-            "bad_ischl": ["bad ischl"],
-            "kitzbuhel": ["kitzbühel", "kitzbuhel"],
-        }
-    },
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # CANADÁ - 13 PROVINCIAS/TERRITORIOS + CIUDADES
-    # ═══════════════════════════════════════════════════════════════════════════
-    "canada": {
-        "provincias": {
-            "alberta": ["alberta", "ab"],
-            "british_columbia":
-            ["british columbia", "columbia británica", "bc"],
-            "manitoba": ["manitoba", "mb"],
-            "new_brunswick": ["new brunswick", "nuevo brunswick", "nb"],
-            "newfoundland": ["newfoundland and labrador", "terranova", "nl"],
-            "northwest_territories":
-            ["northwest territories", "territorios del noroeste", "nt"],
-            "nova_scotia": ["nova scotia", "nueva escocia", "ns"],
-            "nunavut": ["nunavut", "nu"],
-            "ontario": ["ontario", "on"],
-            "prince_edward_island":
-            ["prince edward island", "isla del príncipe eduardo", "pei", "pe"],
-            "quebec": ["quebec", "québec", "qc"],
-            "saskatchewan": ["saskatchewan", "sk"],
-            "yukon": ["yukon", "yt"],
         },
-        "ciudades": {
-            "toronto": ["toronto"],
-            "montreal": ["montreal", "montréal"],
-            "vancouver": ["vancouver"],
-            "calgary": ["calgary"],
-            "edmonton": ["edmonton"],
-            "ottawa": ["ottawa"],
-            "winnipeg": ["winnipeg"],
-            "quebec_ciudad": ["quebec city", "ville de québec", "quebec"],
-            "hamilton": ["hamilton"],
-            "kitchener": ["kitchener"],
-            "london_ca": ["london"],
-            "victoria": ["victoria"],
-            "halifax": ["halifax"],
-            "oshawa": ["oshawa"],
-            "windsor": ["windsor"],
-            "saskatoon": ["saskatoon"],
-            "regina": ["regina"],
-            "st_johns": ["st. john's", "st johns"],
-            "barrie": ["barrie"],
-            "kelowna": ["kelowna"],
-            "abbotsford": ["abbotsford"],
-            "sudbury": ["sudbury"],
-            "kingston": ["kingston"],
-            "sherbrooke": ["sherbrooke"],
-            "trois_rivieres": ["trois-rivières", "trois rivieres"],
-            "guelph": ["guelph"],
-            "moncton": ["moncton"],
-            "brantford": ["brantford"],
-            "thunder_bay": ["thunder bay"],
-            "saint_john": ["saint john"],
-            "whistler": ["whistler"],
-            "banff": ["banff"],
-            "niagara_falls": ["niagara falls"],
-        }
     },
 }
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FUNCIONES DE UBICACIÓN
+# ═══════════════════════════════════════════════════════════════════════════════
 def obtener_variantes_ubicacion(ubicacion: str) -> list:
     """
     Dado un nombre de ubicación, retorna todas sus variantes.
     Busca en países, provincias/estados y ciudades.
+    Itera sobre TODOS los países del diccionario.
     """
     if not ubicacion:
         return []
@@ -2211,36 +1122,49 @@ def obtener_variantes_ubicacion(ubicacion: str) -> list:
     ubicacion_lower = ubicacion.lower().strip()
     variantes = [ubicacion_lower]
 
-    # Buscar en países
-    for pais, lista in UBICACIONES_VARIANTES.get("paises", {}).items():
+    # ═══════════════════════════════════════════════════════════════════
+    # Buscar en lista de países
+    # ═══════════════════════════════════════════════════════════════════
+    paises_dict = UBICACIONES_VARIANTES.get("paises", {})
+    for pais, lista in paises_dict.items():
         if ubicacion_lower in [v.lower() for v in lista]:
             variantes.extend([v.lower() for v in lista])
             return list(set(variantes))
 
-    # Buscar en cada país (provincias/estados y ciudades)
-    for pais in [
-            "argentina", "mexico", "espana", "colombia", "chile", "peru",
-            "usa", "brasil", "venezuela", "ecuador"
-    ]:
-        pais_data = UBICACIONES_VARIANTES.get(pais, {})
+    # ═══════════════════════════════════════════════════════════════════
+    # Buscar en TODOS los países del diccionario
+    # ═══════════════════════════════════════════════════════════════════
+    for pais_key, pais_data in UBICACIONES_VARIANTES.items():
+        # Saltar la clave "paises"
+        if pais_key == "paises":
+            continue
+        if not isinstance(pais_data, dict):
+            continue
 
-        # Buscar en provincias/estados
-        for key in [
+        # Buscar en subdivisiones (provincias, estados, etc)
+        for subdiv_key in [
                 "provincias", "estados", "comunidades", "departamentos",
-                "regiones"
+                "regiones", "distritos", "cantones", "naciones"
         ]:
-            subdiv = pais_data.get(key, {})
+            subdiv = pais_data.get(subdiv_key, {})
+            if not isinstance(subdiv, dict):
+                continue
             for nombre, lista in subdiv.items():
+                if not isinstance(lista, list):
+                    continue
                 if ubicacion_lower in [v.lower() for v in lista]:
                     variantes.extend([v.lower() for v in lista])
                     return list(set(variantes))
 
         # Buscar en ciudades
         ciudades = pais_data.get("ciudades", {})
-        for nombre, lista in ciudades.items():
-            if ubicacion_lower in [v.lower() for v in lista]:
-                variantes.extend([v.lower() for v in lista])
-                return list(set(variantes))
+        if isinstance(ciudades, dict):
+            for nombre, lista in ciudades.items():
+                if not isinstance(lista, list):
+                    continue
+                if ubicacion_lower in [v.lower() for v in lista]:
+                    variantes.extend([v.lower() for v in lista])
+                    return list(set(variantes))
 
     return variantes
 

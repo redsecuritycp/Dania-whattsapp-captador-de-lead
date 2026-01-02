@@ -100,6 +100,28 @@ def traducir_campos(data: dict) -> dict:
     return traducido
 
 
+def get_lead_field(lead: dict, field_en: str, default=""):
+    """
+    Busca un campo primero en inglés, luego en español.
+    Usa el mapeo CAMPO_ESPANOL para la traducción.
+    """
+    if not lead:
+        return default
+    
+    # Primero intentar inglés
+    value = lead.get(field_en)
+    if value is not None and value != "":
+        return value
+    
+    # Luego intentar español
+    field_es = CAMPO_ESPANOL.get(field_en, field_en)
+    value = lead.get(field_es)
+    if value is not None and value != "":
+        return value
+    
+    return default
+
+
 def get_database():
     """Obtiene conexión a la base de datos MongoDB."""
     global _client, _db
@@ -264,14 +286,21 @@ def find_lead_by_phone(phone_whatsapp: str) -> Optional[dict]:
 
 
 def find_lead_by_email_calcom(email_calcom: str) -> Optional[dict]:
-    """Busca un lead por email de Cal.com."""
+    """Busca un lead por email de Cal.com (case-insensitive)."""
     try:
         db = get_database()
         if db is None:
             return None
-            
+        
         collection = db["leads_fortia"]
-        lead = collection.find_one({"email_calcom": email_calcom})
+        
+        # Normalizar email a lowercase para búsqueda
+        email_lower = email_calcom.lower().strip() if email_calcom else ""
+        
+        # Buscar con regex case-insensitive
+        lead = collection.find_one({
+            "email_calcom": {"$regex": f"^{email_lower}$", "$options": "i"}
+        })
         if lead:
             lead["_id"] = str(lead.get("_id", ""))
         return lead
@@ -296,8 +325,11 @@ def update_lead_calcom_email(phone_whatsapp: str, email_calcom: str, name: str =
         encoded_email = quote(email_calcom) if email_calcom else ""
         calcom_link = f"{base_url}?name={encoded_name}&email={encoded_email}"
         
+        # Normalizar email a lowercase
+        email_normalized = email_calcom.lower().strip() if email_calcom else ""
+        
         update_data = {
-            "email_calcom": email_calcom,
+            "email_calcom": email_normalized,
             "calcom_link": calcom_link,
             "actualizado_en": datetime.now(timezone.utc).isoformat()
         }

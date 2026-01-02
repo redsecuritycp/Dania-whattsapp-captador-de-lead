@@ -21,7 +21,12 @@ from fastapi.responses import PlainTextResponse, JSONResponse
 from config import detect_country, WHATSAPP_VERIFY_TOKEN, format_fecha_es
 from services.whatsapp import send_whatsapp_message, mark_as_read
 from services.openai_agent import process_message
-from services.mongodb import update_lead_booking, get_database, find_lead_by_email_calcom
+from services.mongodb import (
+    update_lead_booking, 
+    get_database, 
+    find_lead_by_email_calcom,
+    get_lead_field
+)
 from services.reminders import (
     init_scheduler, 
     shutdown_scheduler,
@@ -407,10 +412,14 @@ async def calcom_webhook(request: Request, background_tasks: BackgroundTasks):
         lead = find_lead_by_email_calcom(email_calcom)
         
         if lead:
-            phone_whatsapp = lead.get("phone_whatsapp", "")
-            lead_name = lead.get("name", attendee_name)
-            lead_tz = lead.get("timezone_detected", "America/Argentina/Buenos_Aires")
-            lead_country = lead.get("country_detected", "tu país")
+            phone_whatsapp = get_lead_field(lead, "phone_whatsapp", "")
+            lead_name = get_lead_field(lead, "name", attendee_name)
+            lead_tz = get_lead_field(
+                lead, 
+                "timezone_detected", 
+                "America/Argentina/Buenos_Aires"
+            )
+            lead_country = get_lead_field(lead, "country_detected", "tu país")
             
             # Formatear fecha/hora en timezone del lead
             fecha_str, hora_str = _format_booking_datetime(start_time, lead_tz)
@@ -707,13 +716,16 @@ async def send_reminder_manual(request: Request):
                 status_code=404
             )
         
-        # Extraer datos
-        name = lead.get("name", "")
-        booking_start = lead.get("booking_start_time", "")
-        zoom_url = lead.get("booking_zoom_url", "")
-        tz_str = lead.get("timezone_detected", 
-                         "America/Argentina/Buenos_Aires")
-        pais = lead.get("country_detected", "tu país")
+        # Extraer datos (compatible inglés/español)
+        name = get_lead_field(lead, "name", "")
+        booking_start = get_lead_field(lead, "booking_start_time", "")
+        zoom_url = get_lead_field(lead, "booking_zoom_url", "")
+        tz_str = get_lead_field(
+            lead, 
+            "timezone_detected", 
+            "America/Argentina/Buenos_Aires"
+        )
+        pais = get_lead_field(lead, "country_detected", "tu país")
         
         if not booking_start:
             return JSONResponse({
@@ -825,14 +837,17 @@ async def test_template_24h(request: Request):
                 status_code=404
             )
         
-        # Extraer datos
-        name = lead.get("name", "usuario")
-        booking_start = lead.get("booking_start_time", "")
-        tz_str = lead.get("timezone_detected", 
-                         "America/Argentina/Buenos_Aires")
-        link_modificar = lead.get(
-            "booking_reschedule_link",
-            lead.get("booking_cancel_link", "N/A")
+        # Extraer datos (compatible inglés/español)
+        name = get_lead_field(lead, "name", "usuario")
+        booking_start = get_lead_field(lead, "booking_start_time", "")
+        tz_str = get_lead_field(
+            lead, 
+            "timezone_detected", 
+            "America/Argentina/Buenos_Aires"
+        )
+        link_modificar = (
+            get_lead_field(lead, "booking_reschedule_link", "") or
+            get_lead_field(lead, "booking_cancel_link", "N/A")
         )
         
         # Formatear fecha/hora
