@@ -910,8 +910,10 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
     Busca WhatsApp de la empresa en fuentes externas.
     Útil cuando el widget está en JS y no lo capturamos.
     Soporta números internacionales.
+    MEJORADO: Más patrones para ZoomInfo, directorios, etc.
     """
     if not TAVILY_API_KEY:
+        logger.warning("[WA-EXTERNO] No hay TAVILY_API_KEY")
         return ""
 
     # Limpiar dominio
@@ -921,13 +923,15 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
 
     # Queries a intentar (en orden de prioridad)
     queries = [
-        f'"{dominio}" teléfono contacto',
-        f'"{dominio}" whatsapp',
+        f'"{dominio}" whatsapp contacto',
+        f'"{dominio}" teléfono celular',
+        f'site:zoominfo.com "{dominio}"',
     ]
 
-    # Si tenemos nombre de empresa, agregar query adicional
+    # Si tenemos nombre de empresa, agregar queries adicionales
     if empresa and empresa != "No encontrado":
-        queries.append(f'"{empresa}" teléfono whatsapp')
+        queries.insert(0, f'"{empresa}" whatsapp argentina')
+        queries.append(f'"{empresa}" teléfono contacto')
 
     for query in queries:
         logger.info(f"[WA-EXTERNO] Buscando: {query}")
@@ -950,28 +954,43 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
 
                 data = response.json()
                 results = data.get("results", [])
+                logger.info(
+                    f"[WA-EXTERNO] {len(results)} resultados para: {query}")
 
-                # Patrones para WhatsApp (internacionales)
+                # Patrones MEJORADOS para WhatsApp (internacionales)
                 wa_patterns = [
                     # Links directos de WhatsApp
                     r'wa\.me/(\d{10,15})',
-                    r'whatsapp\.com/send\?phone=(\d{10,15})',
-                    # Números con + (cualquier país)
-                    r'\+(\d{1,4}[\s\-]?\d{6,14})',
-                    # Formato ZoomInfo y directorios
-                    r'phone[:\s]+\+?(\d{10,15})',
-                    r'tel[:\s]+\+?(\d{10,15})',
+                    r'api\.whatsapp\.com/send\?phone=(\d{10,15})',
+                    r'web\.whatsapp\.com/send\?phone=(\d{10,15})',
+
+                    # ZoomInfo y directorios: "phone number is +54..."
+                    r'phone\s+(?:number\s+)?(?:is\s+)?\+?(\d[\d\s\-]{9,14})',
+                    r'teléfono[:\s]+\+?(\d[\d\s\-]{9,14})',
+                    r'telefono[:\s]+\+?(\d[\d\s\-]{9,14})',
+                    r'tel[:\s]+\+?(\d[\d\s\-]{9,14})',
+                    r'celular[:\s]+\+?(\d[\d\s\-]{9,14})',
+                    r'móvil[:\s]+\+?(\d[\d\s\-]{9,14})',
+                    r'movil[:\s]+\+?(\d[\d\s\-]{9,14})',
+                    r'whatsapp[:\s]+\+?(\d[\d\s\-]{9,14})',
+
+                    # Números con + al inicio (cualquier país)
+                    r'\+(\d{2,4}\s?\d{6,12})',
+
+                    # Números argentinos específicos
+                    r'\+?(54\s?9?\s?\d{10})',
+                    r'\+?(549\d{10})',
+
+                    # Formato con paréntesis
+                    r'\+?(\d{2,4})\s*\(?\d{2,4}\)?\s*[\d\s\-]{6,10}',
                 ]
 
                 for r in results:
                     texto = f"{r.get('title', '')} {r.get('content', '')}"
                     url = r.get('url', '')
 
-                    # Priorizar resultados de directorios
-                    es_directorio = any(d in url.lower() for d in [
-                        'zoominfo', 'linkedin', 'cylex', 'paginasamarillas',
-                        'yellowpages', 'guia', 'directorio', 'kompass'
-                    ])
+                    # Log para debug
+                    logger.debug(f"[WA-EXTERNO] Analizando: {url[:60]}...")
 
                     for pattern in wa_patterns:
                         matches = re.findall(pattern, texto, re.IGNORECASE)
@@ -989,6 +1008,10 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
                             if num.startswith('19') and len(num) == 4:
                                 continue
 
+                            # Evitar números genéricos/inválidos
+                            if num in ['0000000000', '1111111111']:
+                                continue
+
                             resultado = '+' + num
                             logger.info(
                                 f"[WA-EXTERNO] ✓ Encontrado: {resultado} "
@@ -996,7 +1019,7 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
                             return resultado
 
         except Exception as e:
-            logger.error(f"[WA-EXTERNO] Error: {e}")
+            logger.error(f"[WA-EXTERNO] Error en query '{query}': {e}")
             continue
 
     logger.info("[WA-EXTERNO] No encontrado en fuentes externas")
