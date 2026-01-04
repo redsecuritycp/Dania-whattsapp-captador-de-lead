@@ -28,6 +28,140 @@ def clean_url(url: str) -> str:
     return url
 
 
+def detectar_pais_por_dominio(website: str) -> str:
+    """
+    Detecta el país de una empresa por el TLD del dominio.
+    Retorna el nombre del país o cadena vacía si no lo detecta.
+    """
+    website_lower = website.lower()
+
+    # Diccionario de TLDs por país
+    tld_pais = {
+        # Latinoamérica
+        '.com.ar': 'Argentina', '.ar': 'Argentina',
+        '.com.mx': 'México', '.mx': 'México',
+        '.com.co': 'Colombia', '.co': 'Colombia',
+        '.cl': 'Chile',
+        '.com.br': 'Brasil', '.br': 'Brasil',
+        '.com.pe': 'Perú', '.pe': 'Perú',
+        '.com.ve': 'Venezuela', '.ve': 'Venezuela',
+        '.com.ec': 'Ecuador', '.ec': 'Ecuador',
+        '.com.bo': 'Bolivia', '.bo': 'Bolivia',
+        '.com.py': 'Paraguay', '.py': 'Paraguay',
+        '.com.uy': 'Uruguay', '.uy': 'Uruguay',
+        # Centroamérica
+        '.com.gt': 'Guatemala', '.gt': 'Guatemala',
+        '.com.sv': 'El Salvador', '.sv': 'El Salvador',
+        '.com.hn': 'Honduras', '.hn': 'Honduras',
+        '.com.ni': 'Nicaragua', '.ni': 'Nicaragua',
+        '.co.cr': 'Costa Rica', '.cr': 'Costa Rica',
+        '.com.pa': 'Panamá', '.pa': 'Panamá',
+        # Caribe
+        '.com.cu': 'Cuba', '.cu': 'Cuba',
+        '.com.do': 'República Dominicana', '.do': 'República Dominicana',
+        '.com.pr': 'Puerto Rico', '.pr': 'Puerto Rico',
+        # Norteamérica
+        '.us': 'Estados Unidos',
+        '.ca': 'Canadá',
+        # Europa
+        '.es': 'España', '.com.es': 'España',
+        '.pt': 'Portugal',
+        '.fr': 'Francia',
+        '.de': 'Alemania',
+        '.it': 'Italia',
+        '.co.uk': 'Reino Unido', '.uk': 'Reino Unido',
+        '.nl': 'Países Bajos',
+        '.be': 'Bélgica',
+        '.ch': 'Suiza',
+        '.at': 'Austria',
+        '.ie': 'Irlanda',
+        '.pl': 'Polonia',
+        '.se': 'Suecia',
+        '.no': 'Noruega',
+        '.dk': 'Dinamarca',
+        '.fi': 'Finlandia',
+        # Asia
+        '.jp': 'Japón',
+        '.cn': 'China',
+        '.kr': 'Corea del Sur',
+        '.in': 'India',
+        '.sg': 'Singapur',
+        '.hk': 'Hong Kong',
+        '.tw': 'Taiwán',
+        '.ae': 'Emiratos Árabes Unidos',
+        '.il': 'Israel',
+        # Oceanía
+        '.com.au': 'Australia', '.au': 'Australia',
+        '.co.nz': 'Nueva Zelanda', '.nz': 'Nueva Zelanda',
+        # África
+        '.za': 'Sudáfrica',
+        '.eg': 'Egipto',
+        '.ma': 'Marruecos',
+        '.ng': 'Nigeria',
+        '.ke': 'Kenia',
+    }
+
+    # Buscar TLD más largo primero (ej: .com.ar antes que .ar)
+    for tld, pais in sorted(tld_pais.items(), 
+                            key=lambda x: len(x[0]), 
+                            reverse=True):
+        if website_lower.endswith(tld):
+            logger.info(f"[PAÍS] Detectado por dominio {tld}: {pais}")
+            return pais
+
+    return ""
+
+
+def es_nombre_valido(nombre: str) -> bool:
+    """
+    Valida que un string sea un nombre de persona real.
+    Evita capturar basura como "AVELLANEDATICINO..." o "esta página web".
+    """
+    if not nombre:
+        return False
+
+    # Limpiar espacios
+    nombre = nombre.strip()
+
+    # Rechazar si es muy corto o muy largo
+    if len(nombre) < 4 or len(nombre) > 50:
+        return False
+
+    # Rechazar si tiene más de 5 palabras (nombres son 2-4 palabras)
+    palabras = nombre.split()
+    if len(palabras) < 2 or len(palabras) > 5:
+        return False
+
+    # Rechazar si tiene muchas mayúsculas consecutivas (ej: "AVELLANEDA")
+    mayusculas_consecutivas = re.search(r'[A-Z]{5,}', nombre)
+    if mayusculas_consecutivas:
+        return False
+
+    # Rechazar si parece una frase (palabras comunes)
+    palabras_invalidas = [
+        'esta', 'este', 'página', 'web', 'usamos', 'cookies',
+        'tecnologia', 'empresa', 'compañía', 'company',
+        'services', 'solutions', 'about', 'contact',
+        'privacy', 'terms', 'policy', 'login', 'register',
+    ]
+    nombre_lower = nombre.lower()
+    for palabra in palabras_invalidas:
+        if palabra in nombre_lower:
+            return False
+
+    # Validar que cada palabra empiece con mayúscula (formato nombre)
+    for palabra in palabras:
+        # Permitir conectores en minúscula (de, da, van, von, etc.)
+        if palabra.lower() in ['de', 'da', 'do', 'dos', 'van', 'von', 
+                                'der', 'den', 'del', 'la', 'las', 'los']:
+            continue
+        # Primera letra debe ser mayúscula
+        if not palabra[0].isupper():
+            return False
+
+    return True
+
+
 async def fetch_with_firecrawl(website: str) -> str:
     """
     Extrae contenido web usando Firecrawl (mejor JS rendering).
@@ -229,7 +363,10 @@ def extract_with_regex(all_content: str) -> dict:
         'horarios': '',
         'cuit_cuil': '',
         'business_activity': '',
-        'servicios': []
+        'servicios': [],
+        'cargo_detectado': '',
+        'email_con_cargo': '',
+        'nombre_ejecutivo': ''
     }
 
     # ═══════════════════════════════════════════════════════════════════
@@ -259,38 +396,48 @@ def extract_with_regex(all_content: str) -> dict:
     logger.info(f"[REGEX] Emails encontrados: {regex_extract['emails']}")
 
     # ═══════════════════════════════════════════════════════════════════
-    # DETECCIÓN DE CARGO/ROL ASOCIADO A EMAIL
+    # DETECCIÓN DE CARGO/ROL - BÚSQUEDA AMPLIADA
+    # Busca en: 1) Cerca de emails, 2) Patrones de liderazgo, 
+    # 3) Secciones About/Team
     # ═══════════════════════════════════════════════════════════════════
     cargos_keywords = [
         # Español
+        'gerente general', 'director general', 'director ejecutivo',
         'gerente', 'director', 'ceo', 'cfo', 'cto', 'coo', 'presidente',
-        'vicepresidente', 'fundador', 'cofundador', 'socio', 'dueño',
-        'propietario', 'jefe', 'responsable', 'coordinador', 'supervisor',
-        'encargado', 'administrador', 'ejecutivo', 'comercial', 'ventas',
-        'marketing', 'recursos humanos', 'rrhh', 'finanzas', 'operaciones',
-        'general manager', 'managing director',
+        'vicepresidente', 'fundador', 'cofundador', 'co-fundador',
+        'socio fundador', 'socio', 'dueño', 'propietario', 'jefe',
+        'responsable', 'coordinador', 'supervisor', 'encargado',
+        'administrador', 'ejecutivo', 'general manager', 'managing director',
         # Inglés
-        'manager', 'director', 'chief', 'head', 'lead', 'senior',
-        'founder', 'co-founder', 'owner', 'partner', 'principal',
-        'executive', 'officer', 'vp', 'vice president', 'president',
+        'chief executive officer', 'chief financial officer',
+        'chief technology officer', 'chief operating officer',
+        'founder', 'co-founder', 'cofounder', 'owner', 'partner',
+        'principal', 'executive director', 'managing partner',
+        'president', 'vice president', 'vp', 'head of', 'director of',
         # Portugués
-        'gerente', 'diretor', 'sócio', 'proprietário', 'coordenador',
+        'diretor geral', 'diretor executivo', 'diretor',
+        'gerente geral', 'gerente', 'sócio', 'proprietário',
+        'fundador', 'cofundador', 'coordenador',
+        # Francés
+        'directeur général', 'pdg', 'fondateur', 'cofondateur',
+        # Alemán
+        'geschäftsführer', 'vorstandsvorsitzender', 'gründer',
     ]
 
-    # Buscar cargo cerca de cada email encontrado
-    for email in regex_extract['emails'][:3]:  # Solo primeros 3
-        # Buscar contexto alrededor del email (200 chars antes y después)
-        email_pos = all_content.lower().find(email)
+    content_lower = all_content.lower()
+
+    # MÉTODO 1: Buscar cargo cerca de emails (original)
+    for email in regex_extract['emails'][:3]:
+        email_pos = content_lower.find(email)
         if email_pos > 0:
             contexto_inicio = max(0, email_pos - 200)
             contexto_fin = min(len(all_content), email_pos + 200)
-            contexto = all_content[contexto_inicio:contexto_fin].lower()
+            contexto = content_lower[contexto_inicio:contexto_fin]
 
             for cargo in cargos_keywords:
                 if cargo in contexto:
-                    # Extraer el cargo con formato
-                    cargo_pattern = rf'({cargo}[a-záéíóúñ\s]{{0,30}})'
-                    cargo_match = re.search(cargo_pattern, contexto, 
+                    cargo_pattern = rf'({cargo}[a-záéíóúñü\s]{{0,30}})'
+                    cargo_match = re.search(cargo_pattern, contexto,
                                            re.IGNORECASE)
                     if cargo_match:
                         cargo_encontrado = cargo_match.group(1).strip()
@@ -301,6 +448,66 @@ def extract_with_regex(all_content: str) -> dict:
                             logger.info(f"[REGEX] ✓ Cargo '{cargo_encontrado}' "
                                        f"asociado a {email}")
                         break
+
+    # MÉTODO 2: Buscar patrones de liderazgo en todo el contenido
+    if not regex_extract.get('cargo_detectado'):
+        # Patrones como "CEO: John Smith", "Fundador - María García"
+        leadership_patterns = [
+            # "CEO: Nombre" o "CEO - Nombre"
+            r'(ceo|cfo|cto|coo|founder|co-founder|fundador|director general'
+            r'|gerente general|presidente|owner|propietario)'
+            r'[\s:,\-–—]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})',
+            # "Nombre, CEO" o "Nombre - Founder"
+            r'([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})'
+            r'[\s,\-–—]+(ceo|cfo|cto|coo|founder|co-founder|fundador'
+            r'|director general|gerente general|presidente|owner)',
+        ]
+
+        for pattern in leadership_patterns:
+            match = re.search(pattern, all_content, re.IGNORECASE)
+            if match:
+                groups = match.groups()
+                # Determinar cuál es cargo y cuál es nombre
+                if groups[0].lower() in ['ceo', 'cfo', 'cto', 'coo', 'founder',
+                    'co-founder', 'fundador', 'director general',
+                    'gerente general', 'presidente', 'owner', 'propietario']:
+                    cargo = groups[0]
+                    nombre = groups[1] if len(groups) > 1 else ''
+                else:
+                    nombre = groups[0]
+                    cargo = groups[1] if len(groups) > 1 else ''
+
+                if cargo:
+                    regex_extract['cargo_detectado'] = cargo.strip().title()
+                    # Validar que nombre sea un nombre real
+                    if nombre and es_nombre_valido(nombre.strip()):
+                        regex_extract['nombre_ejecutivo'] = nombre.strip()
+                    logger.info(f"[REGEX] ✓ Cargo detectado: {cargo} - {nombre}")
+                    break
+
+    # MÉTODO 3: Buscar en secciones de liderazgo
+    if not regex_extract.get('cargo_detectado'):
+        # Buscar secciones de equipo/liderazgo
+        team_sections = [
+            'leadership', 'team', 'about us', 'our team', 'management',
+            'equipo', 'nosotros', 'quiénes somos', 'directivos',
+            'liderança', 'equipe', 'nossa equipe', 'direção',
+        ]
+
+        for section in team_sections:
+            section_pos = content_lower.find(section)
+            if section_pos > 0:
+                # Buscar en los 1000 chars después de la sección
+                section_content = all_content[section_pos:section_pos + 1000]
+
+                for cargo in cargos_keywords[:15]:  # Solo cargos principales
+                    if cargo in section_content.lower():
+                        regex_extract['cargo_detectado'] = cargo.title()
+                        logger.info(f"[REGEX] ✓ Cargo en sección {section}: "
+                                   f"{cargo}")
+                        break
+                if regex_extract.get('cargo_detectado'):
+                    break
 
     # ═══════════════════════════════════════════════════════════════════
     # 2. TELÉFONOS
@@ -996,42 +1203,69 @@ def extract_with_regex(all_content: str) -> dict:
     # 8. HORARIOS
     # ═══════════════════════════════════════════════════════════════════
     # ═══════════════════════════════════════════════════════════════════
-    # 8. HORARIOS (Internacionales)
+    # 8. HORARIOS (Internacionales) - MEJORADO
     # ═══════════════════════════════════════════════════════════════════
     horarios_patterns = [
-        # Español: Lun-Vie 9:00 - 18:00
+        # 24/7 - muy común
+        r'\b24\s*/\s*7\b',
+        r'\b24\s*hours?\b',
+        r'\b24\s*horas?\b',
+
+        # Español: Lunes a Viernes 9:00 - 18:00
+        r'[Ll]unes\s+a\s+[Vv]iernes[:\s]+\d{1,2}[:\.]?\d{0,2}\s*'
+        r'(?:hs|hrs|am|pm|AM|PM|h)?\s*[\-–—a]+\s*'
+        r'\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm|AM|PM|h)?',
+
+        # Español corto: Lun-Vie 9:00 - 18:00
         r'(?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom|L|M|X|J|V|S|D)[a-z]*'
         r'[\s\-a]+(?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom|L|M|X|J|V|S|D)[a-z]*'
         r'[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm|AM|PM)?'
-        r'\s*[\-a]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm|AM|PM)?',
+        r'\s*[\-–—a]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm|AM|PM)?',
 
-        # Inglés: Mon-Fri 9:00AM - 6:00PM
-        r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|'
-        r'Friday|Saturday|Sunday)[a-z]*[\s\-]+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|'
-        r'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[a-z]*'
-        r'[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:am|pm|AM|PM)?'
+        # Inglés: Monday to Friday 9:00AM - 6:00PM
+        r'[Mm]onday\s+(?:to|through|-)\s+[Ff]riday[:\s]+\d{1,2}[:\.]?\d{0,2}'
+        r'\s*(?:am|pm|AM|PM)?\s*[\-–—to]+\s*'
+        r'\d{1,2}[:\.]?\d{0,2}\s*(?:am|pm|AM|PM)?',
+
+        # Inglés corto: Mon-Fri 9:00AM - 6:00PM
+        r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*[\s\-–]+(?:Mon|Tue|Wed|Thu|Fri|'
+        r'Sat|Sun)[a-z]*[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:am|pm|AM|PM)?'
         r'\s*[\-–—to]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:am|pm|AM|PM)?',
 
-        # Portugués: Seg-Sex 9h - 18h
+        # Portugués: Segunda a Sexta 9h - 18h
+        r'[Ss]egunda\s+a\s+[Ss]exta[:\s]+\d{1,2}[h:\.]?\d{0,2}'
+        r'\s*[\-–—a]+\s*\d{1,2}[h:\.]?\d{0,2}',
+
+        # Portugués corto: Seg-Sex 9h - 18h
         r'(?:Seg|Ter|Qua|Qui|Sex|Sáb|Sab|Dom)[a-z]*[\s\-a]+(?:Seg|Ter|Qua|Qui|'
         r'Sex|Sáb|Sab|Dom)[a-z]*[:\s]+\d{1,2}[h:\.]?\d{0,2}'
-        r'\s*[\-a]+\s*\d{1,2}[h:\.]?\d{0,2}',
+        r'\s*[\-–—a]+\s*\d{1,2}[h:\.]?\d{0,2}',
 
-        # Francés: Lun-Ven 9h00 - 18h00
+        # Francés: Lundi au Vendredi 9h00 - 18h00
+        r'[Ll]undi\s+(?:au?|à)\s+[Vv]endredi[:\s]+\d{1,2}[h:\.]?\d{0,2}'
+        r'\s*[\-–—à]+\s*\d{1,2}[h:\.]?\d{0,2}',
+
+        # Francés corto: Lun-Ven 9h00 - 18h00
         r'(?:Lun|Mar|Mer|Jeu|Ven|Sam|Dim)[a-z]*[\s\-à]+(?:Lun|Mar|Mer|Jeu|Ven|'
         r'Sam|Dim)[a-z]*[:\s]+\d{1,2}[h:\.]?\d{0,2}'
-        r'\s*[\-à]+\s*\d{1,2}[h:\.]?\d{0,2}',
+        r'\s*[\-–—à]+\s*\d{1,2}[h:\.]?\d{0,2}',
 
-        # Alemán: Mo-Fr 9:00 - 18:00
-        r'(?:Mo|Di|Mi|Do|Fr|Sa|So|Montag|Dienstag|Mittwoch|Donnerstag|'
-        r'Freitag|Samstag|Sonntag)[a-z]*[\s\-]+(?:Mo|Di|Mi|Do|Fr|Sa|So)[a-z]*'
+        # Alemán: Montag bis Freitag 9:00 - 18:00 Uhr
+        r'[Mm]ontag\s+bis\s+[Ff]reitag[:\s]+\d{1,2}[:\.]?\d{0,2}'
+        r'\s*(?:Uhr)?\s*[\-–—bis]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:Uhr)?',
+
+        # Alemán corto: Mo-Fr 9:00 - 18:00
+        r'(?:Mo|Di|Mi|Do|Fr|Sa|So)[a-z]*[\s\-–]+(?:Mo|Di|Mi|Do|Fr|Sa|So)[a-z]*'
         r'[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:Uhr)?'
-        r'\s*[\-–]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:Uhr)?',
+        r'\s*[\-–—]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:Uhr)?',
 
-        # Italiano: Lun-Ven 9:00 - 18:00
-        r'(?:Lun|Mar|Mer|Gio|Ven|Sab|Dom|Lunedì|Martedì|Mercoledì|Giovedì|'
-        r'Venerdì|Sabato|Domenica)[a-z]*[\s\-]+(?:Lun|Mar|Mer|Gio|Ven|Sab|Dom)'
-        r'[a-z]*[:\s]+\d{1,2}[:\.]?\d{0,2}\s*[\-]+\s*\d{1,2}[:\.]?\d{0,2}',
+        # Italiano: Lunedì a Venerdì 9:00 - 18:00
+        r'[Ll]unedì?\s+a\s+[Vv]enerdì?[:\s]+\d{1,2}[:\.]?\d{0,2}'
+        r'\s*[\-–—]+\s*\d{1,2}[:\.]?\d{0,2}',
+
+        # Italiano corto: Lun-Ven 9:00 - 18:00
+        r'(?:Lun|Mar|Mer|Gio|Ven|Sab|Dom)[a-z]*[\s\-–]+(?:Lun|Mar|Mer|Gio|Ven|'
+        r'Sab|Dom)[a-z]*[:\s]+\d{1,2}[:\.]?\d{0,2}\s*[\-–]+\s*\d{1,2}[:\.]?\d{0,2}',
 
         # Formato genérico: 9:00 - 18:00 / 9:00AM - 6:00PM
         r'\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm|AM|PM|h)?\s*[\-–—to]+\s*'
@@ -1040,9 +1274,20 @@ def extract_with_regex(all_content: str) -> dict:
         # Formato 24h: 09:00-18:00
         r'\b\d{2}:\d{2}\s*[\-–]\s*\d{2}:\d{2}\b',
 
-        # Con palabras clave
-        r'(?:Horario|Hours|Horário|Orario|Öffnungszeiten|Heures)[:\s]+'
-        r'[^\n]{10,50}',
+        # Formato simple: 9am-6pm, 9 am - 6 pm
+        r'\b\d{1,2}\s*(?:am|pm|AM|PM)\s*[\-–—to]+\s*\d{1,2}\s*(?:am|pm|AM|PM)\b',
+
+        # Con palabras clave: "Horario: ..." "Hours: ..."
+        r'(?:Horario|Hours|Opening\s+hours|Business\s+hours|Horário|Orario|'
+        r'Öffnungszeiten|Heures\s+d\'ouverture|Atención)[:\s]+[^\n]{10,60}',
+
+        # "Open Monday-Friday"
+        r'[Oo]pen[:\s]+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|'
+        r'Thursday|Friday|Saturday|Sunday)[^\n]{5,40}',
+
+        # "Abierto de Lunes a Viernes"
+        r'[Aa]bierto[:\s]+(?:de\s+)?(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom|Lunes|'
+        r'Martes|Miércoles|Jueves|Viernes|Sábado|Domingo)[^\n]{5,40}',
     ]
 
     for pattern in horarios_patterns:
@@ -1051,9 +1296,11 @@ def extract_with_regex(all_content: str) -> dict:
             horario_encontrado = match.group(0).strip()
             # Limpiar espacios extra
             horario_encontrado = ' '.join(horario_encontrado.split())
-            regex_extract['horarios'] = horario_encontrado
-            logger.info(f"[REGEX] ✓ Horarios encontrados: {horario_encontrado}")
-            break
+            # Evitar falsos positivos muy cortos
+            if len(horario_encontrado) >= 5:
+                regex_extract['horarios'] = horario_encontrado
+                logger.info(f"[REGEX] ✓ Horarios encontrados: {horario_encontrado}")
+                break
 
     # ═══════════════════════════════════════════════════════════════════
     # 9. SERVICIOS (Keywords)
@@ -1100,15 +1347,27 @@ DATOS A EXTRAER:
 - services: Lista de servicios/productos principales
 - email_principal: Email de contacto principal
 - phone_empresa: Teléfono principal
-- whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets flotantes, botones de chat, atributos data-settings, data-phone, telephone, o cerca de palabras whatsapp/chat/contacto. Solo números con código país, ej: 5493416469327)
-- address: Dirección física
-- city: Ciudad
-- province: Provincia
-- country: País (default Argentina)
-- horarios: Horarios de atención
+- whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets 
+  flotantes, botones de chat, atributos data-settings, data-phone, 
+  telephone, o cerca de palabras whatsapp/chat/contacto. 
+  Solo números con código país, ej: 5493416469327)
+- address: Dirección física completa
+- city: Ciudad (sede principal o headquarters)
+- province: Provincia/Estado/Región
+- country: País de la empresa. IMPORTANTE: Detectar de:
+  * Dirección física ("Walldorf, Germany" = Alemania)
+  * Código telefónico (+49 = Alemania, +44 = Reino Unido, +1 = USA)
+  * Texto como "headquarters in London" = Reino Unido
+  * Contexto del contenido. NO dejar vacío si hay pistas.
+- horarios: Horarios de atención (buscar en contacto, footer. 
+  Formatos: "Mon-Fri 9-18", "Lunes a Viernes 9:00-18:00", 
+  "9am-6pm", "24/7", etc.)
 - linkedin_empresa: URL LinkedIn de la empresa
 - instagram_empresa: URL Instagram de la empresa  
 - facebook_empresa: URL Facebook de la empresa
+- ceo_nombre: Nombre del CEO, Founder, Director General o máximo 
+  ejecutivo (buscar en About, Leadership, Team, Equipo, Nosotros)
+- ceo_cargo: Cargo del ejecutivo (CEO, Founder, Director General, etc.)
 
 CONTENIDO DEL SITIO:
 {all_content[:15000]}
@@ -1262,6 +1521,17 @@ def merge_results(gpt_data: dict,
     if not resultado.get('horarios') and regex_data.get('horarios'):
         resultado['horarios'] = regex_data['horarios']
 
+    # ═══════════════════════════════════════════════════════════════
+    # PAÍS - Detectar por dominio si GPT no lo encontró
+    # ═══════════════════════════════════════════════════════════════
+    pais_gpt = resultado.get('country', '')
+    if not pais_gpt or pais_gpt == 'No encontrado':
+        # Intentar detectar por TLD del dominio
+        pais_dominio = detectar_pais_por_dominio(website)
+        if pais_dominio:
+            resultado['country'] = pais_dominio
+            logger.info(f"[MERGE] País detectado por dominio: {pais_dominio}")
+
     # CUIT/CUIL
     if not resultado.get('cuit_cuil') and regex_data.get('cuit_cuil'):
         resultado['cuit_cuil'] = regex_data['cuit_cuil']
@@ -1272,14 +1542,28 @@ def merge_results(gpt_data: dict,
         resultado['business_activity'] = regex_data['business_activity']
 
     # ═══════════════════════════════════════════════════════════════
-    # CARGO DETECTADO (de email con contexto)
+    # CARGO DETECTADO - Combinar GPT + Regex
+    # Prioridad: GPT (ceo_cargo) > Regex (cargo_detectado)
     # ═══════════════════════════════════════════════════════════════
-    if regex_data.get('cargo_detectado'):
+
+    # Primero intentar desde GPT (campos ceo_nombre y ceo_cargo)
+    ceo_nombre_gpt = resultado.get('ceo_nombre', '')
+    ceo_cargo_gpt = resultado.get('ceo_cargo', '')
+
+    if ceo_cargo_gpt and ceo_cargo_gpt != 'No encontrado':
+        resultado['cargo_detectado'] = ceo_cargo_gpt
+        if ceo_nombre_gpt and ceo_nombre_gpt != 'No encontrado':
+            resultado['nombre_ejecutivo'] = ceo_nombre_gpt
+        logger.info(f"[MERGE] Cargo GPT: {ceo_cargo_gpt} - {ceo_nombre_gpt}")
+
+    # Si GPT no encontró, usar regex
+    elif regex_data.get('cargo_detectado'):
         resultado['cargo_detectado'] = regex_data['cargo_detectado']
+        if regex_data.get('nombre_ejecutivo'):
+            resultado['nombre_ejecutivo'] = regex_data['nombre_ejecutivo']
         if regex_data.get('email_con_cargo'):
             resultado['email_contacto_principal'] = regex_data['email_con_cargo']
-            logger.info(f"[MERGE] Cargo detectado: {regex_data['cargo_detectado']} "
-                       f"- Email: {regex_data['email_con_cargo']}")
+        logger.info(f"[MERGE] Cargo regex: {regex_data['cargo_detectado']}")
 
     # ═══════════════════════════════════════════════════════════════
     # Business model - Asegurar que tenga valor
@@ -1718,7 +2002,7 @@ async def extract_web_data(website: str) -> dict:
         main_content += secundarias_content + "\n\n"
 
     # 5. Tavily para búsqueda complementaria y descripción
-    tavily_query = f'"{website_clean}" contacto dirección teléfono email Argentina'
+    tavily_query = f'"{website_clean}" contacto dirección teléfono email empresa'
     tavily_data = await search_with_tavily(tavily_query)
 
     tavily_answer = tavily_data.get("answer", "")

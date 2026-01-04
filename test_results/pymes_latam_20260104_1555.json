@@ -1,0 +1,1104 @@
+[
+  {
+    "pais": "Argentina",
+    "bandera": "🇦🇷",
+    "tipo": "Agencia Marketing",
+    "lead": {
+      "nombre": "Martín González",
+      "telefono": "+5491145678901",
+      "codigo_pais": "+54"
+    },
+    "empresa_esperada": {
+      "web": "wearecontent.com",
+      "nombre_esperado": "We Are Content",
+      "rubro": "Marketing de contenidos",
+      "pais_empresa": "Argentina",
+      "ciudad_esperada": "Buenos Aires"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+54",
+        "pais": "Argentina",
+        "timezone": "America/Argentina/Buenos_Aires",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "WeAreContent",
+        "business_activity": "Marketing de contenidos",
+        "business_model": "Servicios profesionales",
+        "business_description": "Ayudamos a dominar los primeros lugares de Google con contenidos que atraen clientes de forma constante y orgánica.",
+        "services": [
+          "Redacción de contenidos para SEO",
+          "Menciones para Backlinks"
+        ],
+        "email_principal": "contact@wearecontent.com",
+        "phone_empresa": "No encontrado",
+        "whatsapp_empresa": "+573214525213",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "No encontrado",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "https://www.linkedin.com/company/wearecontent",
+        "instagram_empresa": "https://www.instagram.com/wacontent/",
+        "facebook_empresa": "https://www.facebook.com/wacontent",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "twitter": "https://twitter.com/WaContent",
+        "cargo_detectado": "Cto",
+        "services_text": "Redacción de contenidos para SEO, Menciones para Backlinks",
+        "whatsapp_source": "externo",
+        "linkedin_personal_web": "https://co.linkedin.com/in/jazidcontreras/en",
+        "website": "https://wearecontent.com",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 6,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "WeAreContent"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": true,
+          "valor": "contact@wearecontent.com"
+        },
+        "Teléfono": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "WhatsApp": {
+          "encontrado": true,
+          "valor": "+573214525213"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": true,
+          "valor": "https://www.linkedin.com/company/wearecontent"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "Cto"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 55
+    },
+    "tiempo": 37.71,
+    "errores": []
+  },
+  {
+    "pais": "Argentina",
+    "bandera": "🇦🇷",
+    "tipo": "Estudio Contable",
+    "lead": {
+      "nombre": "Laura Fernández",
+      "telefono": "+5491156789012",
+      "codigo_pais": "+54"
+    },
+    "empresa_esperada": {
+      "web": "baborcontadores.com.ar",
+      "nombre_esperado": "Babor Contadores",
+      "rubro": "Estudio contable",
+      "pais_empresa": "Argentina",
+      "ciudad_esperada": "Buenos Aires"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+54",
+        "pais": "Argentina",
+        "timezone": "America/Argentina/Buenos_Aires",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "No encontrado",
+        "business_activity": "Software de gestión empresarial",
+        "business_model": "SaaS",
+        "business_description": "Software en la nube para administrar y optimizar procesos empresariales.",
+        "services": [
+          "Facturación electrónica",
+          "Control de inventario",
+          "Gestión de recursos humanos",
+          "CRM",
+          "Business Intelligence"
+        ],
+        "email_principal": "No encontrado",
+        "phone_empresa": "+34916300551",
+        "whatsapp_empresa": "No encontrado",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "España",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "No encontrado",
+        "instagram_empresa": "No encontrado",
+        "facebook_empresa": "No encontrado",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "cargo_detectado": "Cto",
+        "services_text": "Facturación electrónica, Control de inventario, Gestión de recursos humanos, CRM, Business Intelligence",
+        "website": "https://baborcontadores.com.ar",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 3,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "SaaS"
+        },
+        "Email": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Teléfono": {
+          "encontrado": true,
+          "valor": "+34916300551"
+        },
+        "WhatsApp": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "Cto"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 27
+    },
+    "tiempo": 36.97,
+    "errores": []
+  },
+  {
+    "pais": "Argentina",
+    "bandera": "🇦🇷",
+    "tipo": "Software House",
+    "lead": {
+      "nombre": "Diego Rodríguez",
+      "telefono": "+5491167890123",
+      "codigo_pais": "+54"
+    },
+    "empresa_esperada": {
+      "web": "baufest.com",
+      "nombre_esperado": "Baufest",
+      "rubro": "Desarrollo de software",
+      "pais_empresa": "Argentina",
+      "ciudad_esperada": "Buenos Aires"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+54",
+        "pais": "Argentina",
+        "timezone": "America/Argentina/Buenos_Aires",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "Baufest",
+        "business_activity": "Tecnología y servicios digitales",
+        "business_model": "Servicios profesionales",
+        "business_description": "Baufest ofrece soluciones digitales para desafíos complejos.",
+        "services": [
+          "Business Design",
+          "AI Digital Products",
+          "Data & Applied AI",
+          "Cybersecurity",
+          "IT Operations"
+        ],
+        "email_principal": "No encontrado",
+        "phone_empresa": "No encontrado",
+        "whatsapp_empresa": "+919500766642",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "No encontrado",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "https://www.linkedin.com/company/baufest/",
+        "instagram_empresa": "https://www.instagram.com/baufestglobal/",
+        "facebook_empresa": "https://www.facebook.com/baufestglobalok/",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "twitter": "https://twitter.com/Baufest",
+        "cargo_detectado": "Coo",
+        "nombre_ejecutivo": "Política de",
+        "services_text": "Business Design, AI Digital Products, Data & Applied AI, Cybersecurity, IT Operations",
+        "whatsapp_source": "externo",
+        "website": "https://baufest.com",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 5,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "Baufest"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Teléfono": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "WhatsApp": {
+          "encontrado": true,
+          "valor": "+919500766642"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": true,
+          "valor": "https://www.linkedin.com/company/baufest/"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "Coo"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 45
+    },
+    "tiempo": 69.88,
+    "errores": []
+  },
+  {
+    "pais": "México",
+    "bandera": "🇲🇽",
+    "tipo": "Agencia Digital",
+    "lead": {
+      "nombre": "Roberto Hernández",
+      "telefono": "+5215512345678",
+      "codigo_pais": "+52"
+    },
+    "empresa_esperada": {
+      "web": "mediasource.mx",
+      "nombre_esperado": "Media Source",
+      "rubro": "Marketing digital / Inbound",
+      "pais_empresa": "México",
+      "ciudad_esperada": "Ciudad de México"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+52",
+        "pais": "México",
+        "timezone": "America/Mexico_City",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "Media Source",
+        "business_activity": "Marketing Digital",
+        "business_model": "Servicios profesionales",
+        "business_description": "Te guiamos paso a paso para construir liderazgo en tu industria y generar confianza.",
+        "services": [
+          "Inbound Marketing",
+          "Posicionamiento en buscadores",
+          "Entrenamiento HubSpot",
+          "Diseño y desarrollo web",
+          "Migración a CMS Hub"
+        ],
+        "email_principal": "No encontrado",
+        "phone_empresa": "No encontrado",
+        "whatsapp_empresa": "+03004665520",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "México",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "https://www.linkedin.com/company/2745362",
+        "instagram_empresa": "https://instagram.com/mediasourcemx/",
+        "facebook_empresa": "https://facebook.com/mediasourcemx",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "twitter": "https://twitter.com/mediasourcemx",
+        "cargo_detectado": "Cto",
+        "services_text": "Inbound Marketing, Posicionamiento en buscadores, Entrenamiento HubSpot, Diseño y desarrollo web, Migración a CMS Hub",
+        "whatsapp_source": "externo",
+        "website": "https://mediasource.mx",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 5,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "Media Source"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Teléfono": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "WhatsApp": {
+          "encontrado": true,
+          "valor": "+03004665520"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": true,
+          "valor": "https://www.linkedin.com/company/2745362"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "Cto"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 45
+    },
+    "tiempo": 175.45,
+    "errores": []
+  },
+  {
+    "pais": "México",
+    "bandera": "🇲🇽",
+    "tipo": "Consultora IT",
+    "lead": {
+      "nombre": "Ana Martínez",
+      "telefono": "+5215523456789",
+      "codigo_pais": "+52"
+    },
+    "empresa_esperada": {
+      "web": "nativapps.com",
+      "nombre_esperado": "Nativapps",
+      "rubro": "Desarrollo de apps",
+      "pais_empresa": "México",
+      "ciudad_esperada": "CDMX"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+52",
+        "pais": "México",
+        "timezone": "America/Mexico_City",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "NativApps",
+        "business_activity": "Desarrollo de aplicaciones web y móviles",
+        "business_model": "Servicios profesionales",
+        "business_description": "Ayudamos a startups y grandes empresas en el proceso de planeación, creación y lanzamiento de aplicaciones web y móviles.",
+        "services": [
+          "Desarrollo de aplicaciones móviles",
+          "Desarrollo de aplicaciones web",
+          "eCommerce",
+          "Creación de prototipos",
+          "Soporte y mejora de apps"
+        ],
+        "email_principal": "No encontrado",
+        "phone_empresa": "No encontrado",
+        "whatsapp_empresa": "No encontrado",
+        "address": "700 Central Expressway South, Suite 400, Allen, TX 75013, USA",
+        "city": "Allen",
+        "province": "Texas",
+        "country": "USA",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "https://www.linkedin.com/company/nativapps-inc/",
+        "instagram_empresa": "https://www.instagram.com/nativapps/?hl=es",
+        "facebook_empresa": "https://es-la.facebook.com/nativapps/",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "twitter": "https://twitter.com/nativapps",
+        "cargo_detectado": "Cto",
+        "services_text": "Desarrollo de aplicaciones móviles, Desarrollo de aplicaciones web, eCommerce, Creación de prototipos, Soporte y mejora de apps",
+        "website": "https://nativapps.com",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 6,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "NativApps"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Teléfono": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "WhatsApp": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Dirección": {
+          "encontrado": true,
+          "valor": "700 Central Expressway South, Suite 400, Allen, TX 75013, USA"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": true,
+          "valor": "Texas"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": true,
+          "valor": "https://www.linkedin.com/company/nativapps-inc/"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "Cto"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 55
+    },
+    "tiempo": 61.56,
+    "errores": []
+  },
+  {
+    "pais": "Colombia",
+    "bandera": "🇨🇴",
+    "tipo": "Agencia Publicidad",
+    "lead": {
+      "nombre": "Camila López",
+      "telefono": "+573101234567",
+      "codigo_pais": "+57"
+    },
+    "empresa_esperada": {
+      "web": "indexcol.com",
+      "nombre_esperado": "Index",
+      "rubro": "Agencia de publicidad",
+      "pais_empresa": "Colombia",
+      "ciudad_esperada": "Bogotá"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+57",
+        "pais": "Colombia",
+        "timezone": "America/Bogota",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "Indexcol",
+        "business_activity": "Agencia Digital",
+        "business_model": "Servicios profesionales",
+        "business_description": "Transformamos, conectamos y volamos para lograr resultados extraordinarios.",
+        "services": [
+          "Marketing",
+          "Consultoría",
+          "Estrategias digitales"
+        ],
+        "email_principal": "gestion.humana@indexcol.com",
+        "phone_empresa": "No encontrado",
+        "whatsapp_empresa": "573168840094",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "Colombia",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "https://www.linkedin.com/company/indexcol",
+        "instagram_empresa": "https://instagram.com/indexcol.agencia?utm_medium=copy_link",
+        "facebook_empresa": "https://www.facebook.com/Indexcol/?fref=ts&utm_source=PRUEBA",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "services_text": "Marketing, Consultoría, Estrategias digitales",
+        "website": "https://indexcol.com",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 5,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "Indexcol"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": true,
+          "valor": "gestion.humana@indexcol.com"
+        },
+        "Teléfono": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "WhatsApp": {
+          "encontrado": true,
+          "valor": "573168840094"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": true,
+          "valor": "https://www.linkedin.com/company/indexcol"
+        },
+        "Cargo detectado": {
+          "encontrado": false,
+          "valor": ""
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 45
+    },
+    "tiempo": 97.94,
+    "errores": []
+  },
+  {
+    "pais": "Colombia",
+    "bandera": "🇨🇴",
+    "tipo": "Software/ERP",
+    "lead": {
+      "nombre": "Andrés Gómez",
+      "telefono": "+573112345678",
+      "codigo_pais": "+57"
+    },
+    "empresa_esperada": {
+      "web": "silogsistemas.com",
+      "nombre_esperado": "Silog Sistemas",
+      "rubro": "Software ERP/Logística",
+      "pais_empresa": "Colombia",
+      "ciudad_esperada": "Bogotá"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+57",
+        "pais": "Colombia",
+        "timezone": "America/Bogota",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "Slog Soluciones Logisticas Sas",
+        "business_activity": "Logística",
+        "business_model": "B2B",
+        "business_description": "Exporter and importer with global trade activities.",
+        "services": [
+          "Importación",
+          "Exportación"
+        ],
+        "email_principal": "No encontrado",
+        "phone_empresa": "+971-52-320-8682",
+        "whatsapp_empresa": "+51905466345",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "United States",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "No encontrado",
+        "instagram_empresa": "No encontrado",
+        "facebook_empresa": "No encontrado",
+        "ceo_nombre": "Michael Robinson",
+        "ceo_cargo": "Sales Representative",
+        "cargo_detectado": "Sales Representative",
+        "nombre_ejecutivo": "Michael Robinson",
+        "services_text": "Importación, Exportación",
+        "whatsapp_source": "externo",
+        "website": "https://silogsistemas.com",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 5,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "Slog Soluciones Logisticas Sas"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "B2B"
+        },
+        "Email": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Teléfono": {
+          "encontrado": true,
+          "valor": "+971-52-320-8682"
+        },
+        "WhatsApp": {
+          "encontrado": true,
+          "valor": "+51905466345"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "Sales Representative"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 45
+    },
+    "tiempo": 24.2,
+    "errores": [
+      "LinkedIn CEO: research_person_and_company() got an unexpected keyword argument 'nombre'"
+    ]
+  },
+  {
+    "pais": "Chile",
+    "bandera": "🇨🇱",
+    "tipo": "Consultora",
+    "lead": {
+      "nombre": "Felipe Muñoz",
+      "telefono": "+56912345678",
+      "codigo_pais": "+56"
+    },
+    "empresa_esperada": {
+      "web": "digital.cl",
+      "nombre_esperado": "Digital",
+      "rubro": "Transformación digital",
+      "pais_empresa": "Chile",
+      "ciudad_esperada": "Santiago"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+56",
+        "pais": "Chile",
+        "timezone": "America/Santiago",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "5 Digital",
+        "business_activity": "Publicidad Online",
+        "business_model": "Servicios profesionales",
+        "business_description": "Comercial email for 5 Digital is comercial@5digital.cl; address is Avenida Las Condes 12523 Torre 3 Oficina 807; phone numbers are +562 3223 8262 and +562 2342 1691.",
+        "services": [
+          "Posicionamiento SEO",
+          "Google Ads",
+          "Publicidad Online",
+          "Diseño web",
+          "Hosting",
+          "Soporte técnico",
+          "Software personalizado",
+          "Diseño Gráfico",
+          "Servicio de Administración Web"
+        ],
+        "email_principal": "contacto@tdigital.cl",
+        "phone_empresa": "+562 3223 8262",
+        "whatsapp_empresa": "+56963011553",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "Chile",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "No encontrado",
+        "instagram_empresa": "No encontrado",
+        "facebook_empresa": "No encontrado",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "cargo_detectado": "cto",
+        "email_contacto_principal": "contacto@tdigital.cl",
+        "services_text": "Posicionamiento SEO, Google Ads, Publicidad Online, Diseño web, Hosting, Soporte técnico, Software personalizado, Diseño Gráfico, Servicio de Administración Web",
+        "website": "https://digital.cl",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 6,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "5 Digital"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": true,
+          "valor": "contacto@tdigital.cl"
+        },
+        "Teléfono": {
+          "encontrado": true,
+          "valor": "+562 3223 8262"
+        },
+        "WhatsApp": {
+          "encontrado": true,
+          "valor": "+56963011553"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "cto"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 55
+    },
+    "tiempo": 47.27,
+    "errores": []
+  },
+  {
+    "pais": "Perú",
+    "bandera": "🇵🇪",
+    "tipo": "Agencia Marketing",
+    "lead": {
+      "nombre": "Carla Vargas",
+      "telefono": "+51987654321",
+      "codigo_pais": "+51"
+    },
+    "empresa_esperada": {
+      "web": "staffcreativa.pe",
+      "nombre_esperado": "Staff Creativa",
+      "rubro": "Agencia de marketing",
+      "pais_empresa": "Perú",
+      "ciudad_esperada": "Lima"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+51",
+        "pais": "Perú",
+        "timezone": "America/Lima",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "Staff Creativa",
+        "business_activity": "Agencia de marketing digital",
+        "business_model": "Servicios profesionales",
+        "business_description": "Agencia digital especializada en diseño de páginas web y marketing.",
+        "services": [
+          "Imagen corporativa",
+          "Packaging",
+          "Desarrollo de Páginas Web",
+          "Redes Sociales",
+          "Desarrollo Ecommerce",
+          "SEO",
+          "SEM",
+          "Diseño de Logotipo"
+        ],
+        "email_principal": "info@staffcreativa.pe",
+        "phone_empresa": "949281837",
+        "whatsapp_empresa": "+51949281837",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "Perú",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "https://www.linkedin.com/company/staff-creativa---agencia-de-marketing-digital/",
+        "instagram_empresa": "https://www.instagram.com/staffcreativa/",
+        "facebook_empresa": "https://www.facebook.com/staffcreativa/",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "services_text": "Imagen corporativa, Packaging, Desarrollo de Páginas Web, Redes Sociales, Desarrollo Ecommerce, SEO, SEM, Diseño de Logotipo",
+        "website": "https://staffcreativa.pe",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 6,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "Staff Creativa"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": true,
+          "valor": "info@staffcreativa.pe"
+        },
+        "Teléfono": {
+          "encontrado": true,
+          "valor": "949281837"
+        },
+        "WhatsApp": {
+          "encontrado": true,
+          "valor": "+51949281837"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": true,
+          "valor": "https://www.linkedin.com/company/staff-creativa---agencia-de-marketing-digital/"
+        },
+        "Cargo detectado": {
+          "encontrado": false,
+          "valor": ""
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 55
+    },
+    "tiempo": 80.68,
+    "errores": []
+  },
+  {
+    "pais": "España",
+    "bandera": "🇪🇸",
+    "tipo": "Estudio Diseño",
+    "lead": {
+      "nombre": "Pablo García",
+      "telefono": "+34612345678",
+      "codigo_pais": "+34"
+    },
+    "empresa_esperada": {
+      "web": "brandcrops.com",
+      "nombre_esperado": "Brandcrops",
+      "rubro": "Branding y diseño",
+      "pais_empresa": "España",
+      "ciudad_esperada": "Barcelona"
+    },
+    "extraido": {
+      "pais_lead": {
+        "codigo": "+34",
+        "pais": "España",
+        "timezone": "Europe/Madrid",
+        "detectado": true
+      },
+      "web": {
+        "business_name": "Brandcrops",
+        "business_activity": "Agencia Creativa",
+        "business_model": "Servicios profesionales",
+        "business_description": "Te acompañamos en cada paso del proceso creativo con gestión de proyectos, diseño gráfico, redacción creativa y más.",
+        "services": [
+          "Estrategia de marca",
+          "Estrategia de marketing digital",
+          "Diseño web",
+          "Gestión de redes sociales",
+          "Consultoría estratégica"
+        ],
+        "email_principal": "No encontrado",
+        "phone_empresa": "No encontrado",
+        "whatsapp_empresa": "No encontrado",
+        "address": "No encontrado",
+        "city": "No encontrado",
+        "province": "No encontrado",
+        "country": "No encontrado",
+        "horarios": "No encontrado",
+        "linkedin_empresa": "https://www.linkedin.com/company/38170435/admin/feed/posts/",
+        "instagram_empresa": "https://www.instagram.com/brandcrops/?hl=es",
+        "facebook_empresa": "No encontrado",
+        "ceo_nombre": "No encontrado",
+        "ceo_cargo": "No encontrado",
+        "twitter": "https://twitter.com/brandcrops",
+        "cargo_detectado": "Cto",
+        "services_text": "Estrategia de marca, Estrategia de marketing digital, Diseño web, Gestión de redes sociales, Consultoría estratégica",
+        "website": "https://brandcrops.com",
+        "extraction_status": "success"
+      },
+      "linkedin_ceo": null
+    },
+    "scores": {
+      "campos_encontrados": 4,
+      "campos_totales": 11,
+      "detalle": {
+        "Nombre empresa": {
+          "encontrado": true,
+          "valor": "Brandcrops"
+        },
+        "Modelo negocio": {
+          "encontrado": true,
+          "valor": "Servicios profesionales"
+        },
+        "Email": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Teléfono": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "WhatsApp": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Dirección": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Ciudad/Provincia": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "Horarios": {
+          "encontrado": false,
+          "valor": "No encontrado"
+        },
+        "LinkedIn empresa": {
+          "encontrado": true,
+          "valor": "https://www.linkedin.com/company/38170435/admin/feed/posts/"
+        },
+        "Cargo detectado": {
+          "encontrado": true,
+          "valor": "Cto"
+        },
+        "LinkedIn CEO": {
+          "encontrado": false,
+          "valor": null
+        }
+      },
+      "porcentaje": 36
+    },
+    "tiempo": 184.44,
+    "errores": []
+  }
+]

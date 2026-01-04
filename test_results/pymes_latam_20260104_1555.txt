@@ -1,0 +1,212 @@
+===========================================================================
+TEST DE EXTRACCIÓN - PyMEs Y EMPRESAS MEDIANAS LATAM
+Fecha: 2026-01-04 15:55:33
+===========================================================================
+
+🇦🇷 Argentina - wearecontent.com
+   Tipo: Agencia Marketing
+   Lead: Martín González (+5491145678901)
+   Tiempo: 37.71s
+
+   ✓ Nombre empresa: WeAreContent
+   ✓ Modelo negocio: Servicios profesionales
+   ✓ Email: contact@wearecontent.com
+   ✗ Teléfono: NO ENCONTRADO
+   ✓ WhatsApp: +573214525213
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✓ LinkedIn empresa: https://www.linkedin.com/company/wearecontent
+   ✓ Cargo detectado: Cto
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 6/11 (55%)
+───────────────────────────────────────────────────────────────────────────
+
+🇦🇷 Argentina - baborcontadores.com.ar
+   Tipo: Estudio Contable
+   Lead: Laura Fernández (+5491156789012)
+   Tiempo: 36.97s
+
+   ✗ Nombre empresa: NO ENCONTRADO
+   ✓ Modelo negocio: SaaS
+   ✗ Email: NO ENCONTRADO
+   ✓ Teléfono: +34916300551
+   ✗ WhatsApp: NO ENCONTRADO
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✗ LinkedIn empresa: NO ENCONTRADO
+   ✓ Cargo detectado: Cto
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 3/11 (27%)
+───────────────────────────────────────────────────────────────────────────
+
+🇦🇷 Argentina - baufest.com
+   Tipo: Software House
+   Lead: Diego Rodríguez (+5491167890123)
+   Tiempo: 69.88s
+
+   ✓ Nombre empresa: Baufest
+   ✓ Modelo negocio: Servicios profesionales
+   ✗ Email: NO ENCONTRADO
+   ✗ Teléfono: NO ENCONTRADO
+   ✓ WhatsApp: +919500766642
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✓ LinkedIn empresa: https://www.linkedin.com/company/baufest/
+   ✓ Cargo detectado: Coo
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 5/11 (45%)
+───────────────────────────────────────────────────────────────────────────
+
+🇲🇽 México - mediasource.mx
+   Tipo: Agencia Digital
+   Lead: Roberto Hernández (+5215512345678)
+   Tiempo: 175.45s
+
+   ✓ Nombre empresa: Media Source
+   ✓ Modelo negocio: Servicios profesionales
+   ✗ Email: NO ENCONTRADO
+   ✗ Teléfono: NO ENCONTRADO
+   ✓ WhatsApp: +03004665520
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✓ LinkedIn empresa: https://www.linkedin.com/company/2745362
+   ✓ Cargo detectado: Cto
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 5/11 (45%)
+───────────────────────────────────────────────────────────────────────────
+
+🇲🇽 México - nativapps.com
+   Tipo: Consultora IT
+   Lead: Ana Martínez (+5215523456789)
+   Tiempo: 61.56s
+
+   ✓ Nombre empresa: NativApps
+   ✓ Modelo negocio: Servicios profesionales
+   ✗ Email: NO ENCONTRADO
+   ✗ Teléfono: NO ENCONTRADO
+   ✗ WhatsApp: NO ENCONTRADO
+   ✓ Dirección: 700 Central Expressway South, Suite 400, Allen,...
+   ✓ Ciudad/Provincia: Texas
+   ✗ Horarios: NO ENCONTRADO
+   ✓ LinkedIn empresa: https://www.linkedin.com/company/nativapps-inc/
+   ✓ Cargo detectado: Cto
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 6/11 (55%)
+───────────────────────────────────────────────────────────────────────────
+
+🇨🇴 Colombia - indexcol.com
+   Tipo: Agencia Publicidad
+   Lead: Camila López (+573101234567)
+   Tiempo: 97.94s
+
+   ✓ Nombre empresa: Indexcol
+   ✓ Modelo negocio: Servicios profesionales
+   ✓ Email: gestion.humana@indexcol.com
+   ✗ Teléfono: NO ENCONTRADO
+   ✓ WhatsApp: 573168840094
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✓ LinkedIn empresa: https://www.linkedin.com/company/indexcol
+   ✗ Cargo detectado: NO ENCONTRADO
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 5/11 (45%)
+───────────────────────────────────────────────────────────────────────────
+
+🇨🇴 Colombia - silogsistemas.com
+   Tipo: Software/ERP
+   Lead: Andrés Gómez (+573112345678)
+   Tiempo: 24.2s
+
+   ✓ Nombre empresa: Slog Soluciones Logisticas Sas
+   ✓ Modelo negocio: B2B
+   ✗ Email: NO ENCONTRADO
+   ✓ Teléfono: +971-52-320-8682
+   ✓ WhatsApp: +51905466345
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✗ LinkedIn empresa: NO ENCONTRADO
+   ✓ Cargo detectado: Sales Representative
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 5/11 (45%)
+───────────────────────────────────────────────────────────────────────────
+
+🇨🇱 Chile - digital.cl
+   Tipo: Consultora
+   Lead: Felipe Muñoz (+56912345678)
+   Tiempo: 47.27s
+
+   ✓ Nombre empresa: 5 Digital
+   ✓ Modelo negocio: Servicios profesionales
+   ✓ Email: contacto@tdigital.cl
+   ✓ Teléfono: +562 3223 8262
+   ✓ WhatsApp: +56963011553
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✗ LinkedIn empresa: NO ENCONTRADO
+   ✓ Cargo detectado: cto
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 6/11 (55%)
+───────────────────────────────────────────────────────────────────────────
+
+🇵🇪 Perú - staffcreativa.pe
+   Tipo: Agencia Marketing
+   Lead: Carla Vargas (+51987654321)
+   Tiempo: 80.68s
+
+   ✓ Nombre empresa: Staff Creativa
+   ✓ Modelo negocio: Servicios profesionales
+   ✓ Email: info@staffcreativa.pe
+   ✓ Teléfono: 949281837
+   ✓ WhatsApp: +51949281837
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✓ LinkedIn empresa: https://www.linkedin.com/company/staff-creativa...
+   ✗ Cargo detectado: NO ENCONTRADO
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 6/11 (55%)
+───────────────────────────────────────────────────────────────────────────
+
+🇪🇸 España - brandcrops.com
+   Tipo: Estudio Diseño
+   Lead: Pablo García (+34612345678)
+   Tiempo: 184.44s
+
+   ✓ Nombre empresa: Brandcrops
+   ✓ Modelo negocio: Servicios profesionales
+   ✗ Email: NO ENCONTRADO
+   ✗ Teléfono: NO ENCONTRADO
+   ✗ WhatsApp: NO ENCONTRADO
+   ✗ Dirección: NO ENCONTRADO
+   ✗ Ciudad/Provincia: NO ENCONTRADO
+   ✗ Horarios: NO ENCONTRADO
+   ✓ LinkedIn empresa: https://www.linkedin.com/company/38170435/admin...
+   ✓ Cargo detectado: Cto
+   ✗ LinkedIn CEO: NO ENCONTRADO
+
+   SCORE: 4/11 (36%)
+───────────────────────────────────────────────────────────────────────────
+
+===========================================================================
+RESUMEN GLOBAL
+===========================================================================
+
+📊 Promedio de completitud: 46%
+⏱️  Tiempo promedio: 81.61s
+🔢 Empresas testeadas: 10
