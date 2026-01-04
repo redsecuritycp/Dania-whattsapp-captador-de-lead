@@ -240,16 +240,67 @@ def extract_with_regex(all_content: str) -> dict:
 
     # Filtrar emails basura
     emails_filtered = []
+    email_basura = [
+        'example', 'sentry', 'wixpress', '.png', '.jpg', 'website.com',
+        'domain.com', 'email.com', 'test.com', 'sample', 'yourcompany',
+        'yourdomain', 'company.com', 'mail.com', 'email@', '@example',
+        'noreply', 'no-reply', 'donotreply', 'unsubscribe', 'wordpress',
+        'schema.org', 'w3.org', 'sentry.io', 'cloudflare', 'google.com',
+        'facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com',
+        'support@wix', 'privacy@', 'abuse@', 'postmaster@', 'webmaster@'
+    ]
+
     for email in emails_found:
         email_lower = email.lower()
-        if not any(x in email_lower for x in [
-                'example', 'sentry', 'wixpress', '.png', '.jpg', 'website.com',
-                'domain.com'
-        ]):
+        if not any(x in email_lower for x in email_basura):
             emails_filtered.append(email_lower)
 
     regex_extract['emails'] = list(set(emails_filtered))[:5]
     logger.info(f"[REGEX] Emails encontrados: {regex_extract['emails']}")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # DETECCIÓN DE CARGO/ROL ASOCIADO A EMAIL
+    # ═══════════════════════════════════════════════════════════════════
+    cargos_keywords = [
+        # Español
+        'gerente', 'director', 'ceo', 'cfo', 'cto', 'coo', 'presidente',
+        'vicepresidente', 'fundador', 'cofundador', 'socio', 'dueño',
+        'propietario', 'jefe', 'responsable', 'coordinador', 'supervisor',
+        'encargado', 'administrador', 'ejecutivo', 'comercial', 'ventas',
+        'marketing', 'recursos humanos', 'rrhh', 'finanzas', 'operaciones',
+        'general manager', 'managing director',
+        # Inglés
+        'manager', 'director', 'chief', 'head', 'lead', 'senior',
+        'founder', 'co-founder', 'owner', 'partner', 'principal',
+        'executive', 'officer', 'vp', 'vice president', 'president',
+        # Portugués
+        'gerente', 'diretor', 'sócio', 'proprietário', 'coordenador',
+    ]
+
+    # Buscar cargo cerca de cada email encontrado
+    for email in regex_extract['emails'][:3]:  # Solo primeros 3
+        # Buscar contexto alrededor del email (200 chars antes y después)
+        email_pos = all_content.lower().find(email)
+        if email_pos > 0:
+            contexto_inicio = max(0, email_pos - 200)
+            contexto_fin = min(len(all_content), email_pos + 200)
+            contexto = all_content[contexto_inicio:contexto_fin].lower()
+
+            for cargo in cargos_keywords:
+                if cargo in contexto:
+                    # Extraer el cargo con formato
+                    cargo_pattern = rf'({cargo}[a-záéíóúñ\s]{{0,30}})'
+                    cargo_match = re.search(cargo_pattern, contexto, 
+                                           re.IGNORECASE)
+                    if cargo_match:
+                        cargo_encontrado = cargo_match.group(1).strip()
+                        cargo_encontrado = ' '.join(cargo_encontrado.split())
+                        if not regex_extract.get('cargo_detectado'):
+                            regex_extract['cargo_detectado'] = cargo_encontrado
+                            regex_extract['email_con_cargo'] = email
+                            logger.info(f"[REGEX] ✓ Cargo '{cargo_encontrado}' "
+                                       f"asociado a {email}")
+                        break
 
     # ═══════════════════════════════════════════════════════════════════
     # 2. TELÉFONOS
@@ -567,43 +618,441 @@ def extract_with_regex(all_content: str) -> dict:
     # ═══════════════════════════════════════════════════════════════════
     # 7. DIRECCIONES (Argentina)
     # ═══════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════
+    # 7. DIRECCIÓN/ADDRESS (Internacional)
+    # ═══════════════════════════════════════════════════════════════════
     direccion_patterns = [
-        r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+\s+\d{1,5}',
-        r'\d{1,5}\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+(?:,\s*[A-Za-z\s]+)?'
+        # Español con prefijo: Av. / Avenida / Calle / Bv. / Boulevard + nombre + número
+        r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard|Paseo|Pje\.?|Pasaje|'
+        r'Diagonal|Ruta|Camino)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s\.]+\s+\d{1,5}'
+        r'(?:\s*(?:bis|piso|dto|depto|of|oficina|local|pb|ep)\.?\s*\d*)?',
+
+        # Español sin prefijo: Nombre + número (+ bis/piso/etc)
+        r'[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-Za-záéíóúñ]+)*\s+\d{1,5}'
+        r'(?:\s*bis|\s*piso\s*\d+|\s*(?:dto|depto)\.?\s*\d+)?',
+
+        # Inglés flexible: número + texto + ST/AVE/RD/etc
+        r'\d{1,5}\s+[A-Z0-9\s]+(?:ST|STREET|AVE|AVENUE|RD|ROAD|BLVD|'
+        r'BOULEVARD|DR|DRIVE|LN|LANE|WAY|PL|PLACE|CT|COURT|CIR|CIRCLE|'
+        r'HWY|HIGHWAY|UNIT|SUITE|STE)',
+
+        # Inglés tradicional: 123 Main Street / 456 Fifth Avenue
+        r'\d{1,5}\s+(?:[A-Z][a-z]+\s+){1,3}(?:Street|St\.?|Avenue|Ave\.?|'
+        r'Road|Rd\.?|Boulevard|Blvd\.?|Drive|Dr\.?|Lane|Ln\.?|Way|Place|'
+        r'Pl\.?|Court|Ct\.?|Circle|Cir\.?|Highway|Hwy\.?)',
+
+        # Portugués: Rua / Av. + nombre + número
+        r'(?:Rua|Av\.?|Avenida|Alameda|Travessa|Praça|Largo)\s+'
+        r'[A-ZÁÉÍÓÚÑÃÕa-záéíóúñãõ\s\.]+[,\s]+(?:n[º°]?\s*)?\d{1,5}',
+
+        # Francés: Rue / Avenue / Boulevard + nombre + numéro
+        r'(?:Rue|Avenue|Boulevard|Place|Allée|Chemin|Impasse)\s+'
+        r'[A-ZÀÂÄÇÉÈÊËÎÏÔÙÛÜŸa-zàâäçéèêëîïôùûüÿ\s\-]+[,\s]+\d{1,5}',
+
+        # Alemán: Straße / Str. / Weg + nombre + número
+        r'[A-ZÄÖÜa-zäöüß]+(?:straße|str\.?|weg|platz|gasse|ring|allee)\s*'
+        r'\d{1,5}[a-z]?',
+
+        # Italiano: Via / Viale / Piazza + nombre + numero
+        r'(?:Via|Viale|Piazza|Corso|Largo|Vicolo)\s+'
+        r'[A-ZÀÈÉÌÒÙa-zàèéìòù\s\.]+[,\s]+(?:n[°\.]?\s*)?\d{1,5}',
+
+        # Con código postal explícito
+        r'(?:CP|C\.P\.|Código Postal|Zip|ZIP|Postal Code|CEP|CAP|PLZ)[:\s]*'
+        r'[\d\-]{4,10}',
+
+        # Dirección con CP: cualquier texto + CP/código + número
+        r'[A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s\.,]+(?:CP|C\.P\.)[:\s]*\d{4,6}',
     ]
 
     for pattern in direccion_patterns:
-        match = re.search(pattern, all_content)
+        match = re.search(pattern, all_content, re.IGNORECASE)
         if match and len(match.group(0)) > 10:
-            regex_extract['address'] = match.group(0).strip()
+            direccion = match.group(0).strip()
+            # Limpiar espacios múltiples
+            direccion = ' '.join(direccion.split())
+            regex_extract['address'] = direccion
+            logger.info(f"[REGEX] ✓ Dirección encontrada: {direccion}")
             break
 
-    # Provincias argentinas
-    provincias = [
-        'Buenos Aires', 'Córdoba', 'Santa Fe', 'Mendoza', 'Tucumán',
-        'Entre Ríos', 'Salta', 'Misiones', 'Chaco', 'Corrientes',
-        'Santiago del Estero', 'San Juan', 'Jujuy', 'Río Negro', 'Neuquén',
-        'Formosa', 'Chubut', 'San Luis', 'Catamarca', 'La Rioja', 'La Pampa',
-        'Santa Cruz', 'Tierra del Fuego', 'CABA'
+    # ═══════════════════════════════════════════════════════════════════
+    # PROVINCIAS/ESTADOS/REGIONES (Internacional completo)
+    # ═══════════════════════════════════════════════════════════════════
+
+    # Argentina - Todas las provincias
+    provincias_ar = [
+        'Buenos Aires', 'Córdoba', 'Cordoba', 'Santa Fe', 'Mendoza', 
+        'Tucumán', 'Tucuman', 'Entre Ríos', 'Entre Rios', 'Salta', 
+        'Misiones', 'Chaco', 'Corrientes', 'Santiago del Estero', 
+        'San Juan', 'Jujuy', 'Río Negro', 'Rio Negro', 'Neuquén', 
+        'Neuquen', 'Formosa', 'Chubut', 'San Luis', 'Catamarca', 
+        'La Rioja', 'La Pampa', 'Santa Cruz', 'Tierra del Fuego', 
+        'CABA', 'Capital Federal', 'Ciudad Autónoma', 'Ciudad Autonoma',
+        'Rosario', 'Mar del Plata', 'La Plata', 'Bahía Blanca'
     ]
 
-    for prov in provincias:
-        if prov.lower() in all_content.lower():
-            regex_extract['province'] = prov
+    # México - Estados y ciudades principales
+    estados_mx = [
+        'Ciudad de México', 'CDMX', 'Estado de México', 'Jalisco',
+        'Nuevo León', 'Nuevo Leon', 'Puebla', 'Guanajuato', 'Chihuahua',
+        'Veracruz', 'Baja California', 'Querétaro', 'Queretaro',
+        'Yucatán', 'Yucatan', 'Quintana Roo', 'Monterrey', 'Guadalajara',
+        'Tijuana', 'Cancún', 'Cancun', 'Aguascalientes', 'Morelos',
+        'Oaxaca', 'Chiapas', 'Tabasco', 'Campeche', 'Sonora', 'Sinaloa',
+        'Durango', 'Zacatecas', 'San Luis Potosí', 'San Luis Potosi',
+        'Tamaulipas', 'Coahuila', 'Nayarit', 'Colima', 'Michoacán',
+        'Michoacan', 'Guerrero', 'Hidalgo', 'Tlaxcala'
+    ]
+
+    # Colombia - Departamentos y ciudades
+    deptos_co = [
+        'Bogotá', 'Bogota', 'Cundinamarca', 'Antioquia', 'Medellín',
+        'Medellin', 'Valle del Cauca', 'Cali', 'Atlántico', 'Atlantico',
+        'Barranquilla', 'Santander', 'Bolívar', 'Bolivar', 'Cartagena',
+        'Norte de Santander', 'Cúcuta', 'Cucuta', 'Tolima', 'Ibagué',
+        'Huila', 'Neiva', 'Risaralda', 'Pereira', 'Caldas', 'Manizales',
+        'Meta', 'Villavicencio', 'Nariño', 'Narino', 'Pasto', 'Cauca',
+        'Popayán', 'Popayan', 'Córdoba', 'Montería', 'Monteria',
+        'Magdalena', 'Santa Marta', 'Cesar', 'Valledupar', 'Boyacá',
+        'Boyaca', 'Tunja', 'Quindío', 'Quindio', 'Armenia'
+    ]
+
+    # Chile - Regiones y ciudades
+    regiones_cl = [
+        'Santiago', 'Región Metropolitana', 'Region Metropolitana',
+        'Valparaíso', 'Valparaiso', 'Viña del Mar', 'Biobío', 'Biobio',
+        'Concepción', 'Concepcion', 'Antofagasta', 'La Serena', 
+        'Coquimbo', 'Temuco', 'La Araucanía', 'La Araucania',
+        'Puerto Montt', 'Los Lagos', 'Talca', 'Maule', 'Rancagua',
+        "O'Higgins", 'Arica', 'Iquique', 'Tarapacá', 'Tarapaca',
+        'Punta Arenas', 'Magallanes', 'Valdivia', 'Los Ríos', 'Los Rios'
+    ]
+
+    # Perú - Departamentos y ciudades
+    deptos_pe = [
+        'Lima', 'Arequipa', 'Trujillo', 'La Libertad', 'Chiclayo',
+        'Lambayeque', 'Piura', 'Cusco', 'Cuzco', 'Iquitos', 'Loreto',
+        'Huancayo', 'Junín', 'Junin', 'Tacna', 'Puno', 'Cajamarca',
+        'Ayacucho', 'Ica', 'Callao', 'Ancash', 'Huaraz', 'Moquegua',
+        'Tumbes', 'Madre de Dios', 'Puerto Maldonado', 'Amazonas',
+        'San Martín', 'San Martin', 'Tarapoto', 'Ucayali', 'Pucallpa'
+    ]
+
+    # Ecuador - Provincias y ciudades
+    provincias_ec = [
+        'Quito', 'Pichincha', 'Guayaquil', 'Guayas', 'Cuenca', 'Azuay',
+        'Ambato', 'Tungurahua', 'Manta', 'Manabí', 'Manabi', 'Machala',
+        'El Oro', 'Loja', 'Esmeraldas', 'Ibarra', 'Imbabura', 'Riobamba',
+        'Chimborazo', 'Santo Domingo', 'Portoviejo', 'Durán', 'Duran',
+        'Latacunga', 'Cotopaxi', 'Orellana', 'Sucumbíos', 'Sucumbios'
+    ]
+
+    # Venezuela - Estados y ciudades
+    estados_ve = [
+        'Caracas', 'Distrito Capital', 'Miranda', 'Maracaibo', 'Zulia',
+        'Valencia', 'Carabobo', 'Barquisimeto', 'Lara', 'Maracay',
+        'Aragua', 'Puerto La Cruz', 'Anzoátegui', 'Anzoategui',
+        'Ciudad Guayana', 'Bolívar', 'Bolivar', 'Mérida', 'Merida',
+        'San Cristóbal', 'San Cristobal', 'Táchira', 'Tachira',
+        'Barinas', 'Maturín', 'Maturin', 'Monagas', 'Portuguesa',
+        'Falcón', 'Falcon', 'Coro', 'Nueva Esparta', 'Margarita'
+    ]
+
+    # Bolivia - Departamentos y ciudades
+    deptos_bo = [
+        'La Paz', 'Santa Cruz', 'Santa Cruz de la Sierra', 'Cochabamba',
+        'Sucre', 'Chuquisaca', 'Oruro', 'Potosí', 'Potosi', 'Tarija',
+        'Trinidad', 'Beni', 'Cobija', 'Pando'
+    ]
+
+    # Paraguay - Departamentos y ciudades
+    deptos_py = [
+        'Asunción', 'Asuncion', 'Ciudad del Este', 'Alto Paraná',
+        'Alto Parana', 'Encarnación', 'Encarnacion', 'Itapúa', 'Itapua',
+        'San Lorenzo', 'Luque', 'Central', 'Pedro Juan Caballero',
+        'Amambay', 'Concepción', 'Concepcion'
+    ]
+
+    # Uruguay - Departamentos y ciudades
+    deptos_uy = [
+        'Montevideo', 'Punta del Este', 'Maldonado', 'Salto',
+        'Paysandú', 'Paysandu', 'Rivera', 'Las Piedras', 'Canelones',
+        'Colonia', 'Colonia del Sacramento', 'Tacuarembó', 'Tacuarembo',
+        'Melo', 'Cerro Largo', 'Durazno', 'Florida', 'Rocha'
+    ]
+
+    # Brasil - Estados y ciudades principales
+    estados_br = [
+        'São Paulo', 'Sao Paulo', 'Rio de Janeiro', 'Minas Gerais',
+        'Belo Horizonte', 'Bahia', 'Salvador', 'Paraná', 'Parana',
+        'Curitiba', 'Rio Grande do Sul', 'Porto Alegre', 'Pernambuco',
+        'Recife', 'Ceará', 'Ceara', 'Fortaleza', 'Santa Catarina',
+        'Florianópolis', 'Florianopolis', 'Goiás', 'Goias', 'Goiânia',
+        'Goiania', 'Brasília', 'Brasilia', 'Distrito Federal',
+        'Pará', 'Para', 'Belém', 'Belem', 'Amazonas', 'Manaus',
+        'Maranhão', 'Maranhao', 'São Luís', 'Sao Luis', 'Espírito Santo',
+        'Espirito Santo', 'Vitória', 'Vitoria', 'Rio Grande do Norte',
+        'Natal', 'Paraíba', 'Paraiba', 'João Pessoa', 'Joao Pessoa',
+        'Alagoas', 'Maceió', 'Maceio', 'Piauí', 'Piaui', 'Teresina',
+        'Sergipe', 'Aracaju', 'Mato Grosso', 'Cuiabá', 'Cuiaba',
+        'Mato Grosso do Sul', 'Campo Grande', 'Tocantins', 'Palmas',
+        'Rondônia', 'Rondonia', 'Porto Velho', 'Acre', 'Rio Branco',
+        'Amapá', 'Amapa', 'Macapá', 'Macapa', 'Roraima', 'Boa Vista'
+    ]
+
+    # Centroamérica y Caribe
+    centroamerica = [
+        # Guatemala
+        'Guatemala', 'Ciudad de Guatemala', 'Quetzaltenango', 'Escuintla',
+        # Honduras
+        'Honduras', 'Tegucigalpa', 'San Pedro Sula', 'La Ceiba',
+        # El Salvador
+        'El Salvador', 'San Salvador', 'Santa Ana', 'San Miguel',
+        # Nicaragua
+        'Nicaragua', 'Managua', 'León', 'Leon', 'Granada', 'Masaya',
+        # Costa Rica
+        'Costa Rica', 'San José', 'San Jose', 'Alajuela', 'Cartago',
+        'Heredia', 'Limón', 'Limon', 'Puntarenas', 'Guanacaste',
+        # Panamá
+        'Panamá', 'Panama', 'Ciudad de Panamá', 'Ciudad de Panama',
+        'Colón', 'Colon', 'David', 'Chiriquí', 'Chiriqui',
+        # Cuba
+        'Cuba', 'La Habana', 'Habana', 'Santiago de Cuba', 'Camagüey',
+        'Camaguey', 'Holguín', 'Holguin', 'Varadero',
+        # República Dominicana
+        'República Dominicana', 'Republica Dominicana', 'Santo Domingo',
+        'Santiago de los Caballeros', 'Punta Cana', 'Puerto Plata',
+        # Puerto Rico
+        'Puerto Rico', 'San Juan', 'Bayamón', 'Bayamon', 'Carolina',
+        'Ponce', 'Caguas', 'Mayagüez', 'Mayaguez'
+    ]
+
+    # España - Comunidades y ciudades
+    ccaa_es = [
+        'Madrid', 'Barcelona', 'Cataluña', 'Catalunya', 'Andalucía',
+        'Andalucia', 'Sevilla', 'Málaga', 'Malaga', 'Granada', 'Almería',
+        'Almeria', 'Cádiz', 'Cadiz', 'Córdoba', 'Cordoba', 'Jaén', 'Jaen',
+        'Huelva', 'Valencia', 'Comunidad Valenciana', 'Alicante',
+        'Castellón', 'Castellon', 'País Vasco', 'Pais Vasco', 'Euskadi',
+        'Bilbao', 'San Sebastián', 'San Sebastian', 'Vitoria', 'Álava',
+        'Alava', 'Vizcaya', 'Guipúzcoa', 'Guipuzcoa', 'Galicia',
+        'La Coruña', 'A Coruña', 'Vigo', 'Santiago de Compostela',
+        'Pontevedra', 'Ourense', 'Lugo', 'Castilla y León', 'Valladolid',
+        'León', 'Salamanca', 'Burgos', 'Palencia', 'Zamora', 'Segovia',
+        'Ávila', 'Avila', 'Soria', 'Castilla-La Mancha', 'Toledo',
+        'Ciudad Real', 'Albacete', 'Cuenca', 'Guadalajara', 'Aragón',
+        'Aragon', 'Zaragoza', 'Huesca', 'Teruel', 'Murcia', 'Cartagena',
+        'Extremadura', 'Badajoz', 'Cáceres', 'Caceres', 'Navarra',
+        'Pamplona', 'La Rioja', 'Logroño', 'Logrono', 'Cantabria',
+        'Santander', 'Asturias', 'Oviedo', 'Gijón', 'Gijon',
+        'Islas Baleares', 'Baleares', 'Mallorca', 'Palma', 'Ibiza',
+        'Menorca', 'Islas Canarias', 'Canarias', 'Las Palmas',
+        'Gran Canaria', 'Tenerife', 'Santa Cruz de Tenerife',
+        'Lanzarote', 'Fuerteventura', 'Ceuta', 'Melilla'
+    ]
+
+    # Portugal
+    portugal = [
+        'Portugal', 'Lisboa', 'Lisbon', 'Porto', 'Oporto', 'Braga',
+        'Coimbra', 'Amadora', 'Funchal', 'Madeira', 'Setúbal', 'Setubal',
+        'Almada', 'Aveiro', 'Évora', 'Evora', 'Faro', 'Algarve',
+        'Leiria', 'Viseu', 'Guimarães', 'Guimaraes', 'Açores', 'Acores'
+    ]
+
+    # Francia
+    francia = [
+        'Francia', 'France', 'París', 'Paris', 'Marsella', 'Marseille',
+        'Lyon', 'Toulouse', 'Niza', 'Nice', 'Nantes', 'Estrasburgo',
+        'Strasbourg', 'Montpellier', 'Burdeos', 'Bordeaux', 'Lille',
+        'Rennes', 'Reims', 'Le Havre', 'Toulon', 'Grenoble', 'Dijon',
+        'Angers', 'Nîmes', 'Nimes', 'Île-de-France', 'Ile-de-France',
+        'Provenza', 'Provence', 'Normandía', 'Normandie', 'Bretaña',
+        'Bretagne', 'Alsacia', 'Alsace', 'Aquitania', 'Aquitaine'
+    ]
+
+    # Alemania
+    alemania = [
+        'Alemania', 'Germany', 'Deutschland', 'Berlín', 'Berlin',
+        'Múnich', 'Munich', 'München', 'Hamburgo', 'Hamburg',
+        'Fráncfort', 'Frankfurt', 'Colonia', 'Köln', 'Cologne',
+        'Stuttgart', 'Düsseldorf', 'Dusseldorf', 'Dortmund', 'Essen',
+        'Leipzig', 'Bremen', 'Dresde', 'Dresden', 'Hannover', 'Núremberg',
+        'Nuremberg', 'Nürnberg', 'Baviera', 'Bayern', 'Bavaria',
+        'Baden-Württemberg', 'Baden-Wurttemberg', 'Hessen', 'Sajonia',
+        'Sachsen', 'Renania', 'Nordrhein-Westfalen'
+    ]
+
+    # Italia
+    italia = [
+        'Italia', 'Italy', 'Roma', 'Rome', 'Milán', 'Milan', 'Milano',
+        'Nápoles', 'Napoli', 'Naples', 'Turín', 'Turin', 'Torino',
+        'Palermo', 'Génova', 'Genova', 'Genoa', 'Bolonia', 'Bologna',
+        'Florencia', 'Florence', 'Firenze', 'Venecia', 'Venice', 'Venezia',
+        'Bari', 'Catania', 'Verona', 'Padua', 'Padova', 'Trieste',
+        'Lombardía', 'Lombardia', 'Piamonte', 'Piemonte', 'Lazio',
+        'Campania', 'Sicilia', 'Sicily', 'Cerdeña', 'Sardegna', 'Toscana',
+        'Emilia-Romaña', 'Emilia-Romagna', 'Véneto', 'Veneto'
+    ]
+
+    # Reino Unido
+    reino_unido = [
+        'Reino Unido', 'United Kingdom', 'UK', 'Inglaterra', 'England',
+        'Londres', 'London', 'Manchester', 'Birmingham', 'Leeds',
+        'Glasgow', 'Liverpool', 'Bristol', 'Sheffield', 'Edinburgh',
+        'Edimburgo', 'Cardiff', 'Belfast', 'Newcastle', 'Nottingham',
+        'Southampton', 'Leicester', 'Escocia', 'Scotland', 'Gales',
+        'Wales', 'Irlanda del Norte', 'Northern Ireland'
+    ]
+
+    # Otros países europeos
+    otros_europa = [
+        # Países Bajos
+        'Países Bajos', 'Paises Bajos', 'Netherlands', 'Holanda', 'Holland',
+        'Ámsterdam', 'Amsterdam', 'Róterdam', 'Rotterdam', 'La Haya',
+        'The Hague', 'Utrecht', 'Eindhoven',
+        # Bélgica
+        'Bélgica', 'Belgica', 'Belgium', 'Bruselas', 'Brussels', 'Bruxelles',
+        'Amberes', 'Antwerp', 'Antwerpen', 'Gante', 'Ghent', 'Gent', 'Lieja',
+        # Suiza
+        'Suiza', 'Switzerland', 'Schweiz', 'Zúrich', 'Zurich', 'Zürich',
+        'Ginebra', 'Geneva', 'Genève', 'Basilea', 'Basel', 'Berna', 'Bern',
+        'Lausana', 'Lausanne',
+        # Austria
+        'Austria', 'Viena', 'Vienna', 'Wien', 'Salzburgo', 'Salzburg',
+        'Innsbruck', 'Graz', 'Linz',
+        # Irlanda
+        'Irlanda', 'Ireland', 'Dublín', 'Dublin', 'Cork', 'Galway', 'Limerick'
+    ]
+
+    # USA - Estados y ciudades principales
+    estados_us = [
+        'California', 'CA', 'New York', 'NY', 'Texas', 'TX', 'Florida',
+        'FL', 'Illinois', 'IL', 'Pennsylvania', 'PA', 'Ohio', 'OH',
+        'Georgia', 'GA', 'North Carolina', 'NC', 'Michigan', 'MI',
+        'New Jersey', 'NJ', 'Virginia', 'VA', 'Washington', 'WA',
+        'Arizona', 'AZ', 'Massachusetts', 'MA', 'Colorado', 'CO',
+        'Tennessee', 'TN', 'Indiana', 'IN', 'Missouri', 'MO',
+        'Maryland', 'MD', 'Wisconsin', 'WI', 'Minnesota', 'MN',
+        'Oregon', 'OR', 'South Carolina', 'SC', 'Kentucky', 'KY',
+        'Louisiana', 'LA', 'Alabama', 'AL', 'Oklahoma', 'OK',
+        'Connecticut', 'CT', 'Utah', 'UT', 'Iowa', 'IA', 'Nevada', 'NV',
+        'Arkansas', 'AR', 'Mississippi', 'MS', 'Kansas', 'KS',
+        'New Mexico', 'NM', 'Nebraska', 'NE', 'Idaho', 'ID',
+        'West Virginia', 'WV', 'Hawaii', 'HI', 'New Hampshire', 'NH',
+        'Maine', 'ME', 'Montana', 'MT', 'Rhode Island', 'RI',
+        'Delaware', 'DE', 'South Dakota', 'SD', 'North Dakota', 'ND',
+        'Alaska', 'AK', 'Vermont', 'VT', 'Wyoming', 'WY',
+        # Ciudades principales
+        'Miami', 'Los Angeles', 'LA', 'Chicago', 'Houston', 'Phoenix',
+        'San Francisco', 'Seattle', 'Boston', 'Atlanta', 'Denver',
+        'Dallas', 'San Diego', 'San Antonio', 'Austin', 'Jacksonville',
+        'San Jose', 'Fort Worth', 'Columbus', 'Charlotte', 'Indianapolis',
+        'Detroit', 'El Paso', 'Memphis', 'Baltimore', 'Milwaukee',
+        'Albuquerque', 'Tucson', 'Nashville', 'Portland', 'Las Vegas',
+        'Louisville', 'Oklahoma City', 'Kansas City', 'Tampa',
+        'New Orleans', 'Cleveland', 'Pittsburgh', 'Raleigh', 'Orlando',
+        'Salt Lake City', 'Sacramento', 'St. Louis', 'Minneapolis'
+    ]
+
+    # Canadá
+    canada = [
+        'Canadá', 'Canada', 'Toronto', 'Ontario', 'Montreal', 'Quebec',
+        'Québec', 'Vancouver', 'British Columbia', 'Columbia Británica',
+        'Calgary', 'Alberta', 'Edmonton', 'Ottawa', 'Winnipeg', 'Manitoba',
+        'Halifax', 'Nova Scotia', 'Victoria', 'Saskatchewan', 'Saskatoon',
+        'Regina', 'New Brunswick', 'Newfoundland', 'Prince Edward Island'
+    ]
+
+    # Australia y Nueva Zelanda
+    oceania = [
+        'Australia', 'Sídney', 'Sydney', 'Melbourne', 'Brisbane',
+        'Perth', 'Adelaida', 'Adelaide', 'Canberra', 'Gold Coast',
+        'New South Wales', 'NSW', 'Victoria', 'VIC', 'Queensland', 'QLD',
+        'Western Australia', 'WA', 'South Australia', 'SA', 'Tasmania',
+        'TAS', 'Northern Territory', 'NT', 'ACT',
+        # Nueva Zelanda
+        'Nueva Zelanda', 'New Zealand', 'Auckland', 'Wellington',
+        'Christchurch', 'Hamilton', 'Dunedin', 'North Island', 'South Island'
+    ]
+
+    # Combinar todas las ubicaciones
+    todas_ubicaciones = (
+        provincias_ar + estados_mx + deptos_co + regiones_cl + 
+        deptos_pe + provincias_ec + estados_ve + deptos_bo + 
+        deptos_py + deptos_uy + estados_br + centroamerica + 
+        ccaa_es + portugal + francia + alemania + italia + 
+        reino_unido + otros_europa + estados_us + canada + oceania
+    )
+
+    for ubicacion in todas_ubicaciones:
+        # Buscar coincidencia exacta (case insensitive)
+        pattern = r'\b' + re.escape(ubicacion) + r'\b'
+        if re.search(pattern, all_content, re.IGNORECASE):
+            regex_extract['province'] = ubicacion
+            logger.info(f"[REGEX] ✓ Provincia/Estado: {ubicacion}")
             break
 
     # ═══════════════════════════════════════════════════════════════════
     # 8. HORARIOS
     # ═══════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════
+    # 8. HORARIOS (Internacionales)
+    # ═══════════════════════════════════════════════════════════════════
     horarios_patterns = [
-        r'(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom|L|M|X|J|V|S|D)[a-z]*[\s\-a]+(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom|L|M|X|J|V|S|D)[a-z]*[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm)?\s*[\-a]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm)?',
-        r'\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm)?\s*[\-a]+\s*\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm)?'
+        # Español: Lun-Vie 9:00 - 18:00
+        r'(?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom|L|M|X|J|V|S|D)[a-z]*'
+        r'[\s\-a]+(?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom|L|M|X|J|V|S|D)[a-z]*'
+        r'[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm|AM|PM)?'
+        r'\s*[\-a]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm|AM|PM)?',
+
+        # Inglés: Mon-Fri 9:00AM - 6:00PM
+        r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|'
+        r'Friday|Saturday|Sunday)[a-z]*[\s\-]+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|'
+        r'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[a-z]*'
+        r'[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:am|pm|AM|PM)?'
+        r'\s*[\-–—to]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:am|pm|AM|PM)?',
+
+        # Portugués: Seg-Sex 9h - 18h
+        r'(?:Seg|Ter|Qua|Qui|Sex|Sáb|Sab|Dom)[a-z]*[\s\-a]+(?:Seg|Ter|Qua|Qui|'
+        r'Sex|Sáb|Sab|Dom)[a-z]*[:\s]+\d{1,2}[h:\.]?\d{0,2}'
+        r'\s*[\-a]+\s*\d{1,2}[h:\.]?\d{0,2}',
+
+        # Francés: Lun-Ven 9h00 - 18h00
+        r'(?:Lun|Mar|Mer|Jeu|Ven|Sam|Dim)[a-z]*[\s\-à]+(?:Lun|Mar|Mer|Jeu|Ven|'
+        r'Sam|Dim)[a-z]*[:\s]+\d{1,2}[h:\.]?\d{0,2}'
+        r'\s*[\-à]+\s*\d{1,2}[h:\.]?\d{0,2}',
+
+        # Alemán: Mo-Fr 9:00 - 18:00
+        r'(?:Mo|Di|Mi|Do|Fr|Sa|So|Montag|Dienstag|Mittwoch|Donnerstag|'
+        r'Freitag|Samstag|Sonntag)[a-z]*[\s\-]+(?:Mo|Di|Mi|Do|Fr|Sa|So)[a-z]*'
+        r'[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:Uhr)?'
+        r'\s*[\-–]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:Uhr)?',
+
+        # Italiano: Lun-Ven 9:00 - 18:00
+        r'(?:Lun|Mar|Mer|Gio|Ven|Sab|Dom|Lunedì|Martedì|Mercoledì|Giovedì|'
+        r'Venerdì|Sabato|Domenica)[a-z]*[\s\-]+(?:Lun|Mar|Mer|Gio|Ven|Sab|Dom)'
+        r'[a-z]*[:\s]+\d{1,2}[:\.]?\d{0,2}\s*[\-]+\s*\d{1,2}[:\.]?\d{0,2}',
+
+        # Formato genérico: 9:00 - 18:00 / 9:00AM - 6:00PM
+        r'\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm|AM|PM|h)?\s*[\-–—to]+\s*'
+        r'\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm|AM|PM|h)?',
+
+        # Formato 24h: 09:00-18:00
+        r'\b\d{2}:\d{2}\s*[\-–]\s*\d{2}:\d{2}\b',
+
+        # Con palabras clave
+        r'(?:Horario|Hours|Horário|Orario|Öffnungszeiten|Heures)[:\s]+'
+        r'[^\n]{10,50}',
     ]
 
     for pattern in horarios_patterns:
         match = re.search(pattern, all_content, re.IGNORECASE)
         if match:
-            regex_extract['horarios'] = match.group(0).strip()
+            horario_encontrado = match.group(0).strip()
+            # Limpiar espacios extra
+            horario_encontrado = ' '.join(horario_encontrado.split())
+            regex_extract['horarios'] = horario_encontrado
+            logger.info(f"[REGEX] ✓ Horarios encontrados: {horario_encontrado}")
             break
 
     # ═══════════════════════════════════════════════════════════════════
@@ -823,22 +1272,60 @@ def merge_results(gpt_data: dict,
         resultado['business_activity'] = regex_data['business_activity']
 
     # ═══════════════════════════════════════════════════════════════
+    # CARGO DETECTADO (de email con contexto)
+    # ═══════════════════════════════════════════════════════════════
+    if regex_data.get('cargo_detectado'):
+        resultado['cargo_detectado'] = regex_data['cargo_detectado']
+        if regex_data.get('email_con_cargo'):
+            resultado['email_contacto_principal'] = regex_data['email_con_cargo']
+            logger.info(f"[MERGE] Cargo detectado: {regex_data['cargo_detectado']} "
+                       f"- Email: {regex_data['email_con_cargo']}")
+
+    # ═══════════════════════════════════════════════════════════════
     # Business model - Asegurar que tenga valor
     # ═══════════════════════════════════════════════════════════════
     if not resultado.get('business_model') or \
        resultado.get('business_model') == 'No encontrado':
-        # Intentar inferir del business_activity
+        # Combinar varios campos para buscar el modelo de negocio
         activity = resultado.get('business_activity', '').lower()
-        if any(x in activity for x in ['software', 'saas', 'plataforma']):
+        description = resultado.get('business_description', '').lower()
+        services_text = resultado.get('services_text', '').lower()
+
+        # Combinar todo para búsqueda
+        todo_texto = f"{activity} {description} {services_text}"
+
+        # Orden de prioridad de detección
+        if any(x in todo_texto for x in ['mayorista', 'distribuidor', 
+                                          'wholesale', 'distributor']):
+            resultado['business_model'] = 'B2B - Mayorista/Distribuidor'
+        elif any(x in todo_texto for x in ['software', 'saas', 'plataforma',
+                                            'platform', 'app', 'aplicación']):
             resultado['business_model'] = 'SaaS'
-        elif any(x in activity for x in ['tienda', 'venta', 'retail']):
-            resultado['business_model'] = 'Retail'
-        elif any(x in activity for x in ['mayorista', 'distribuidor']):
-            resultado['business_model'] = 'Mayorista'
-        elif any(x in activity for x in ['servicio', 'consultor']):
-            resultado['business_model'] = 'Servicios profesionales'
-        elif any(x in activity for x in ['fabricación', 'manufactura']):
-            resultado['business_model'] = 'Fabricante/Mayorista'
+        elif any(x in todo_texto for x in ['ecommerce', 'e-commerce', 
+                                            'tienda online', 'online store']):
+            resultado['business_model'] = 'Ecommerce'
+        elif any(x in todo_texto for x in ['tienda', 'venta al público',
+                                            'retail', 'store', 'shop']):
+            resultado['business_model'] = 'B2C - Retail'
+        elif any(x in todo_texto for x in ['consultor', 'asesor', 
+                                            'consulting', 'advisory']):
+            resultado['business_model'] = 'B2B - Consultoría'
+        elif any(x in todo_texto for x in ['agencia', 'agency', 'marketing',
+                                            'publicidad', 'advertising']):
+            resultado['business_model'] = 'B2B - Agencia'
+        elif any(x in todo_texto for x in ['fabricación', 'manufactura',
+                                            'manufacturing', 'factory']):
+            resultado['business_model'] = 'B2B - Fabricante'
+        elif any(x in todo_texto for x in ['servicio', 'service', 
+                                            'solución', 'solution']):
+            resultado['business_model'] = 'B2B - Servicios'
+        elif any(x in todo_texto for x in ['franquicia', 'franchise']):
+            resultado['business_model'] = 'Franquicia'
+        elif any(x in todo_texto for x in ['suscripción', 'subscription',
+                                            'membresía', 'membership']):
+            resultado['business_model'] = 'Suscripción'
+        elif any(x in todo_texto for x in ['marketplace', 'mercado']):
+            resultado['business_model'] = 'Marketplace'
         else:
             resultado['business_model'] = 'No especificado'
 
@@ -855,27 +1342,99 @@ def merge_results(gpt_data: dict,
 
 async def extraer_paginas_secundarias(website: str) -> str:
     """
-    Extrae contenido de páginas secundarias importantes:
-    /contacto, /contact, /nosotros, /about, /equipo, /team, etc.
+    Extrae contenido de páginas secundarias importantes.
+    Incluye variantes internacionales en español, inglés, portugués,
+    francés, alemán, italiano y más.
     """
+    # Lista completa de páginas secundarias (internacionales)
     paginas = [
-        '/contacto', '/contact', '/contactenos', '/contact-us', '/nosotros',
-        '/about', '/about-us', '/quienes-somos', '/equipo', '/team',
-        '/nuestro-equipo', '/our-team'
+        # ═══════════════════════════════════════════════════════════════
+        # ESPAÑOL
+        # ═══════════════════════════════════════════════════════════════
+        '/contacto', '/contactenos', '/contactanos', '/contacto.html',
+        '/nosotros', '/sobre-nosotros', '/sobreNosotros', '/quienes-somos',
+        '/quienessomos', '/acerca', '/acerca-de', '/la-empresa', '/empresa',
+        '/equipo', '/nuestro-equipo', '/el-equipo', '/staff',
+        '/ubicacion', '/ubicaciones', '/sucursales', '/sedes',
+        '/direccion', '/donde-estamos', '/como-llegar',
+
+        # ═══════════════════════════════════════════════════════════════
+        # INGLÉS
+        # ═══════════════════════════════════════════════════════════════
+        '/contact', '/contact-us', '/contactus', '/contact.html',
+        '/get-in-touch', '/reach-us', '/connect',
+        '/about', '/about-us', '/aboutus', '/about.html',
+        '/who-we-are', '/our-story', '/our-company', '/company',
+        '/team', '/our-team', '/ourteam', '/the-team', '/meet-the-team',
+        '/staff', '/people', '/leadership', '/management',
+        '/locations', '/location', '/offices', '/branches',
+        '/find-us', '/where-we-are', '/directions',
+
+        # ═══════════════════════════════════════════════════════════════
+        # PORTUGUÉS (Brasil, Portugal)
+        # ═══════════════════════════════════════════════════════════════
+        '/contato', '/fale-conosco', '/contatos',
+        '/sobre', '/sobre-nos', '/quem-somos', '/a-empresa',
+        '/equipe', '/nossa-equipe', '/time',
+        '/localizacao', '/onde-estamos', '/unidades',
+
+        # ═══════════════════════════════════════════════════════════════
+        # FRANCÉS
+        # ═══════════════════════════════════════════════════════════════
+        '/contact', '/nous-contacter', '/contactez-nous',
+        '/a-propos', '/qui-sommes-nous', '/notre-entreprise',
+        '/equipe', '/notre-equipe', '/lequipe',
+
+        # ═══════════════════════════════════════════════════════════════
+        # ALEMÁN
+        # ═══════════════════════════════════════════════════════════════
+        '/kontakt', '/kontaktieren',
+        '/ueber-uns', '/uber-uns', '/wir-ueber-uns',
+        '/team', '/unser-team', '/mitarbeiter',
+        '/standorte', '/anfahrt',
+
+        # ═══════════════════════════════════════════════════════════════
+        # ITALIANO
+        # ═══════════════════════════════════════════════════════════════
+        '/contatti', '/contattaci',
+        '/chi-siamo', '/la-nostra-azienda', '/azienda',
+        '/team', '/il-team', '/squadra',
+        '/dove-siamo', '/sedi',
+
+        # ═══════════════════════════════════════════════════════════════
+        # HOLANDÉS
+        # ═══════════════════════════════════════════════════════════════
+        '/contact', '/neem-contact-op',
+        '/over-ons', '/wie-zijn-wij',
+        '/team', '/ons-team',
+
+        # ═══════════════════════════════════════════════════════════════
+        # VARIANTES COMUNES (CMS, frameworks)
+        # ═══════════════════════════════════════════════════════════════
+        '/info', '/information', '/informacion',
+        '/company-info', '/corporate', '/corp',
+        '/hq', '/headquarters', '/main-office',
     ]
 
     contenido_extra = ""
     paginas_exitosas = 0
-    max_paginas = 3  # Limitar para no demorar mucho
+    max_paginas = 5  # Aumentado para cubrir más variantes
+    paginas_probadas = set()
 
     for pagina in paginas:
         if paginas_exitosas >= max_paginas:
             break
 
+        # Evitar duplicados (ej: /contact aparece en varios idiomas)
+        pagina_lower = pagina.lower()
+        if pagina_lower in paginas_probadas:
+            continue
+        paginas_probadas.add(pagina_lower)
+
         url = f"https://{website}{pagina}"
 
         try:
-            async with httpx.AsyncClient(timeout=15.0,
+            async with httpx.AsyncClient(timeout=10.0,
                                          follow_redirects=True) as client:
                 response = await client.get(
                     url,
@@ -887,9 +1446,11 @@ async def extraer_paginas_secundarias(website: str) -> str:
 
                 if response.status_code == 200:
                     texto = response.text
-                    # Verificar que no sea redirect a home
-                    if len(texto) > 1000 and pagina.strip(
-                            '/') in texto.lower():
+                    # Verificar que tenga contenido sustancial
+                    # y no sea un redirect a home (comparar longitud)
+                    if len(texto) > 1000:
+                        # No verificar que el nombre de página esté en el
+                        # texto porque puede estar en otro idioma
                         contenido_extra += f"\n\n=== PÁGINA: {pagina} ===\n"
                         contenido_extra += texto[:10000]
                         paginas_exitosas += 1
