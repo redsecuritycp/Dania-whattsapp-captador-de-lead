@@ -252,22 +252,46 @@ def extract_with_regex(all_content: str) -> dict:
     logger.info(f"[REGEX] Emails encontrados: {regex_extract['emails']}")
 
     # ═══════════════════════════════════════════════════════════════════
-    # 2. TELÉFONOS
+    # 2. TELÉFONOS - Filtrar falsos positivos (IDs de Wix, etc.)
     # ═══════════════════════════════════════════════════════════════════
     phone_patterns = [
+        # 1. href="tel:..." - MÁS CONFIABLE
         r'href=["\']tel:([^"\']+)',
+        
+        # 2. Con código de país: +54 11 1234-5678
         r'\+\d{1,4}[\s.-]?\(?\d{1,5}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}[\s.-]?\d{0,4}',
-        r'\(\d{2,5}\)[\s.-]?\d{3,4}[\s.-]?\d{3,4}', r'\b\d{4}[\s.-]\d{4}\b'
+        
+        # 3. Con código de área entre paréntesis: (011) 1234-5678
+        r'\(\d{2,5}\)[\s.-]?\d{3,4}[\s.-]?\d{3,4}',
+        
+        # NOTA: NO incluir patrón genérico \d{4}[\s.-]\d{4} 
+        # porque captura IDs, códigos, etc. (ej: "2050.3359" de Wix)
     ]
-
+    
     phones = []
     for pattern in phone_patterns:
         matches = re.findall(pattern, all_content, re.IGNORECASE)
         for m in matches:
             phone = re.sub(r'[^\d+]', '', m) if isinstance(m, str) else m
-            if len(re.sub(r'\D', '', str(phone))) >= 7:
+            phone_digits = re.sub(r'\D', '', str(phone))
+            # Mínimo 8 dígitos para ser un teléfono válido
+            # Máximo 15 dígitos (estándar internacional)
+            if 8 <= len(phone_digits) <= 15:
                 phones.append(m.strip() if isinstance(m, str) else m)
-
+    
+    # También buscar teléfonos con contexto textual
+    context_patterns = [
+        r'(?:Tel[éeÉE]?fono|Tel\.?|Phone|Fono|Llamar?)[\s:]+([+\d\s\-\(\)\.]{8,20})',
+        r'(?:Contacto|Contact)[\s:]+([+\d\s\-\(\)\.]{8,20})',
+    ]
+    
+    for pattern in context_patterns:
+        matches = re.findall(pattern, all_content, re.IGNORECASE)
+        for m in matches:
+            phone_digits = re.sub(r'\D', '', str(m))
+            if 8 <= len(phone_digits) <= 15:
+                phones.append(m.strip())
+    
     regex_extract['phones'] = list(set(phones))[:5]
 
     # ═══════════════════════════════════════════════════════════════════
@@ -538,14 +562,58 @@ def extract_with_regex(all_content: str) -> dict:
     if tw_match and tw_match.group(1) not in ['share', 'intent', 'home']:
         regex_extract['twitter'] = f"https://twitter.com/{tw_match.group(1)}"
 
-    # YouTube - solo URLs completas verificables
+    # YouTube - múltiples formatos de URL
     regex_extract['youtube'] = ''
-    yt_pattern = r'href=["\']?(https?://(?:www\.)?youtube\.com/(?:channel|c|user|@)[^"\'>\s]+)["\']?'
-    yt_match = re.search(yt_pattern, all_content, re.IGNORECASE)
-    if yt_match:
-        yt_url = yt_match.group(1).split('?')[0].split('#')[0]
-        if '/watch' not in yt_url and '/embed' not in yt_url:
-            regex_extract['youtube'] = yt_url
+    yt_patterns = [
+        # Canal con prefijo: /channel/, /c/, /user/, /@
+        r'(?:https?://)?(?:www\.)?youtube\.com/'
+        r'(?:channel|c|user|@)/'
+        r'([A-Za-z0-9_-]+)',
+        
+        # URL directa: youtube.com/nombrecanal
+        r'(?:https?://)?(?:www\.)?youtube\.com/'
+        r'([A-Za-z0-9_-]{3,30})'
+        r'(?:\?|$|"|\'|\s)',
+        
+        # Formato con @: youtube.com/@nombrecanal  
+        r'(?:https?://)?(?:www\.)?youtube\.com/'
+        r'@([A-Za-z0-9_-]+)',
+        
+        # En href
+        r'href=["\']?(https?://(?:www\.)?youtube\.com/[^"\'>\\s]+)["\']?',
+    ]
+    
+    for pattern in yt_patterns:
+        yt_match = re.search(pattern, all_content, re.IGNORECASE)
+        if yt_match:
+            matched = yt_match.group(0)
+            # Limpiar y construir URL completa
+            if 'youtube.com' in matched:
+                # Ya es URL completa
+                yt_url_match = re.search(
+                    r'https?://(?:www\.)?youtube\.com/[^\s"\'<>]+', 
+                    matched
+                )
+                if yt_url_match:
+                    yt_url = yt_url_match.group(0).split('?')[0].split('#')[0]
+                    # Excluir watch, embed, etc.
+                    excluir = ['/watch', '/embed', '/playlist', '/results', 
+                               '/feed', '/gaming', '/premium', '/music']
+                    if not any(x in yt_url for x in excluir):
+                        regex_extract['youtube'] = yt_url
+                        logger.info(f"[REGEX] YouTube encontrado: {yt_url}")
+                        break
+            else:
+                # Es solo el nombre del canal
+                canal = yt_match.group(1) if yt_match.lastindex else ""
+                if canal:
+                    # Excluir palabras comunes que no son canales
+                    excluir = ['watch', 'embed', 'playlist', 'results', 
+                               'feed', 'gaming', 'premium', 'music']
+                    if canal.lower() not in excluir:
+                        regex_extract['youtube'] = f"https://youtube.com/{canal}"
+                        logger.info(f"[REGEX] YouTube encontrado: {regex_extract['youtube']}")
+                        break
 
     # ═══════════════════════════════════════════════════════════════════
     # 5. GOOGLE MAPS
@@ -580,15 +648,18 @@ def extract_with_regex(all_content: str) -> dict:
         r'\s*\d{1,5}'
         r'(?:\s*[-,]\s*[A-Za-záéíóúñ\.\s\d]+)?',
         
-        # Argentina: "Av. Congreso 2595, Piso 2, Dto A"
-        r'(?:Av\.?|Avenida|Calle)\s+[A-Za-záéíóúñÁÉÍÓÚÑ\s\.]+\s+\d{1,5}'
-        r'(?:\s*,\s*(?:Piso|P\.?)\s*\d{1,2}'
-        r'(?:\s*,?\s*(?:Dto\.?|Depto\.?|Dpto\.?)\s*[A-Za-z0-9]+)?)?',
+        # Argentina: "Av. Congreso 2595, Piso 2 C1428BVM"
+        r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard)'
+        r'\s+[A-Za-záéíóúñÁÉÍÓÚÑ\s\.]+\s+\d{1,5}'
+        r'(?:\s*,?\s*(?:Piso|P\.?)\s*\d{1,2}'
+        r'(?:\s*,?\s*(?:Dto\.?|Depto\.?|Dpto\.?)\s*[A-Za-z0-9]+)?)?'
+        r'(?:\s*[A-Z]\d{4}[A-Z]{3})?',
         
-        # México: "Calle X #123, Col. Centro"
+        # México: "Calle X #123, Col. Centro, CP 12345"
         r'(?:Calle|Av\.?|Avenida|Blvd\.?)'
         r'\s+[A-Za-záéíóúñ\s]+\s*#?\s*\d{1,5}'
-        r'(?:\s*,?\s*(?:Col\.?|Colonia)\s+[A-Za-záéíóúñ\s]+)?',
+        r'(?:\s*,?\s*(?:Col\.?|Colonia)\s+[A-Za-záéíóúñ\s]+)?'
+        r'(?:\s*,?\s*(?:CP\.?|C\.?P\.?)\s*\d{5})?',
         
         # Colombia: "Calle 45 #23-67" o "Carrera 7 No. 123-45"
         r'(?:Calle|Carrera|Cra\.?|Cl\.?|Transversal|Diagonal)'
@@ -600,42 +671,43 @@ def extract_with_regex(all_content: str) -> dict:
         r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,5}'
         r'(?:\s*,?\s*(?:Depto\.?|Oficina|Of\.?|Dpto\.?)\s*\d+)?',
         
-        # España: "C/ Mayor, 12, 3º" o "Avda. de América 45"
+        # España: "C/ Mayor, 12, 3º, 28001 Madrid"
         r'(?:Calle|C/|Avda\.?|Avenida|Plaza|Pza\.?|Paseo)'
         r'\s+[A-Za-záéíóúñ\s]+,?\s*\d{1,4}'
-        r'(?:\s*,?\s*\d{1,2}[ºª°]?)?',
+        r'(?:\s*,?\s*\d{1,2}[ºª°]?)?'
+        r'(?:\s*,?\s*\d{5})?',
         
-        # Brasil: "Rua das Flores, nº 789, Sala 10"
+        # Brasil: "Rua das Flores, nº 789, CEP 01234-567"
         r'(?:Rua|Av\.?|Avenida|Alameda|Travessa)'
         r'\s+[A-Za-záéíóúãõçÁÉÍÓÚÃÕÇ\s]+,?\s*(?:n[ºo°]?\.?)?\s*\d{1,5}'
-        r'(?:\s*,?\s*(?:Sala|Apto\.?|Conjunto)\s*\d+)?',
+        r'(?:\s*,?\s*(?:CEP|Cep)\s*\d{5}[-]?\d{3})?',
         
-        # Perú: "Jr. Lima 234, Of. 5" o "Av. Arequipa 1234"
+        # Perú: "Jr. Lima 234, Of. 5"
         r'(?:Jr\.?|Jirón|Av\.?|Avenida|Calle|Ca\.?)'
         r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,4}'
         r'(?:\s*,?\s*(?:Of\.?|Oficina|Dpto\.?)\s*\d+)?',
         
-        # USA/UK: "123 Main Street, Suite 456"
-        r'\d{1,5}\s+[A-Za-z\s]{3,30}'
+        # USA/UK: "123 Main Street, Suite 456, 90210"
+        r'\d{1,5}\s+[A-Za-z\s]{3,40}'
         r'(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|'
         r'Drive|Dr\.?|Lane|Ln\.?|Way|Place|Pl\.?)'
-        r'(?:\s*,?\s*(?:Suite|Ste\.?|Apt\.?|Unit)\s*\d+)?',
+        r'(?:\s*,?\s*(?:Suite|Ste\.?|Apt\.?|Unit|#)\s*[A-Za-z0-9]+)?'
+        r'(?:\s*,?\s*\d{5}(?:-\d{4})?)?',
         
-        # Alemania: "Hauptstraße 45" o "Berliner Str. 123"
+        # Alemania: "Hauptstraße 45, 10115 Berlin"
         r'[A-Za-zäöüÄÖÜß]+(?:straße|strasse|str\.?|weg|platz|allee)'
-        r'\s*\d{1,4}[a-z]?',
+        r'\s*\d{1,4}[a-z]?'
+        r'(?:\s*,?\s*\d{5})?',
         
-        # Francia: "45 Rue de la Paix" o "12 Avenue des Champs"
+        # Francia: "45 Rue de la Paix, 75002 Paris"
         r'\d{1,4}\s+(?:Rue|Avenue|Boulevard|Place|Allée)'
-        r'\s+[A-Za-zàâäéèêëïîôùûüÿœæ\s]+',
+        r'\s+[A-Za-zàâäéèêëïîôùûüÿœæ\s]+'
+        r'(?:\s*,?\s*\d{5})?',
         
-        # Italia: "Via Roma, 45" o "Piazza Duomo 12"
+        # Italia: "Via Roma 45, 00100 Roma"
         r'(?:Via|Viale|Piazza|Corso|Largo)'
-        r'\s+[A-Za-zàèéìòù\s]+,?\s*\d{1,4}',
-        
-        # Con código postal al final
-        r'[A-Za-záéíóúñäöü\s,]+\d{1,5}[A-Za-z]?'
-        r'\s*[-,]?\s*(?:[A-Z]{0,2}\s*)?\d{4,6}',
+        r'\s+[A-Za-zàèéìòù\s]+,?\s*\d{1,4}'
+        r'(?:\s*,?\s*\d{5})?',
     ]
 
     for pattern in direccion_patterns:
@@ -741,6 +813,18 @@ def extract_with_regex(all_content: str) -> dict:
     return regex_extract
 
 
+def extraer_titulo_pagina(html_content: str) -> str:
+    """Extrae el título de la página del HTML."""
+    title_match = re.search(
+        r'<title[^>]*>([^<]+)</title>', 
+        html_content, 
+        re.IGNORECASE
+    )
+    if title_match:
+        return title_match.group(1).strip()
+    return ""
+
+
 def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
     """
     Extrae el cargo de una persona desde secciones de Equipo/Team.
@@ -791,6 +875,27 @@ def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
         'Country Manager', 'Regional Manager',
     ]
     
+    # Lista de palabras que contienen cargos pero NO son cargos
+    falsos_positivos = [
+        'negocio', 'servicio', 'comercio', 'inicio', 
+        'socio de negocios', 'ejercicio', 'beneficio',
+        'precio', 'espacio', 'palacio', 'edificio'
+    ]
+    
+    def es_cargo_valido(texto, cargo_encontrado):
+        """Verifica que el cargo encontrado no sea un falso positivo."""
+        texto_lower = texto.lower()
+        cargo_lower = cargo_encontrado.lower()
+        
+        for falso in falsos_positivos:
+            if falso in texto_lower and cargo_lower in falso:
+                logger.warning(
+                    f"[CARGO] Falso positivo detectado: '{cargo_encontrado}' "
+                    f"en '{falso}'"
+                )
+                return False
+        return True
+    
     cargo_encontrado = ""
     
     # ═══════════════════════════════════════════════════════════════
@@ -835,7 +940,8 @@ def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
         
         # Si la línea contiene un cargo conocido
         for cargo in cargos_conocidos:
-            if cargo.lower() in line_clean.lower():
+            # Usar word boundaries para evitar substrings
+            if re.search(r'\b' + re.escape(cargo) + r'\b', line_clean, re.IGNORECASE):
                 # Verificar contexto (no sea parte de texto largo)
                 if len(line_clean) < 100:
                     # Extraer el cargo completo de la línea
@@ -851,10 +957,18 @@ def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
                         cargo_encontrado = re.sub(
                             r'[\*#\[\]]+', '', cargo_encontrado
                         ).strip()
+                        
+                        # Validar que no sea falso positivo
                         if cargo_encontrado and len(cargo_encontrado) < 60:
-                            logger.info(f"[CARGO] Encontrado en línea: "
-                                        f"{cargo_encontrado}")
-                            return cargo_encontrado
+                            if es_cargo_valido(line_clean, cargo_encontrado):
+                                logger.info(f"[CARGO] Encontrado en línea: "
+                                            f"{cargo_encontrado}")
+                                return cargo_encontrado
+                            else:
+                                logger.debug(
+                                    f"[CARGO] Descartado (falso positivo): "
+                                    f"{cargo_encontrado}"
+                                )
 
     # ═══════════════════════════════════════════════════════════════
     # MÉTODO 3: Buscar en estructuras HTML de equipos
@@ -874,27 +988,47 @@ def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
         matches = re.findall(pattern, content, re.IGNORECASE)
         for match in matches:
             match_clean = match.strip()
-            # Verificar que sea un cargo válido
+            # Verificar que sea un cargo válido usando word boundaries
             for cargo in cargos_conocidos:
-                if cargo.lower() in match_clean.lower():
+                if re.search(r'\b' + re.escape(cargo) + r'\b', match_clean, re.IGNORECASE):
                     cargo_encontrado = match_clean
-                    logger.info(f"[CARGO] Encontrado en HTML: "
-                                f"{cargo_encontrado}")
-                    return cargo_encontrado
+                    # Validar que no sea falso positivo
+                    if es_cargo_valido(match_clean, cargo_encontrado):
+                        logger.info(f"[CARGO] Encontrado en HTML: "
+                                    f"{cargo_encontrado}")
+                        return cargo_encontrado
+                    else:
+                        logger.debug(
+                            f"[CARGO] Descartado (falso positivo HTML): "
+                            f"{cargo_encontrado}"
+                        )
 
     return cargo_encontrado
 
 
-async def extract_with_gpt(all_content: str, website: str) -> dict:
+async def extract_with_gpt(all_content: str, website: str, titulo_pagina: str = "") -> dict:
     """
     Usa GPT-4o-mini para extraer datos estructurados.
     """
     if not OPENAI_API_KEY:
         return {}
 
+    # Instrucción sobre el título
+    instruccion_titulo = ""
+    if titulo_pagina:
+        instruccion_titulo = f"""
+TÍTULO DE LA PÁGINA: {titulo_pagina}
+IMPORTANTE: El título puede contener la ciudad/barrio/localidad. 
+Por ejemplo "Empresa X | Núñez" - extraer "Núñez" como city.
+Otro ejemplo: "Servicios en Madrid | Empresa Y" → city = "Madrid"
+Si no encuentras ciudad en el contenido, buscar en el título.
+"""
+
     prompt = f"""Extraé los siguientes datos del contenido de este sitio web ({website}).
 Respondé SOLO con JSON válido, sin explicaciones.
 Si no encontrás un dato, usá "No encontrado".
+
+{instruccion_titulo}
 
 DATOS A EXTRAER:
 - business_name: Nombre de la empresa
@@ -908,7 +1042,7 @@ DATOS A EXTRAER:
 - phone_empresa: Teléfono principal
 - whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets flotantes, botones de chat, atributos data-settings, data-phone, telephone, o cerca de palabras whatsapp/chat/contacto. Solo números con código país, ej: 5493416469327)
 - address: Dirección física
-- city: Ciudad
+- city: Ciudad (revisar también el TÍTULO de la página)
 - province: Provincia
 - country: País (default Argentina)
 - horarios: Horarios de atención
@@ -1500,13 +1634,20 @@ async def extract_web_data(website: str) -> dict:
 
     logger.info(f"[EXTRACTOR] Contenido total: {len(all_content)} chars")
 
-    # 8. Extracción Regex
+    # 8. Extraer título de la página (para detectar ciudad)
+    titulo_pagina = ""
+    if http_content:
+        titulo_pagina = extraer_titulo_pagina(http_content)
+        if titulo_pagina:
+            logger.info(f"[TITULO] Extraído: {titulo_pagina}")
+
+    # 9. Extracción Regex
     logger.info(f"[EXTRACTOR] Aplicando regex...")
     regex_data = extract_with_regex(all_content)
 
-    # 9. Extracción GPT
+    # 10. Extracción GPT (con título para detectar ciudad)
     logger.info(f"[GPT] Extrayendo datos estructurados...")
-    gpt_data = await extract_with_gpt(all_content, website_clean)
+    gpt_data = await extract_with_gpt(all_content, website_clean, titulo_pagina)
 
     # 10. Merge de resultados
     resultado = merge_results(gpt_data, regex_data, tavily_answer,

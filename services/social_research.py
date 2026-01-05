@@ -29,6 +29,68 @@ logger = logging.getLogger(__name__)
 HTTP_TIMEOUT = 30.0
 APIFY_TIMEOUT = 45.0
 
+# ═══════════════════════════════════════════════════════════════════
+# DOMINIOS A EXCLUIR DE RESULTADOS DE NOTICIAS
+# ═══════════════════════════════════════════════════════════════════
+DOMINIOS_EXCLUIR_NOTICIAS = [
+    # Sitios de descarga de apps
+    'softonic.com', 'softonic.', 
+    'play.google.com', 'apps.apple.com',
+    'apkpure.com', 'apkmirror.com', 
+    'uptodown.com', 'aptoide.com',
+    'getjar.com', 'apkmonk.com',
+    
+    # Redes sociales (no son noticias)
+    'facebook.com', 'twitter.com', 'x.com',
+    'instagram.com', 'linkedin.com',
+    'tiktok.com', 'pinterest.com',
+    
+    # Otros no relevantes
+    'youtube.com', 'vimeo.com',
+    'wikipedia.org', 'wikimedia.org',
+    'amazon.com', 'mercadolibre.',
+    'ebay.com', 'aliexpress.com',
+]
+
+
+def es_noticia_valida(url: str, titulo: str = "") -> bool:
+    """Verifica si una URL es una noticia válida."""
+    url_lower = url.lower()
+    titulo_lower = titulo.lower() if titulo else ""
+    
+    # Excluir dominios de la lista negra
+    for dominio in DOMINIOS_EXCLUIR_NOTICIAS:
+        if dominio in url_lower:
+            return False
+    
+    # Excluir si el título indica descarga/app
+    palabras_excluir_titulo = [
+        'descargar', 'download', 'apk', 'app store',
+        'google play', 'instalar', 'install',
+        'free download', 'descarga gratis'
+    ]
+    for palabra in palabras_excluir_titulo:
+        if palabra in titulo_lower:
+            return False
+    
+    return True
+
+
+def construir_query_noticias(empresa: str, pais: str = "") -> str:
+    """Construye query optimizada para encontrar noticias reales."""
+    # Términos que indican contenido periodístico
+    terminos_noticias = "noticias OR prensa OR nota OR artículo OR noticia"
+    
+    # Términos a excluir
+    excluir = "-softonic -apk -download -descargar -\"google play\" -\"app store\""
+    
+    query = f'"{empresa}" ({terminos_noticias}) {excluir}'
+    
+    if pais:
+        query += f' {pais}'
+    
+    return query
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # DICCIONARIO DE UBICACIONES COMPLETO - VARIANTES Y ABREVIACIONES
 # Todos los países hispanohablantes + USA + Brasil + UE principales
@@ -2679,25 +2741,8 @@ async def apify_buscar_noticias(empresa_busqueda: str,
         return []
 
     try:
-        # Query para Google News - usar nombre completo
-        # Si empresa_busqueda es solo siglas (DPM), agregar contexto
-        query_parts = []
-
-        # Usar nombre completo entre comillas para exactitud
-        if empresa_busqueda:
-            # Si parece sigla (menos de 5 chars), buscar con
-            # más contexto
-            if len(empresa_busqueda.replace(" ", "")) <= 5:
-                query_parts.append(f'"{empresa_busqueda}"')
-            else:
-                query_parts.append(f'"{empresa_busqueda}"')
-
-        # Agregar rubro si está disponible (viene del context)
-        # Por ahora solo ubicación
-        if ubicacion_query:
-            query_parts.append(ubicacion_query)
-
-        query = " ".join(query_parts)
+        # Usar query optimizada para noticias reales
+        query = construir_query_noticias(empresa_busqueda, ubicacion_query)
 
         # URLs de noticias
         news_urls = [
@@ -2764,6 +2809,11 @@ async def apify_buscar_noticias(empresa_busqueda: str,
                                              empresa_busqueda):
                     logger.debug(f"[NOTICIAS] Descartado: {url[:50]}...")
                     continue
+                
+                # Filtrar noticias basura (Softonic, Play Store, APK, etc.)
+                if not es_noticia_valida(url, titulo):
+                    logger.debug(f"[NOTICIAS] Descartado (basura): {url[:50]}...")
+                    continue
 
                 # Verificar relevancia
                 palabras_empresa = [
@@ -2818,9 +2868,8 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str,
             if "." in dominio:
                 query_parts.append(f'OR "{dominio}"')
 
-        query_parts.append("noticias OR prensa OR nota")
-
-        query = " ".join(query_parts)
+        # Usar query optimizada para noticias reales
+        query = construir_query_noticias(empresa or empresa_busqueda, ubicacion_query)
         url = (f"https://www.googleapis.com/customsearch/v1"
                f"?cx={GOOGLE_SEARCH_CX}&q={quote(query)}"
                f"&num=10&key={GOOGLE_API_KEY}")
@@ -2857,6 +2906,11 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str,
                     continue
 
                 if not es_url_valida_noticia(url, texto, empresa_busqueda):
+                    continue
+                
+                # Filtrar noticias basura (Softonic, Play Store, APK, etc.)
+                if not es_noticia_valida(url, titulo):
+                    logger.debug(f"[NOTICIAS] Descartado (basura): {url[:50]}...")
                     continue
 
                 # Verificar relevancia
