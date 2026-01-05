@@ -443,87 +443,54 @@ PASO 2: Llamar buscar_redes_personales OBLIGATORIO
 ⛔ SIEMPRE llamar DESPUÉS de extraer_datos_web_cliente
 Pasar: nombre_persona, empresa (del paso 1), website
 
-PASO 3: Mostrar REPORTE (2 FASES - Priorización)
+PASO 3: Mostrar REPORTE ÚNICO CONSOLIDADO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 IMPORTANTE: Este paso tiene 2 FASES para mejorar la experiencia
 
-FASE 1: REPORTE PARCIAL (Solo datos de la web)
-─────────────────────────────────────────────────────────
+🚨 IMPORTANTE: Mostrar UN SOLO reporte con TODA la información
 
-Inmediatamente después de llamar extraer_datos_web_cliente, mostrá un 
-reporte PARCIAL con SOLO los datos extraídos de la web:
+Después de que terminen TODAS las herramientas (extraer_datos_web_cliente 
+Y buscar_redes_personales), mostrar este reporte COMPLETO:
 
-"Encontré esta información de tu empresa:
+"Encontré esta información:
 
 📊 EMPRESA
 • [business_name]
 • [business_activity]
 • [business_model]
 
+👤 TU PERFIL
+• Cargo: [cargo_detectado o "No detectado"]
+• LinkedIn: [linkedin_personal_url o "No encontrado"]
+
 📍 UBICACIÓN
-• [address]
+• [address o "No encontrada"]
 • [city], [province], [country]
 
 📱 CONTACTO
 • Tel: [phone_empresa]
-• WhatsApp: [whatsapp_empresa]
+• WhatsApp: [whatsapp_empresa]  
 • Email: [email_principal]
 
-🔗 REDES
+🔗 REDES EMPRESA
 • Web: [website]
 • LinkedIn: [linkedin_empresa]
 • Instagram: [instagram_empresa]
 • Facebook: [facebook_empresa]
-
-Estoy completando la búsqueda de tu perfil en LinkedIn y 
-noticias recientes. ¿La información hasta acá es correcta?"
-
-🚨 NO esperes a que terminen las búsquedas de LinkedIn y 
-noticias para mostrar este reporte parcial.
-
-FASE 2: REPORTE COMPLETO (Cuando terminen todas las búsquedas)
-─────────────────────────────────────────────────────────────
-
-Después de que el usuario confirme el reporte parcial, 
-cuando ya terminaron buscar_redes_personales e 
-investigar_desafios_empresa, actualizá el reporte:
-
-"✅ Completé la investigación. Esto es lo que encontré además:
-
-🔗 LINKEDIN PERSONAL
-• [linkedin_personal_url o "No encontrado"]
+• YouTube: [youtube o "No encontrado"]
+• Twitter: [twitter o "No encontrado"]
 
 📰 NOTICIAS RECIENTES
-[lista_noticias o "No se encontraron noticias recientes"]
+[lista de noticias o "No se encontraron noticias recientes"]
 
-🎯 DESAFÍOS DE TU INDUSTRIA
-[desafios_detectados]
+¿Está todo correcto o necesitás corregir algo?"
 
-¿Todo correcto?"
-
-🚨 SI el usuario ya confirmó y respondió algo mientras seguías 
-investigando, NO interrumpas. Simplemente guardá los datos 
-adicionales y seguí con el flujo normal.
-
-IMPORTANTE SOBRE EL FLUJO:
-──────────────────────────
-
-El sistema TÉCNICAMENTE ejecuta las búsquedas en paralelo, 
-pero para el usuario:
-
-1. Ve reporte parcial RÁPIDO (60-90 seg)
-2. Puede confirmar y seguir conversando
-3. Ve actualización con datos completos cuando termine (120-180 seg)
-
-Esto mejora la experiencia porque el usuario no espera 
-4-5 minutos mirando "...".
-
-Si las búsquedas de LinkedIn/noticias terminan ANTES de que 
-el usuario responda al reporte parcial, entonces mostrá TODO 
-junto en un solo reporte completo.
-
-🚨 TRADUCIR TODO AL ESPAÑOL (horarios, descripciones, etc.)
-🚨 Links: SIEMPRE URL completa (https://...), NUNCA formato [texto](url)
+🚨 REGLAS CRÍTICAS:
+- Mostrar TODOS los campos, incluso si dicen "No encontrado"
+- Links: URL completa (https://...), NUNCA [texto](url)
+- ESPERAR a que terminen TODAS las búsquedas antes de mostrar
+- Los mensajes de progreso (⏳, ✅) son automáticos, NO reemplazarlos
+- El cargo viene en cargo_detectado del resultado de extraer_datos_web_cliente
+- TRADUCIR TODO AL ESPAÑOL (horarios, descripciones, etc.)
 
 PASO 4: Preguntar confirmación
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

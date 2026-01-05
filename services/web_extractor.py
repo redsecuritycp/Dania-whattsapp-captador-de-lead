@@ -565,54 +565,77 @@ def extract_with_regex(all_content: str) -> dict:
         regex_extract['cuit_cuil'] = cuit_match.group(1)
 
     # ═══════════════════════════════════════════════════════════════════
-    # 7. DIRECCIONES - INTERNACIONAL (50+ patrones)
+    # 7. DIRECCIONES - INTERNACIONAL (Mejorados para detectar más casos)
     # ═══════════════════════════════════════════════════════════════════
     direccion_patterns = [
-        # Argentina - formatos comunes
-        r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard|Pasaje|Pje\.?)'
-        r'\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\.\s]+\s+\d{1,5}'
-        r'(?:\s*,?\s*(?:Piso|P\.?|Dto\.?|Depto\.?|Of\.?|Oficina)'
-        r'\s*\d{1,3}[A-Za-z]?)?',
+        # ══════════════════════════════════════════════════════
+        # FORMATO GENERAL: Av/Calle + Nombre + Número + Extras
+        # ══════════════════════════════════════════════════════
         
-        # Formato: Número + Calle (USA style)
-        r'\d{1,5}\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]{5,40}'
-        r'(?:,\s*[A-Za-z\s]+)?',
+        # Patrón universal flexible (captura la mayoría)
+        r'(?:Av\.?|Avenida|Calle|Ca\.?|C/|Bv\.?|Boulevard|Blvd\.?|'
+        r'Pasaje|Pje\.?|Paseo|Jr\.?|Jirón|Rua|Alameda|Travessa|'
+        r'Carrera|Cra\.?|Transversal|Diagonal|Plaza|Pza\.?)'
+        r'\s*[A-Za-záéíóúñüÁÉÍÓÚÑÜçÇ\.\s]{2,40}'
+        r'\s*\d{1,5}'
+        r'(?:\s*[-,]\s*[A-Za-záéíóúñ\.\s\d]+)?',
         
-        # Con código postal argentino (C1234ABC o B1234ABC)
-        r'[A-Z]\d{4}[A-Z]{3}\s+[A-Za-záéíóúñ\s,]+',
+        # Argentina: "Av. Congreso 2595, Piso 2, Dto A"
+        r'(?:Av\.?|Avenida|Calle)\s+[A-Za-záéíóúñÁÉÍÓÚÑ\s\.]+\s+\d{1,5}'
+        r'(?:\s*,\s*(?:Piso|P\.?)\s*\d{1,2}'
+        r'(?:\s*,?\s*(?:Dto\.?|Depto\.?|Dpto\.?)\s*[A-Za-z0-9]+)?)?',
         
-        # México - formato común
-        r'(?:Calle|Av\.?|Avenida|Blvd\.?|Boulevard)'
+        # México: "Calle X #123, Col. Centro"
+        r'(?:Calle|Av\.?|Avenida|Blvd\.?)'
         r'\s+[A-Za-záéíóúñ\s]+\s*#?\s*\d{1,5}'
         r'(?:\s*,?\s*(?:Col\.?|Colonia)\s+[A-Za-záéíóúñ\s]+)?',
         
-        # Chile - formato común
+        # Colombia: "Calle 45 #23-67" o "Carrera 7 No. 123-45"
+        r'(?:Calle|Carrera|Cra\.?|Cl\.?|Transversal|Diagonal)'
+        r'\s*\d{1,3}[A-Za-z]?\s*(?:#|No\.?|N°)?\s*\d{1,3}[A-Za-z]?'
+        r'(?:\s*[-]\s*\d{1,3})?',
+        
+        # Chile: "Av. Providencia 1234, Depto 5"
         r'(?:Av\.?|Avenida|Calle|Pasaje)'
         r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,5}'
-        r'(?:\s*,?\s*(?:Depto\.?|Oficina|Of\.?)\s*\d+)?',
+        r'(?:\s*,?\s*(?:Depto\.?|Oficina|Of\.?|Dpto\.?)\s*\d+)?',
         
-        # Colombia - formato común
-        r'(?:Calle|Carrera|Cra\.?|Cl\.?|Transversal|Diagonal)'
-        r'\s*\d{1,3}[A-Za-z]?\s*#?\s*\d{1,3}[A-Za-z]?'
-        r'(?:\s*-\s*\d{1,3})?',
-        
-        # España - formato común
+        # España: "C/ Mayor, 12, 3º" o "Avda. de América 45"
         r'(?:Calle|C/|Avda\.?|Avenida|Plaza|Pza\.?|Paseo)'
         r'\s+[A-Za-záéíóúñ\s]+,?\s*\d{1,4}'
-        r'(?:\s*,?\s*\d{1,2}[ºª]?)?',
+        r'(?:\s*,?\s*\d{1,2}[ºª°]?)?',
         
-        # Brasil - formato comum
+        # Brasil: "Rua das Flores, nº 789, Sala 10"
         r'(?:Rua|Av\.?|Avenida|Alameda|Travessa)'
-        r'\s+[A-Za-záéíóúãõç\s]+,?\s*(?:n[ºo°]?\.?)?\s*\d{1,5}',
+        r'\s+[A-Za-záéíóúãõçÁÉÍÓÚÃÕÇ\s]+,?\s*(?:n[ºo°]?\.?)?\s*\d{1,5}'
+        r'(?:\s*,?\s*(?:Sala|Apto\.?|Conjunto)\s*\d+)?',
         
-        # Perú - formato común  
+        # Perú: "Jr. Lima 234, Of. 5" o "Av. Arequipa 1234"
         r'(?:Jr\.?|Jirón|Av\.?|Avenida|Calle|Ca\.?)'
         r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,4}'
-        r'(?:\s*,?\s*(?:Dpto\.?|Of\.?)\s*\d+)?',
+        r'(?:\s*,?\s*(?:Of\.?|Oficina|Dpto\.?)\s*\d+)?',
         
-        # Genérico con código postal
-        r'[A-Za-záéíóúñ\s,]+\d{1,5}[A-Za-z]?'
-        r'\s*,?\s*[A-Z]{0,2}\s*\d{4,6}',
+        # USA/UK: "123 Main Street, Suite 456"
+        r'\d{1,5}\s+[A-Za-z\s]{3,30}'
+        r'(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|'
+        r'Drive|Dr\.?|Lane|Ln\.?|Way|Place|Pl\.?)'
+        r'(?:\s*,?\s*(?:Suite|Ste\.?|Apt\.?|Unit)\s*\d+)?',
+        
+        # Alemania: "Hauptstraße 45" o "Berliner Str. 123"
+        r'[A-Za-zäöüÄÖÜß]+(?:straße|strasse|str\.?|weg|platz|allee)'
+        r'\s*\d{1,4}[a-z]?',
+        
+        # Francia: "45 Rue de la Paix" o "12 Avenue des Champs"
+        r'\d{1,4}\s+(?:Rue|Avenue|Boulevard|Place|Allée)'
+        r'\s+[A-Za-zàâäéèêëïîôùûüÿœæ\s]+',
+        
+        # Italia: "Via Roma, 45" o "Piazza Duomo 12"
+        r'(?:Via|Viale|Piazza|Corso|Largo)'
+        r'\s+[A-Za-zàèéìòù\s]+,?\s*\d{1,4}',
+        
+        # Con código postal al final
+        r'[A-Za-záéíóúñäöü\s,]+\d{1,5}[A-Za-z]?'
+        r'\s*[-,]?\s*(?:[A-Z]{0,2}\s*)?\d{4,6}',
     ]
 
     for pattern in direccion_patterns:
@@ -626,90 +649,49 @@ def extract_with_regex(all_content: str) -> dict:
             break
 
     # ═══════════════════════════════════════════════════════════════════
-    # 7B. PROVINCIAS/ESTADOS - INTERNACIONAL
+    # 7B. PROVINCIAS/ESTADOS - Solo para VALIDACIÓN, no para detección
+    # GPT extrae ciudad/barrio del contenido real de la web
     # ═══════════════════════════════════════════════════════════════════
-    ubicaciones = {
-        # Argentina - Provincias
+    
+    # Lista mínima solo para validar provincias/estados principales
+    # NO incluir ciudades/barrios - eso lo detecta GPT del contenido
+    ubicaciones_provincias = {
         'argentina': [
-            'Buenos Aires', 'CABA', 'Capital Federal', 'GBA',
+            'Buenos Aires', 'CABA', 'Capital Federal',
             'Córdoba', 'Santa Fe', 'Mendoza', 'Tucumán',
-            'Entre Ríos', 'Salta', 'Misiones', 'Chaco', 
-            'Corrientes', 'Santiago del Estero', 'San Juan', 
-            'Jujuy', 'Río Negro', 'Neuquén', 'Formosa', 
-            'Chubut', 'San Luis', 'Catamarca', 'La Rioja', 
+            'Entre Ríos', 'Salta', 'Misiones', 'Chaco',
+            'Corrientes', 'Santiago del Estero', 'San Juan',
+            'Jujuy', 'Río Negro', 'Neuquén', 'Formosa',
+            'Chubut', 'San Luis', 'Catamarca', 'La Rioja',
             'La Pampa', 'Santa Cruz', 'Tierra del Fuego'
         ],
-        # Argentina - Ciudades principales
-        'argentina_ciudades': [
-            'Rosario', 'Córdoba', 'Mendoza', 'San Miguel de Tucumán',
-            'La Plata', 'Mar del Plata', 'Salta', 'Santa Fe',
-            'San Juan', 'Resistencia', 'Corrientes', 'Posadas',
-            'Neuquén', 'Formosa', 'San Luis', 'Bahía Blanca',
-            'Paraná', 'Santiago del Estero', 'Río Cuarto',
-            'San Salvador de Jujuy', 'Comodoro Rivadavia',
-            'San Rafael', 'Concordia', 'San Nicolás', 'Tandil',
-            'San Fernando del Valle', 'Villa María', 'Pilar',
-            'Tigre', 'San Isidro', 'Vicente López', 'Núñez',
-            'Palermo', 'Recoleta', 'Belgrano', 'Caballito'
-        ],
-        # México - Estados
         'mexico': [
-            'Ciudad de México', 'CDMX', 'Jalisco', 'Nuevo León',
-            'Estado de México', 'Puebla', 'Guanajuato', 'Chihuahua',
-            'Veracruz', 'Baja California', 'Tamaulipas', 'Sonora',
-            'Coahuila', 'Michoacán', 'Oaxaca', 'Querétaro',
-            'Yucatán', 'Sinaloa', 'San Luis Potosí', 'Chiapas',
-            'Aguascalientes', 'Morelos', 'Hidalgo', 'Tabasco',
-            'Quintana Roo', 'Guerrero', 'Durango', 'Zacatecas',
-            'Nayarit', 'Tlaxcala', 'Campeche', 'Colima',
-            'Baja California Sur'
+            'Ciudad de México', 'CDMX', 'Jalisco', 
+            'Nuevo León', 'Estado de México', 'Puebla',
+            'Guanajuato', 'Querétaro', 'Yucatán'
         ],
-        # Colombia - Departamentos
         'colombia': [
-            'Bogotá', 'Antioquia', 'Valle del Cauca', 'Cundinamarca',
-            'Atlántico', 'Santander', 'Bolívar', 'Nariño',
-            'Córdoba', 'Tolima', 'Cauca', 'Norte de Santander',
-            'Boyacá', 'Magdalena', 'Huila', 'Cesar', 'Caldas',
-            'Risaralda', 'Meta', 'Sucre', 'Quindío', 'La Guajira'
+            'Bogotá', 'Antioquia', 'Valle del Cauca',
+            'Cundinamarca', 'Atlántico', 'Santander'
         ],
-        # Chile - Regiones
         'chile': [
-            'Santiago', 'Región Metropolitana', 'Valparaíso',
-            'Biobío', 'Maule', "O'Higgins", 'Araucanía',
-            'Los Lagos', 'Coquimbo', 'Antofagasta', 'Los Ríos',
-            'Atacama', 'Tarapacá', 'Ñuble', 'Arica y Parinacota',
-            'Magallanes', 'Aysén'
+            'Santiago', 'Región Metropolitana', 
+            'Valparaíso', 'Biobío'
         ],
-        # Perú - Departamentos
-        'peru': [
-            'Lima', 'Arequipa', 'La Libertad', 'Piura', 'Cusco',
-            'Junín', 'Lambayeque', 'Callao', 'Áncash', 'Cajamarca',
-            'Puno', 'Loreto', 'Ica', 'San Martín', 'Tacna'
-        ],
-        # España - Comunidades
         'espana': [
-            'Madrid', 'Cataluña', 'Barcelona', 'Andalucía',
-            'Valencia', 'Galicia', 'Castilla y León', 'País Vasco',
-            'Castilla-La Mancha', 'Canarias', 'Murcia', 'Aragón',
-            'Baleares', 'Extremadura', 'Asturias', 'Navarra',
-            'Cantabria', 'La Rioja'
+            'Madrid', 'Cataluña', 'Barcelona', 
+            'Andalucía', 'Valencia', 'País Vasco'
         ],
-        # Brasil - Estados
         'brasil': [
-            'São Paulo', 'Rio de Janeiro', 'Minas Gerais',
-            'Bahia', 'Paraná', 'Rio Grande do Sul', 'Pernambuco',
-            'Ceará', 'Santa Catarina', 'Goiás', 'Maranhão',
-            'Amazonas', 'Espírito Santo', 'Paraíba', 'Mato Grosso',
-            'Distrito Federal', 'Brasília'
+            'São Paulo', 'Rio de Janeiro', 
+            'Minas Gerais', 'Bahia'
         ],
     }
 
     content_lower = all_content.lower()
     
-    # Buscar provincia/estado
-    for pais, lista in ubicaciones.items():
-        if 'ciudades' in pais:
-            continue  # Procesar ciudades después
+    # Solo buscar provincia/estado (NO ciudades)
+    for pais, lista in ubicaciones_provincias.items():
         for ubicacion in lista:
             if ubicacion.lower() in content_lower:
                 regex_extract['province'] = ubicacion
@@ -717,19 +699,9 @@ def extract_with_regex(all_content: str) -> dict:
                 break
         if regex_extract.get('province'):
             break
-
-    # Buscar ciudad (si no se encontró como provincia)
-    if not regex_extract.get('city'):
-        for pais, lista in ubicaciones.items():
-            if 'ciudades' not in pais:
-                continue
-            for ciudad in lista:
-                if ciudad.lower() in content_lower:
-                    regex_extract['city'] = ciudad
-                    logger.info(f"[REGEX] Ciudad: {ciudad}")
-                    break
-            if regex_extract.get('city'):
-                break
+    
+    # Ciudad: NO buscar en lista, dejar que GPT la detecte
+    # del contenido real de la página
 
     # ═══════════════════════════════════════════════════════════════════
     # 8. HORARIOS
@@ -1108,10 +1080,34 @@ def merge_results(gpt_data: dict,
         if website:
             tld = website.split('.')[-1].lower().replace('/', '')
             tld_pais = {
-                'ar': 'Argentina', 'mx': 'México', 'co': 'Colombia',
-                'cl': 'Chile', 'pe': 'Perú', 'br': 'Brasil',
-                'es': 'España', 'uy': 'Uruguay', 'py': 'Paraguay',
-                'ec': 'Ecuador', 've': 'Venezuela', 'bo': 'Bolivia',
+                # Latinoamérica
+                'ar': 'Argentina', 'mx': 'México', 
+                'co': 'Colombia', 'cl': 'Chile', 
+                'pe': 'Perú', 'br': 'Brasil',
+                'uy': 'Uruguay', 'py': 'Paraguay',
+                'ec': 'Ecuador', 've': 'Venezuela', 
+                'bo': 'Bolivia', 'cr': 'Costa Rica',
+                'pa': 'Panamá', 'do': 'República Dominicana',
+                'gt': 'Guatemala', 'sv': 'El Salvador',
+                'hn': 'Honduras', 'ni': 'Nicaragua',
+                'cu': 'Cuba', 'pr': 'Puerto Rico',
+                # Europa
+                'es': 'España', 'pt': 'Portugal',
+                'uk': 'Reino Unido', 'de': 'Alemania',
+                'fr': 'Francia', 'it': 'Italia',
+                'nl': 'Países Bajos', 'be': 'Bélgica',
+                'at': 'Austria', 'ch': 'Suiza',
+                'pl': 'Polonia', 'se': 'Suecia',
+                'no': 'Noruega', 'dk': 'Dinamarca',
+                'fi': 'Finlandia', 'ie': 'Irlanda',
+                'gr': 'Grecia', 'cz': 'República Checa',
+                # Otros
+                'us': 'Estados Unidos', 'ca': 'Canadá',
+                'au': 'Australia', 'nz': 'Nueva Zelanda',
+                'jp': 'Japón', 'kr': 'Corea del Sur',
+                'cn': 'China', 'in': 'India',
+                'za': 'Sudáfrica', 'ae': 'Emiratos Árabes',
+                'il': 'Israel', 'ru': 'Rusia',
             }
             if tld in tld_pais:
                 resultado['country'] = tld_pais[tld]
