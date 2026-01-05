@@ -252,14 +252,6 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó website"}
             
-            # Mensaje de progreso inicial
-            phone = context.get("phone_whatsapp", "")
-            if phone:
-                await send_progress_message(
-                    phone,
-                    "Dame un momento por favor 🔍"
-                )
-            
             result = await extract_web_data(website)
             
             # NO enviar mensaje de éxito aquí - GPT mostrará 

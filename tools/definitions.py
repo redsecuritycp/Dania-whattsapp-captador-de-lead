@@ -454,9 +454,11 @@ Y buscar_redes_personales), mostrar este reporte COMPLETO:
 "Encontré esta información:
 
 📊 EMPRESA
-• [business_name]
-• [business_activity]
-• [business_model]
+• Empresa: [business_name]
+• Actividad: [business_activity]
+• Modelo de Negocio: [business_model]
+• Descripción: [business_description o descripción corta del rubro]
+• Servicios: [services - listar los principales separados por coma]
 
 👤 TU PERFIL
 • Cargo: [cargo_detectado o "No detectado"]
@@ -467,15 +469,15 @@ Y buscar_redes_personales), mostrar este reporte COMPLETO:
 • [city], [province], [country]
 
 📱 CONTACTO
-• Tel: [phone_empresa]
-• WhatsApp: [whatsapp_empresa]  
-• Email: [email_principal]
+• Tel: [phone_empresa o "No encontrado"]
+• WhatsApp: [whatsapp_empresa o "No encontrado"]
+• Email: [email_principal o "No encontrado"]
 
 🔗 REDES EMPRESA
 • Web: [website]
-• LinkedIn: [linkedin_empresa]
-• Instagram: [instagram_empresa]
-• Facebook: [facebook_empresa]
+• LinkedIn: [linkedin_empresa o "No encontrado"]
+• Instagram: [instagram_empresa o "No encontrado"]
+• Facebook: [facebook_empresa o "No encontrado"]
 • YouTube: [youtube o "No encontrado"]
 • Twitter: [twitter o "No encontrado"]
 
