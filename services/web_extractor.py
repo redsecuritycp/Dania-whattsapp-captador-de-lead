@@ -825,185 +825,432 @@ def extraer_titulo_pagina(html_content: str) -> str:
     return ""
 
 
-def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
+def extraer_ciudad_de_titulo(titulo: str) -> str:
     """
-    Extrae el cargo de una persona desde secciones de Equipo/Team.
-    Busca patrones como:
-    - "Damián Menke - Presidente"
-    - "CEO: Juan Pérez"
-    - "Nombre\nCargo"
+    Extrae ciudad/barrio del título de la página.
+    
+    Ejemplos:
+    - "Empresa X | Núñez" → "Núñez"
+    - "Servicios en Madrid | Empresa" → "Madrid"
+    - "Company - New York Office" → "New York"
     """
+    import re
+    
+    if not titulo:
+        return ""
+    
+    # Separadores comunes en títulos
+    separadores = ['|', '-', '–', '—', '•', '·', ':']
+    
+    partes = [titulo]
+    for sep in separadores:
+        nuevas_partes = []
+        for parte in partes:
+            nuevas_partes.extend(parte.split(sep))
+        partes = nuevas_partes
+    
+    # Limpiar partes
+    partes = [p.strip() for p in partes if p.strip()]
+    
+    # Palabras a ignorar (no son ciudades)
+    ignorar = [
+        'home', 'inicio', 'principal', 'bienvenido', 'welcome',
+        'contacto', 'contact', 'nosotros', 'about', 'servicios',
+        'services', 'productos', 'products', 'blog', 'empresa',
+        'company', 'oficial', 'official', 'sitio', 'site', 'web',
+        'página', 'page', 'tienda', 'store', 'shop',
+    ]
+    
+    # Buscar la parte que parece ciudad (corta, sin palabras comunes)
+    for parte in partes:
+        parte_lower = parte.lower()
+        
+        # Ignorar si es muy larga (probablemente no es ciudad)
+        if len(parte) > 30:
+            continue
+        
+        # Ignorar si contiene palabras comunes
+        es_ignorable = False
+        for palabra in ignorar:
+            if palabra in parte_lower:
+                es_ignorable = True
+                break
+        
+        if es_ignorable:
+            continue
+        
+        # Ignorar si parece nombre de empresa (tiene SA, SRL, LLC, etc.)
+        if re.search(
+            r'\b(?:SA|SRL|LLC|Inc|Corp|Ltd|GmbH|SAS|SAC)\b', 
+            parte, 
+            re.IGNORECASE
+        ):
+            continue
+        
+        # Si llegó acá, puede ser ciudad
+        # Verificar que tenga formato de nombre propio
+        if re.match(r'^[A-ZÁÉÍÓÚÑ][a-záéíóúñ\s]+$', parte):
+            return parte
+    
+    return ""
+
+
+def extraer_direccion_por_contexto(all_content: str) -> str:
+    """
+    Extrae dirección buscando por contexto semántico.
+    
+    LÓGICA UNIVERSAL:
+    1. Buscar palabras clave que indican dirección
+    2. Extraer texto después de esas palabras
+    3. Validar que parezca una dirección real
+    
+    Funciona para cualquier idioma/país porque busca 
+    por SEMÁNTICA, no por formato específico.
+    """
+    import re
+    
     if not all_content:
         return ""
     
-    # Normalizar contenido
-    content = all_content.replace('\r\n', '\n').replace('\r', '\n')
+    # Palabras clave que indican dirección (multi-idioma)
+    keywords_direccion = [
+        # Español
+        r'direcci[oó]n[:\s]+',
+        r'ubicaci[oó]n[:\s]+',
+        r'domicilio[:\s]+',
+        r'oficina[s]?[:\s]+',
+        r'sede[:\s]+',
+        r'd[oó]nde\s+estamos[:\s]*',
+        r'enc[uo]ntranos[:\s]+',
+        r'vis[ií]tanos[:\s]+',
+        
+        # Inglés
+        r'address[:\s]+',
+        r'location[:\s]+',
+        r'office[:\s]+',
+        r'headquarters[:\s]+',
+        r'find\s+us[:\s]+',
+        r'visit\s+us[:\s]+',
+        
+        # Portugués
+        r'endere[cç]o[:\s]+',
+        r'localiza[cç][aã]o[:\s]+',
+        
+        # Alemán
+        r'adresse[:\s]+',
+        r'standort[:\s]+',
+        
+        # Francés
+        r'adresse[:\s]+',
+        r'si[eè]ge[:\s]+',
+    ]
     
-    # Lista de cargos a buscar
-    cargos_conocidos = [
-        # Ejecutivos C-Level
-        'CEO', 'CFO', 'CTO', 'COO', 'CMO', 'CIO', 'CHRO',
+    # Indicadores de que el texto es una dirección
+    indicadores_direccion = [
+        # Prefijos de calle (multi-país)
+        r'\b(?:Av\.?|Avenida|Calle|Ca\.?|C/|Bv\.?|Boulevard|'
+        r'Blvd\.?|Pasaje|Pje\.?|Paseo|Jr\.?|Jirón|Rua|'
+        r'Alameda|Travessa|Carrera|Cra\.?|Via|Viale|Piazza|'
+        r'Corso|Rue|Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|'
+        r'Drive|Dr\.?|Lane|Ln\.?|Place|Pl\.?)\b',
+        
+        # Números de calle
+        r'\b\d{1,5}\b',
+        
+        # Pisos/Departamentos
+        r'\b(?:Piso|P\.?|Dto\.?|Depto\.?|Dpto\.?|Of\.?|'
+        r'Oficina|Suite|Ste\.?|Apt\.?|Floor|Unit)\b',
+        
+        # Códigos postales
+        r'\b[A-Z]?\d{4,5}[A-Z]{0,3}\b',
+    ]
+    
+    content = all_content.replace('\n', ' ').replace('\r', ' ')
+    content = re.sub(r'\s+', ' ', content)
+    
+    # Buscar cada palabra clave
+    for keyword in keywords_direccion:
+        matches = re.finditer(keyword, content, re.IGNORECASE)
+        
+        for match in matches:
+            # Extraer texto después de la palabra clave (hasta 150 chars)
+            inicio = match.end()
+            fin = min(len(content), inicio + 150)
+            texto_despues = content[inicio:fin]
+            
+            # Cortar en punto, coma seguida de espacio y mayúscula, 
+            # o salto implícito
+            cortes = [
+                r'\.\s+[A-Z]',  # Punto seguido de mayúscula
+                r'\s{2,}',      # Múltiples espacios
+                r'[|]',         # Separador
+                r'(?:Tel[éeÉE]?fono|Email|Mail|Contacto)',  # Otra sección
+            ]
+            
+            for corte in cortes:
+                corte_match = re.search(corte, texto_despues)
+                if corte_match:
+                    texto_despues = texto_despues[:corte_match.start()]
+                    break
+            
+            texto_despues = texto_despues.strip()
+            
+            # Validar que parece dirección (tiene indicadores)
+            indicadores_encontrados = 0
+            for indicador in indicadores_direccion:
+                if re.search(indicador, texto_despues, re.IGNORECASE):
+                    indicadores_encontrados += 1
+            
+            # Necesita al menos 2 indicadores para ser válida
+            if indicadores_encontrados >= 2 and len(texto_despues) >= 10:
+                # Limpiar
+                texto_despues = texto_despues.strip(' ,.-:')
+                logger.info(
+                    f"[DIRECCION] ✓ Encontrada por contexto: "
+                    f"{texto_despues[:80]}"
+                )
+                return texto_despues[:100]  # Limitar longitud
+    
+    return ""
+
+
+def extraer_cargo_de_equipo(
+    all_content: str, 
+    nombre_persona: str = ""
+) -> str:
+    """
+    Extrae el cargo de una persona específica del contenido.
+    
+    LÓGICA UNIVERSAL:
+    1. Si hay nombre, buscar cargo ASOCIADO a ese nombre
+    2. Buscar en bloques cercanos al nombre
+    3. Solo si no encuentra, buscar cargo genérico (CEO/Fundador)
+    
+    Args:
+        all_content: Contenido HTML/texto de la página
+        nombre_persona: Nombre de la persona a buscar
+    
+    Returns:
+        Cargo encontrado o "No detectado"
+    """
+    import re
+    
+    if not all_content:
+        return "No detectado"
+    
+    # Limpiar contenido
+    content = all_content.replace('\n', ' ').replace('\r', ' ')
+    content = re.sub(r'\s+', ' ', content)
+    
+    # Lista de cargos ejecutivos (internacional)
+    cargos_ejecutivos = [
+        # C-Level
+        'CEO', 'CFO', 'CTO', 'COO', 'CMO', 'CIO', 'CISO', 'CPO',
         'Chief Executive Officer', 'Chief Financial Officer',
         'Chief Technology Officer', 'Chief Operating Officer',
         'Chief Marketing Officer', 'Chief Information Officer',
         
-        # Directivos
+        # Dirección
+        'Director General', 'Director Ejecutivo', 'Director Comercial',
+        'Director de Tecnología', 'Director de Marketing',
+        'Director de Operaciones', 'Director de Ventas',
+        'Director Financiero', 'Director de RRHH',
+        'Managing Director', 'Executive Director',
+        
+        # Presidencia
         'Presidente', 'President', 'Vicepresidente', 'Vice President',
-        'Director General', 'Director Ejecutivo', 'Managing Director',
-        'Director Comercial', 'Director de Tecnología',
-        'Director de Operaciones', 'Director de Marketing',
-        'Director de Ventas', 'Director Financiero',
-        'Director de Recursos Humanos', 'Director de IT',
+        'VP', 'Chairman', 'Chairwoman',
         
         # Fundadores
         'Fundador', 'Founder', 'Co-Fundador', 'Co-Founder',
         'Cofundador', 'Cofounder', 'Socio Fundador',
         
-        # Gerentes
+        # Gerencia
         'Gerente General', 'Gerente Comercial', 'Gerente de Ventas',
-        'Gerente de Operaciones', 'Gerente de Marketing',
-        'Gerente de Tecnología', 'Gerente Administrativo',
-        'Gerente de Desarrollo', 'Gerente de Proyectos',
-        'Gerenta', 'General Manager', 'Sales Manager',
+        'Gerente de Marketing', 'Gerente de Operaciones',
+        'Gerente de Tecnología', 'Gerente de Sistemas',
+        'Gerente de Administración', 'Gerente de RRHH',
+        'General Manager', 'Sales Manager', 'Marketing Manager',
         
-        # Dueños
-        'Dueño', 'Dueña', 'Owner', 'Propietario', 'Propietaria',
-        'Titular', 'Socio', 'Partner', 'Managing Partner',
+        # Propiedad
+        'Propietario', 'Owner', 'Dueño', 'Socio', 'Partner',
         
-        # Otros ejecutivos
+        # Otros
         'Head of', 'Jefe de', 'Líder de', 'Lead',
         'Country Manager', 'Regional Manager',
     ]
     
-    # Lista de palabras que contienen cargos pero NO son cargos
-    falsos_positivos = [
-        'negocio', 'servicio', 'comercio', 'inicio', 
-        'socio de negocios', 'ejercicio', 'beneficio',
-        'precio', 'espacio', 'palacio', 'edificio'
+    # Palabras que invalidan un cargo (falsos positivos)
+    invalidos = [
+        'negocio', 'servicio', 'comercio', 'inicio', 'ejercicio',
+        'beneficio', 'precio', 'espacio', 'edificio', 'oficio',
+        'cliente', 'usuario', 'nuestro', 'nuestra', 'empresa',
+        'solución', 'soluciones', 'producto', 'productos',
     ]
     
-    def es_cargo_valido(texto, cargo_encontrado):
-        """Verifica que el cargo encontrado no sea un falso positivo."""
+    def es_cargo_valido(texto: str, cargo: str) -> bool:
+        """Verifica que el cargo no sea un falso positivo."""
         texto_lower = texto.lower()
-        cargo_lower = cargo_encontrado.lower()
+        cargo_lower = cargo.lower()
         
-        for falso in falsos_positivos:
-            if falso in texto_lower and cargo_lower in falso:
-                logger.warning(
-                    f"[CARGO] Falso positivo detectado: '{cargo_encontrado}' "
-                    f"en '{falso}'"
-                )
-                return False
+        for invalido in invalidos:
+            # Si el cargo está dentro de una palabra inválida
+            if cargo_lower in invalido:
+                if invalido in texto_lower:
+                    return False
         return True
     
-    cargo_encontrado = ""
-    
-    # ═══════════════════════════════════════════════════════════════
-    # MÉTODO 1: Buscar nombre + cargo en la misma línea o cercano
-    # ═══════════════════════════════════════════════════════════════
-    if nombre_persona:
-        nombre_parts = nombre_persona.lower().split()
-        primer_nombre = nombre_parts[0] if nombre_parts else ""
-        apellido = nombre_parts[-1] if len(nombre_parts) > 1 else ""
+    def buscar_cargo_cerca_de_nombre(
+        contenido: str, 
+        nombre: str, 
+        ventana: int = 200
+    ) -> str:
+        """
+        Busca un cargo dentro de una ventana de caracteres 
+        alrededor del nombre.
+        """
+        nombre_lower = nombre.lower()
+        contenido_lower = contenido.lower()
         
-        # Patrón: "Nombre Apellido - Cargo" o "Nombre Apellido, Cargo"
-        for cargo in cargos_conocidos:
-            patterns = [
-                # Nombre - Cargo
-                rf'{re.escape(primer_nombre)}[^<>\n]{{0,30}}'
-                rf'{re.escape(apellido)}[^<>\n]{{0,5}}'
-                rf'[\-–—:,\s]+({re.escape(cargo)}[^<>\n]{{0,50}})',
-                
-                # Cargo: Nombre
-                rf'{re.escape(cargo)}[:\s]+[^<>\n]{{0,10}}'
-                rf'{re.escape(primer_nombre)}[^<>\n]{{0,30}}'
-                rf'{re.escape(apellido)}',
-            ]
+        # Buscar todas las ocurrencias del nombre
+        pos = 0
+        while True:
+            idx = contenido_lower.find(nombre_lower, pos)
+            if idx == -1:
+                break
             
-            for pattern in patterns:
-                match = re.search(pattern, content, re.IGNORECASE)
+            # Extraer ventana alrededor del nombre
+            inicio = max(0, idx - ventana)
+            fin = min(len(contenido), idx + len(nombre) + ventana)
+            bloque = contenido[inicio:fin]
+            
+            # Buscar cargos en este bloque
+            for cargo in cargos_ejecutivos:
+                # Usar word boundary para evitar falsos positivos
+                pattern = r'\b' + re.escape(cargo) + r'\b'
+                match = re.search(pattern, bloque, re.IGNORECASE)
                 if match:
-                    cargo_encontrado = match.group(1) if match.lastindex else cargo
-                    cargo_encontrado = cargo_encontrado.strip(' -–—:,')
-                    logger.info(f"[CARGO] Encontrado por nombre: "
-                                f"{cargo_encontrado}")
-                    return cargo_encontrado
-
-    # ═══════════════════════════════════════════════════════════════
-    # MÉTODO 2: Buscar estructura de sección Equipo/Team
-    # Patrón: Línea con nombre, siguiente línea con cargo
-    # ═══════════════════════════════════════════════════════════════
-    lines = content.split('\n')
+                    cargo_encontrado = match.group(0)
+                    if es_cargo_valido(bloque, cargo_encontrado):
+                        # Buscar cargo compuesto (ej: "Presidente y Director")
+                        cargo_extendido = extraer_cargo_completo(
+                            bloque, 
+                            match.start()
+                        )
+                        return cargo_extendido or cargo_encontrado
+            
+            pos = idx + 1
+        
+        return ""
     
-    for i, line in enumerate(lines):
-        line_clean = line.strip()
+    def extraer_cargo_completo(texto: str, pos_inicio: int) -> str:
+        """
+        Extrae cargo compuesto como "Presidente y Director Comercial".
+        """
+        # Buscar desde un poco antes hasta un poco después
+        inicio = max(0, pos_inicio - 20)
+        fin = min(len(texto), pos_inicio + 80)
+        fragmento = texto[inicio:fin]
         
-        # Si la línea contiene un cargo conocido
-        for cargo in cargos_conocidos:
-            # Usar word boundaries para evitar substrings
-            if re.search(r'\b' + re.escape(cargo) + r'\b', line_clean, re.IGNORECASE):
-                # Verificar contexto (no sea parte de texto largo)
-                if len(line_clean) < 100:
-                    # Extraer el cargo completo de la línea
-                    # Buscar desde el cargo hasta el final o hasta un delimitador
-                    cargo_match = re.search(
-                        rf'({re.escape(cargo)}[^<>\n]{{0,50}})',
-                        line_clean,
-                        re.IGNORECASE
-                    )
-                    if cargo_match:
-                        cargo_encontrado = cargo_match.group(1).strip()
-                        # Limpiar caracteres extraños
-                        cargo_encontrado = re.sub(
-                            r'[\*#\[\]]+', '', cargo_encontrado
-                        ).strip()
-                        
-                        # Validar que no sea falso positivo
-                        if cargo_encontrado and len(cargo_encontrado) < 60:
-                            if es_cargo_valido(line_clean, cargo_encontrado):
-                                logger.info(f"[CARGO] Encontrado en línea: "
-                                            f"{cargo_encontrado}")
-                                return cargo_encontrado
-                            else:
-                                logger.debug(
-                                    f"[CARGO] Descartado (falso positivo): "
-                                    f"{cargo_encontrado}"
-                                )
-
-    # ═══════════════════════════════════════════════════════════════
-    # MÉTODO 3: Buscar en estructuras HTML de equipos
-    # ═══════════════════════════════════════════════════════════════
-    html_patterns = [
-        # Clases comunes para cargo en HTML
-        r'class=["\'][^"\']*(?:cargo|role|position|title|job)'
-        r'[^"\']*["\'][^>]*>([^<]{3,60})<',
+        # Patrón para cargos compuestos
+        patron_compuesto = (
+            r'((?:Presidente|Director|Gerente|CEO|Fundador|Socio)'
+            r'(?:\s+y\s+|\s*/\s*|\s*,\s*)?'
+            r'(?:Director|Gerente|Comercial|Ejecutivo|General|'
+            r'de\s+\w+)?'
+            r'(?:\s+y\s+|\s*/\s*)?'
+            r'(?:Director|Gerente|Comercial|Ejecutivo|General|'
+            r'de\s+\w+)?)'
+        )
         
-        # Spans/divs después de nombres
-        r'<(?:span|div|p)[^>]*class=["\'][^"\']*'
-        r'(?:cargo|position|role)[^"\']*["\'][^>]*>'
-        r'([^<]{3,60})<',
+        match = re.search(patron_compuesto, fragmento, re.IGNORECASE)
+        if match:
+            cargo = match.group(1).strip()
+            # Limpiar espacios extras
+            cargo = re.sub(r'\s+', ' ', cargo)
+            return cargo
+        
+        return ""
+    
+    def buscar_en_estructura_equipo(contenido: str, nombre: str) -> str:
+        """
+        Busca cargo en estructuras típicas de página de equipo.
+        Patrones: "Nombre - Cargo", "Nombre | Cargo", etc.
+        """
+        nombre_parts = nombre.lower().split()
+        if len(nombre_parts) < 2:
+            return ""
+        
+        # Patrones comunes de estructura nombre-cargo
+        patrones_estructura = [
+            # "Juan Pérez - Director General"
+            rf'{re.escape(nombre)}\s*[-–—]\s*([A-Za-záéíóúñÁÉÍÓÚÑ\s]+)',
+            # "Juan Pérez | CEO"
+            rf'{re.escape(nombre)}\s*\|\s*([A-Za-záéíóúñÁÉÍÓÚÑ\s]+)',
+            # "Juan Pérez, Presidente"
+            rf'{re.escape(nombre)}\s*,\s*([A-Za-záéíóúñÁÉÍÓÚÑ\s]+)',
+            # Apellido seguido de cargo (en listas)
+            rf'{re.escape(nombre_parts[-1])}\s+([A-Za-záéíóúñ]+\s+(?:de\s+)?[A-Za-záéíóúñ]+)',
+        ]
+        
+        for patron in patrones_estructura:
+            match = re.search(patron, contenido, re.IGNORECASE)
+            if match:
+                posible_cargo = match.group(1).strip()
+                # Verificar que sea un cargo válido
+                for cargo in cargos_ejecutivos:
+                    if cargo.lower() in posible_cargo.lower():
+                        return posible_cargo[:50]  # Limitar longitud
+        
+        return ""
+    
+    # ═══════════════════════════════════════════════════════════════
+    # LÓGICA PRINCIPAL
+    # ═══════════════════════════════════════════════════════════════
+    
+    # PASO 1: Si hay nombre, buscar cargo asociado
+    if nombre_persona and len(nombre_persona) >= 3:
+        logger.info(f"[CARGO] Buscando cargo para: {nombre_persona}")
+        
+        # 1A: Buscar en estructura típica de equipo
+        cargo = buscar_en_estructura_equipo(content, nombre_persona)
+        if cargo:
+            logger.info(f"[CARGO] ✓ Encontrado en estructura: {cargo}")
+            return cargo
+        
+        # 1B: Buscar en ventana cercana al nombre
+        cargo = buscar_cargo_cerca_de_nombre(content, nombre_persona)
+        if cargo:
+            logger.info(f"[CARGO] ✓ Encontrado cerca del nombre: {cargo}")
+            return cargo
+        
+        # 1C: Intentar solo con el apellido
+        partes_nombre = nombre_persona.split()
+        if len(partes_nombre) >= 2:
+            apellido = partes_nombre[-1]
+            cargo = buscar_cargo_cerca_de_nombre(content, apellido)
+            if cargo:
+                logger.info(f"[CARGO] ✓ Encontrado cerca del apellido: {cargo}")
+                return cargo
+    
+    # PASO 2: Si no hay nombre o no encontró, buscar cargo principal
+    # Solo CEO, Presidente, Fundador, Director General
+    cargos_principales = [
+        'CEO', 'Presidente', 'Fundador', 'Director General',
+        'Founder', 'President', 'Propietario', 'Owner'
     ]
     
-    for pattern in html_patterns:
-        matches = re.findall(pattern, content, re.IGNORECASE)
-        for match in matches:
-            match_clean = match.strip()
-            # Verificar que sea un cargo válido usando word boundaries
-            for cargo in cargos_conocidos:
-                if re.search(r'\b' + re.escape(cargo) + r'\b', match_clean, re.IGNORECASE):
-                    cargo_encontrado = match_clean
-                    # Validar que no sea falso positivo
-                    if es_cargo_valido(match_clean, cargo_encontrado):
-                        logger.info(f"[CARGO] Encontrado en HTML: "
-                                    f"{cargo_encontrado}")
-                        return cargo_encontrado
-                    else:
-                        logger.debug(
-                            f"[CARGO] Descartado (falso positivo HTML): "
-                            f"{cargo_encontrado}"
-                        )
-
-    return cargo_encontrado
+    for cargo in cargos_principales:
+        pattern = r'\b' + re.escape(cargo) + r'\b'
+        match = re.search(pattern, content, re.IGNORECASE)
+        if match:
+            bloque = content[max(0, match.start()-50):match.end()+50]
+            if es_cargo_valido(bloque, cargo):
+                logger.info(f"[CARGO] ✓ Cargo principal encontrado: {cargo}")
+                return match.group(0)
+    
+    logger.info("[CARGO] ✗ No se encontró cargo")
+    return "No detectado"
 
 
 async def extract_with_gpt(all_content: str, website: str, titulo_pagina: str = "") -> dict:
@@ -1015,14 +1262,29 @@ async def extract_with_gpt(all_content: str, website: str, titulo_pagina: str = 
 
     # Instrucción sobre el título
     instruccion_titulo = ""
+    ciudad_del_titulo = ""
     if titulo_pagina:
-        instruccion_titulo = f"""
+        # Extraer ciudad del título
+        ciudad_del_titulo = extraer_ciudad_de_titulo(titulo_pagina)
+        if ciudad_del_titulo:
+            instruccion_titulo = f"""
+TÍTULO DE LA PÁGINA: {titulo_pagina}
+CIUDAD DETECTADA EN TÍTULO: {ciudad_del_titulo}
+IMPORTANTE: Usar "{ciudad_del_titulo}" como city si no encuentras otra ciudad en el contenido.
+"""
+        else:
+            instruccion_titulo = f"""
 TÍTULO DE LA PÁGINA: {titulo_pagina}
 IMPORTANTE: El título puede contener la ciudad/barrio/localidad. 
 Por ejemplo "Empresa X | Núñez" - extraer "Núñez" como city.
 Otro ejemplo: "Servicios en Madrid | Empresa Y" → city = "Madrid"
 Si no encuentras ciudad en el contenido, buscar en el título.
 """
+
+    # Construir instrucción de city
+    instruccion_city = "- city: Ciudad (revisar también el TÍTULO de la página)"
+    if ciudad_del_titulo:
+        instruccion_city = f'- city: Ciudad (revisar también el TÍTULO de la página. Si el título tiene "{ciudad_del_titulo}", usar ese valor)'
 
     prompt = f"""Extraé los siguientes datos del contenido de este sitio web ({website}).
 Respondé SOLO con JSON válido, sin explicaciones.
@@ -1042,7 +1304,7 @@ DATOS A EXTRAER:
 - phone_empresa: Teléfono principal
 - whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets flotantes, botones de chat, atributos data-settings, data-phone, telephone, o cerca de palabras whatsapp/chat/contacto. Solo números con código país, ej: 5493416469327)
 - address: Dirección física
-- city: Ciudad (revisar también el TÍTULO de la página)
+{instruccion_city}
 - province: Provincia
 - country: País (default Argentina)
 - horarios: Horarios de atención
@@ -1103,7 +1365,8 @@ JSON:"""
 def merge_results(gpt_data: dict,
                   regex_data: dict,
                   tavily_answer: str,
-                  website: str = "") -> dict:
+                  website: str = "",
+                  all_content: str = "") -> dict:
     """
     Combina resultados de GPT, Regex y Tavily.
     Prioridad: GPT > Regex > Tavily
@@ -1195,8 +1458,18 @@ def merge_results(gpt_data: dict,
         resultado['google_maps_url'] = regex_data['google_maps_url']
 
     # Ubicación - COMPLETA (address, city, province, country)
-    if not resultado.get('address') and regex_data.get('address'):
-        resultado['address'] = regex_data['address']
+    # PRIORIDAD: 
+    # 1. GPT 
+    # 2. Contexto semántico 
+    # 3. Regex
+    if not resultado.get('address') or resultado.get('address') == 'No encontrado':
+        if regex_data.get('address'):
+            resultado['address'] = regex_data['address']
+        elif all_content:
+            # Intentar extracción por contexto
+            direccion_contexto = extraer_direccion_por_contexto(all_content)
+            if direccion_contexto:
+                resultado['address'] = direccion_contexto
     
     # City - prioridad: GPT > Regex
     if not resultado.get('city') or resultado.get('city') == 'No encontrado':
@@ -1551,10 +1824,14 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
     return ""
 
 
-async def extract_web_data(website: str) -> dict:
+async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
     """
     Pipeline completo de extracción web.
     Orden: Firecrawl → Jina → HTTP directo → Tavily (fallback) → Regex → GPT-4o → Merge
+    
+    Args:
+        website: URL del sitio web
+        nombre_contacto: Nombre del contacto para buscar cargo asociado
     """
     logger.info(f"[EXTRACTOR] ========== Iniciando: {website} ==========")
 
@@ -1649,9 +1926,9 @@ async def extract_web_data(website: str) -> dict:
     logger.info(f"[GPT] Extrayendo datos estructurados...")
     gpt_data = await extract_with_gpt(all_content, website_clean, titulo_pagina)
 
-    # 10. Merge de resultados
+    # 10. Merge de resultados (pasar all_content para extracción por contexto)
     resultado = merge_results(gpt_data, regex_data, tavily_answer,
-                              website_full)
+                              website_full, all_content)
 
     # ═══════════════════════════════════════════════════════════════
     # 10B. DETECCIÓN DE CARGO desde sección Equipo/Team
@@ -1659,9 +1936,10 @@ async def extract_web_data(website: str) -> dict:
     if secundarias_content or main_content:
         # Buscar cargo en contenido de páginas de equipo
         contenido_equipo = secundarias_content + "\n" + main_content
-        nombre_contacto = resultado.get('contact_name', '')
+        # Usar nombre_contacto del parámetro o del resultado
+        nombre_para_cargo = nombre_contacto or resultado.get('contact_name', '')
         
-        cargo = extraer_cargo_de_equipo(contenido_equipo, nombre_contacto)
+        cargo = extraer_cargo_de_equipo(contenido_equipo, nombre_para_cargo)
         
         if cargo:
             resultado['cargo_detectado'] = cargo

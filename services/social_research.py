@@ -53,22 +53,105 @@ DOMINIOS_EXCLUIR_NOTICIAS = [
 ]
 
 
-def es_noticia_valida(url: str, titulo: str = "") -> bool:
-    """Verifica si una URL es una noticia válida."""
+def es_noticia_valida(
+    url: str, 
+    titulo: str, 
+    nombre_empresa: str = ""
+) -> bool:
+    """
+    Verifica si una URL es una noticia válida y RELEVANTE.
+    
+    LÓGICA UNIVERSAL:
+    1. El nombre de la empresa DEBE aparecer en el título
+    2. Excluir dominios de descarga/apps
+    3. Excluir títulos con palabras genéricas irrelevantes
+    
+    Args:
+        url: URL de la noticia
+        titulo: Título de la noticia
+        nombre_empresa: Nombre de la empresa para validar relevancia
+    """
     url_lower = url.lower()
     titulo_lower = titulo.lower() if titulo else ""
     
-    # Excluir dominios de la lista negra
-    for dominio in DOMINIOS_EXCLUIR_NOTICIAS:
+    # ═══════════════════════════════════════════════════════════════
+    # 1. VALIDAR RELEVANCIA: Empresa debe estar en título
+    # ═══════════════════════════════════════════════════════════════
+    if nombre_empresa:
+        empresa_lower = nombre_empresa.lower()
+        
+        # Buscar nombre completo o palabras principales
+        palabras_empresa = [
+            p for p in empresa_lower.split() 
+            if len(p) >= 4  # Ignorar palabras cortas
+        ]
+        
+        empresa_en_titulo = False
+        
+        # Verificar nombre completo
+        if empresa_lower in titulo_lower:
+            empresa_en_titulo = True
+        else:
+            # Verificar palabras principales (al menos 1)
+            for palabra in palabras_empresa:
+                if palabra in titulo_lower:
+                    empresa_en_titulo = True
+                    break
+        
+        if not empresa_en_titulo:
+            return False
+    
+    # ═══════════════════════════════════════════════════════════════
+    # 2. EXCLUIR DOMINIOS NO VÁLIDOS
+    # ═══════════════════════════════════════════════════════════════
+    dominios_excluir = [
+        # Descargas de apps
+        'softonic', 'play.google.com', 'apps.apple.com',
+        'apkpure', 'apkmirror', 'uptodown', 'aptoide',
+        'getjar', 'apkmonk', 'appbrain', 'apk',
+        
+        # Redes sociales
+        'facebook.com', 'twitter.com', 'x.com',
+        'instagram.com', 'linkedin.com', 'tiktok.com',
+        'pinterest.com', 'reddit.com',
+        
+        # Otros no relevantes
+        'youtube.com', 'vimeo.com', 'dailymotion',
+        'wikipedia.org', 'wikimedia.org',
+        'amazon.', 'mercadolibre.', 'ebay.', 'aliexpress',
+        
+        # Foros y Q&A
+        'stackoverflow.', 'quora.com', 'yahoo.com/answers',
+        
+        # Directorios
+        'yelp.', 'tripadvisor.', 'foursquare.',
+        'yellowpages.', 'paginasamarillas.',
+    ]
+    
+    for dominio in dominios_excluir:
         if dominio in url_lower:
             return False
     
-    # Excluir si el título indica descarga/app
+    # ═══════════════════════════════════════════════════════════════
+    # 3. EXCLUIR POR PALABRAS EN TÍTULO
+    # ═══════════════════════════════════════════════════════════════
     palabras_excluir_titulo = [
+        # Descargas
         'descargar', 'download', 'apk', 'app store',
-        'google play', 'instalar', 'install',
-        'free download', 'descarga gratis'
+        'google play', 'instalar', 'install', 'gratis',
+        'free download', 'descarga gratis', 'bajar',
+        
+        # Empleos (no son noticias de la empresa)
+        'empleo', 'trabajo', 'vacante', 'búsqueda laboral',
+        'busqueda laboral', 'cv', 'currículum', 'curriculum',
+        'postular', 'postulate', 'job', 'hiring', 'career',
+        'trabaja con nosotros', 'únete', 'join us',
+        
+        # Reviews genéricos
+        'opiniones de usuarios', 'user reviews',
+        'rating', 'calificación', 'reseña de',
     ]
+    
     for palabra in palabras_excluir_titulo:
         if palabra in titulo_lower:
             return False
@@ -2909,8 +2992,11 @@ async def google_buscar_noticias(empresa: str, empresa_busqueda: str,
                     continue
                 
                 # Filtrar noticias basura (Softonic, Play Store, APK, etc.)
-                if not es_noticia_valida(url, titulo):
-                    logger.debug(f"[NOTICIAS] Descartado (basura): {url[:50]}...")
+                # Validar que la empresa esté en el título
+                if not es_noticia_valida(url, titulo, empresa or empresa_busqueda):
+                    logger.debug(
+                        f"[NOTICIAS] Descartado (no relevante): {titulo[:50]}..."
+                    )
                     continue
 
                 # Verificar relevancia
