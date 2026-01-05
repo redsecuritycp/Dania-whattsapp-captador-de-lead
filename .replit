@@ -1,4 +1,4 @@
-run = "PYTHONPATH=$HOME/.local/lib/python3.11/site-packages python main.py"
+run = "pip install -r requirements.txt --break-system-packages -q && python main.py"
 entrypoint = "main.py"
 modules = ["python-3.11"]
 
