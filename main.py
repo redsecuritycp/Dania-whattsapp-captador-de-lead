@@ -951,3 +951,9 @@ async def test_extract_web(request: Request):
             {"error": str(e)},
             status_code=500
         )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+

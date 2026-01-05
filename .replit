@@ -1,4 +1,4 @@
-run = "uvicorn main:app --host 0.0.0.0 --port 8000"
+run = "PYTHONPATH=$HOME/.local/lib/python3.11/site-packages python main.py"
 entrypoint = "main.py"
 modules = ["python-3.11"]
 
@@ -7,12 +7,9 @@ channel = "stable-24_05"
 packages = ["gitFull"]
 
 [deployment]
-run = ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port 8000"]
+build = ["sh", "-c", "pip install -r requirements.txt --break-system-packages"]
+run = ["sh", "-c", "python main.py"]
 deploymentTarget = "cloudrun"
-
-[[ports]]
-localPort = 5000
-externalPort = 5000
 
 [[ports]]
 localPort = 8000
@@ -20,27 +17,3 @@ externalPort = 80
 
 [agent]
 expertMode = true
-
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "WhatsApp Bot API"
-
-[[workflows.workflow]]
-name = "WhatsApp Bot API"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 5000"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
