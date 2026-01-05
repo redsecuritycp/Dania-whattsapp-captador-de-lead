@@ -1636,56 +1636,25 @@ async def research_person_and_company(nombre_persona: str,
                         f"(peso: {peso} < 60)")
 
         # ───────────────────────────────────────────────────────────────
-        # 3C: BUSCAR POR NOMBRE+EMPRESA (Tavily)
+        # 3C-3D: BUSCAR LINKEDIN PERSONAL (Tavily + Google) - PARALELIZADO
         # ───────────────────────────────────────────────────────────────
+        # ═══════════════════════════════════════════════════════════════
+        # PARALELIZACIÓN: Ejecutar búsquedas simultáneamente
+        # ═══════════════════════════════════════════════════════════════
+        
+        linkedin_tavily_result = None
+        linkedin_google_result = None
+        
+        # Preparar tareas para paralelización
+        tasks = []
+        
         if TAVILY_API_KEY:
-            logger.info(f"[LINKEDIN] PASO 3C: Buscando en Tavily...")
-            linkedin_result = await tavily_buscar_linkedin_personal(
+            tasks.append(("tavily", tavily_buscar_linkedin_personal(
                 results["nombre"], empresa_busqueda, primer_nombre_busqueda,
-                apellido_busqueda, ubicacion_completa, city, province, country)
-            if linkedin_result:
-                urls_tavily = linkedin_result.get("url", "")
-
-                # Puede venir una URL o varias separadas por |
-                # RE-VALIDAR cada una con calcular_peso_linkedin
-                for url in urls_tavily.split(" | "):
-                    url = url.strip()
-                    if not url or url == "No encontrado":
-                        continue
-
-                    # Re-validar: nombre+apellido deben estar en slug
-                    peso = calcular_peso_linkedin(
-                        url=url,
-                        texto=f"{results['nombre']} {empresa_busqueda}",
-                        primer_nombre=primer_nombre_busqueda,
-                        apellido=apellido_busqueda,
-                        empresa=empresa_busqueda,
-                        provincia=province,
-                        ciudad=city)
-
-                    if peso < 60:
-                        logger.info(
-                            f"[LINKEDIN-TAVILY] ✗ {url} descartado "
-                            f"(peso: {peso} < 60)")
-                        continue
-
-                    ya_existe = any(c["url"] == url
-                                    for c in candidatos_linkedin)
-                    if not ya_existe:
-                        candidatos_linkedin.append({
-                            "url": url,
-                            "peso": peso,
-                            "source": "tavily"
-                        })
-                        logger.info(
-                            f"[LINKEDIN-TAVILY] ✓ {url} (peso: {peso})")
-
-        # ───────────────────────────────────────────────────────────────
-        # 3D: BUSCAR CON GOOGLE (fallback)
-        # ───────────────────────────────────────────────────────────────
+                apellido_busqueda, ubicacion_completa, city, province, country)))
+        
         if GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
-            logger.info(f"[LINKEDIN] PASO 3D: Buscando en Google...")
-            google_result = await google_buscar_linkedin_personal(
+            tasks.append(("google", google_buscar_linkedin_personal(
                 results["nombre"],
                 empresa_busqueda,
                 primer_nombre_busqueda,
@@ -1694,42 +1663,103 @@ async def research_person_and_company(nombre_persona: str,
                 ubicacion_completa,
                 city,
                 province,
-                country)
-            if google_result:
-                urls_google = google_result.get("url", "")
+                country)))
+        
+        # Ejecutar búsquedas en paralelo
+        if tasks:
+            logger.info(
+                "[LINKEDIN] Ejecutando búsquedas en paralelo: "
+                "LinkedIn personal (Tavily + Google)"
+            )
+            
+            # Crear coroutines
+            coroutines = [task[1] for task in tasks]
+            results_parallel = await asyncio.gather(
+                *coroutines,
+                return_exceptions=True  # Si una falla, las otras siguen
+            )
+            
+            # Procesar resultados
+            for i, (source, _) in enumerate(tasks):
+                result = results_parallel[i]
+                if isinstance(result, Exception):
+                    logger.error(f"[LINKEDIN-{source.upper()}] Error: {result}")
+                    continue
+                
+                if source == "tavily":
+                    linkedin_tavily_result = result
+                elif source == "google":
+                    linkedin_google_result = result
+            
+            logger.info(
+                f"[LINKEDIN] Paralelización completada: "
+                f"Tavily={'✅' if linkedin_tavily_result else '❌'}, "
+                f"Google={'✅' if linkedin_google_result else '❌'}"
+            )
+        
+        # Procesar resultado de Tavily
+        if linkedin_tavily_result:
+            urls_tavily = linkedin_tavily_result.get("url", "")
+            for url in urls_tavily.split(" | "):
+                url = url.strip()
+                if not url or url == "No encontrado":
+                    continue
 
-                # RE-VALIDAR cada URL con calcular_peso_linkedin
-                for url in urls_google.split(" | "):
-                    url = url.strip()
-                    if not url or url == "No encontrado":
-                        continue
+                peso = calcular_peso_linkedin(
+                    url=url,
+                    texto=f"{results['nombre']} {empresa_busqueda}",
+                    primer_nombre=primer_nombre_busqueda,
+                    apellido=apellido_busqueda,
+                    empresa=empresa_busqueda,
+                    provincia=province,
+                    ciudad=city)
 
-                    # Re-validar: nombre+apellido deben estar en slug
-                    peso = calcular_peso_linkedin(
-                        url=url,
-                        texto=f"{results['nombre']} {empresa_busqueda}",
-                        primer_nombre=primer_nombre_busqueda,
-                        apellido=apellido_busqueda,
-                        empresa=empresa_busqueda,
-                        provincia=province,
-                        ciudad=city)
+                if peso < 60:
+                    logger.info(
+                        f"[LINKEDIN-TAVILY] ✗ {url} descartado "
+                        f"(peso: {peso} < 60)")
+                    continue
 
-                    if peso < 60:
-                        logger.info(
-                            f"[LINKEDIN-GOOGLE] ✗ {url} descartado "
-                            f"(peso: {peso} < 60)")
-                        continue
+                ya_existe = any(c["url"] == url for c in candidatos_linkedin)
+                if not ya_existe:
+                    candidatos_linkedin.append({
+                        "url": url,
+                        "peso": peso,
+                        "source": "tavily"
+                    })
+                    logger.info(f"[LINKEDIN-TAVILY] ✓ {url} (peso: {peso})")
 
-                    ya_existe = any(c["url"] == url
-                                    for c in candidatos_linkedin)
-                    if not ya_existe:
-                        candidatos_linkedin.append({
-                            "url": url,
-                            "peso": peso,
-                            "source": "google"
-                        })
-                        logger.info(
-                            f"[LINKEDIN-GOOGLE] ✓ {url} (peso: {peso})")
+        # Procesar resultado de Google
+        if linkedin_google_result:
+            urls_google = linkedin_google_result.get("url", "")
+            for url in urls_google.split(" | "):
+                url = url.strip()
+                if not url or url == "No encontrado":
+                    continue
+
+                peso = calcular_peso_linkedin(
+                    url=url,
+                    texto=f"{results['nombre']} {empresa_busqueda}",
+                    primer_nombre=primer_nombre_busqueda,
+                    apellido=apellido_busqueda,
+                    empresa=empresa_busqueda,
+                    provincia=province,
+                    ciudad=city)
+
+                if peso < 60:
+                    logger.info(
+                        f"[LINKEDIN-GOOGLE] ✗ {url} descartado "
+                        f"(peso: {peso} < 60)")
+                    continue
+
+                ya_existe = any(c["url"] == url for c in candidatos_linkedin)
+                if not ya_existe:
+                    candidatos_linkedin.append({
+                        "url": url,
+                        "peso": peso,
+                        "source": "google"
+                    })
+                    logger.info(f"[LINKEDIN-GOOGLE] ✓ {url} (peso: {peso})")
 
         # ───────────────────────────────────────────────────────────────
         # 3E: BUSCAR POR CARGO (CEO/fundador)
@@ -1786,29 +1816,69 @@ async def research_person_and_company(nombre_persona: str,
             logger.info("[LINKEDIN] ✗ No se encontraron candidatos")
 
         # ═══════════════════════════════════════════════════════════════
-        # PASO 5: NOTICIAS - GOOGLE PRIMERO (RÁPIDO) + APIFY PARALELO
+        # PASO 5: NOTICIAS - PARALELIZADO (Google + Apify)
         # ═══════════════════════════════════════════════════════════════
         noticias = []
-
-        # Primero Google (rápido, ~2 seg)
+        
+        # ═══════════════════════════════════════════════════════════════
+        # PARALELIZACIÓN: Ejecutar búsquedas de noticias simultáneamente
+        # ═══════════════════════════════════════════════════════════════
+        
+        noticias_tasks = []
+        task_sources = []
+        
         if GOOGLE_API_KEY and GOOGLE_SEARCH_CX:
-            logger.info(f"[GOOGLE] Buscando noticias...")
-            noticias = await google_buscar_noticias(empresa, empresa_busqueda,
-                                                    ubicacion_query)
-            if noticias:
-                results["noticias_source"] = "google"
-
-        # Si Google no encontró, intentar APIFY con timeout corto
-        if not noticias and APIFY_API_TOKEN:
-            logger.info(f"[APIFY] Intentando crawler (timeout 30s)...")
-            try:
-                noticias = await asyncio.wait_for(apify_buscar_noticias(
-                    empresa_busqueda, ubicacion_query),
-                                                  timeout=30.0)
-                if noticias:
-                    results["noticias_source"] = "apify"
-            except asyncio.TimeoutError:
-                logger.warning("[APIFY] Timeout - continuando sin noticias")
+            noticias_tasks.append(google_buscar_noticias(
+                empresa, empresa_busqueda, ubicacion_query))
+            task_sources.append("google")
+        
+        if APIFY_API_TOKEN:
+            # Wrapper para Apify con timeout
+            async def apify_with_timeout():
+                try:
+                    return await asyncio.wait_for(
+                        apify_buscar_noticias(empresa_busqueda, ubicacion_query),
+                        timeout=30.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("[NOTICIAS-APIFY] Timeout")
+                    return []
+            
+            noticias_tasks.append(apify_with_timeout())
+            task_sources.append("apify")
+        
+        if noticias_tasks:
+            logger.info(
+                "[NOTICIAS] Ejecutando búsquedas en paralelo: "
+                "Google + Apify"
+            )
+            
+            # Ejecutar en paralelo
+            noticias_results = await asyncio.gather(
+                *noticias_tasks,
+                return_exceptions=True  # Si una falla, las otras siguen
+            )
+            
+            # Procesar resultados
+            for i, source in enumerate(task_sources):
+                result = noticias_results[i]
+                
+                if isinstance(result, Exception):
+                    logger.error(f"[NOTICIAS-{source.upper()}] Error: {result}")
+                    continue
+                
+                # Usar el primer resultado que tenga noticias
+                if result and not noticias:
+                    noticias = result
+                    results["noticias_source"] = source
+                    logger.info(f"[NOTICIAS-{source.upper()}] ✓ {len(noticias)} noticias")
+            
+            logger.info(
+                f"[NOTICIAS] Paralelización completada: "
+                f"Google={'✅' if any(s == 'google' and not isinstance(r, Exception) and r for s, r in zip(task_sources, noticias_results)) else '❌'}, "
+                f"Apify={'✅' if any(s == 'apify' and not isinstance(r, Exception) and r for s, r in zip(task_sources, noticias_results)) else '❌'}, "
+                f"Total={len(noticias)}"
+            )
 
         if noticias:
             results["noticias_lista"] = noticias

@@ -29,6 +29,26 @@ from utils.text_cleaner import clean_markdown_formatting
 
 logger = logging.getLogger(__name__)
 
+# ═════════════════════════════════════════════════════════
+# MENSAJES DE PROGRESO
+# ═════════════════════════════════════════════════════════
+
+async def send_progress_message(
+    phone: str, 
+    message: str
+) -> None:
+    """
+    Envía mensaje de progreso al usuario.
+    No bloquea si falla (fire-and-forget).
+    """
+    try:
+        from services.whatsapp import send_whatsapp_message
+        await send_whatsapp_message(phone, message)
+    except Exception as e:
+        logger.warning(
+            f"[PROGRESS] No se pudo enviar mensaje de progreso: {e}"
+        )
+
 # Inicializar cliente OpenAI
 client = None
 try:
@@ -231,7 +251,23 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             if not website:
                 logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó website"}
+            
+            # Mensaje de progreso
+            phone = context.get("phone_whatsapp", "")
+            if phone:
+                await send_progress_message(
+                    phone,
+                    "⏳ Buscando información de tu web, dame un momento..."
+                )
+            
             result = await extract_web_data(website)
+            
+            # Mensaje de éxito
+            if phone and result.get("extraction_status") == "success":
+                await send_progress_message(
+                    phone,
+                    "✅ Datos de tu web extraídos correctamente."
+                )
 
             # Guardar datos importantes en context
             # NO sobrescribir city/province que vienen del número
@@ -284,6 +320,15 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             # Obtener email del contexto
             email_contacto = context.get("email_principal", "")
             
+            # Mensaje de progreso
+            phone = context.get("phone_whatsapp", "")
+            if phone:
+                await send_progress_message(
+                    phone,
+                    "🔍 Ahora busco tu perfil en LinkedIn y noticias de "
+                    "tu empresa..."
+                )
+            
             result = await research_person_and_company(
                 nombre_persona=nombre,
                 empresa=empresa,
@@ -295,6 +340,15 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 province=province,
                 country=country,
                 email_contacto=email_contacto)
+            
+            # Mensaje de éxito si se encontró LinkedIn
+            if phone and result.get("linkedin_personal") and \
+               result.get("linkedin_personal") != "No encontrado":
+                await send_progress_message(
+                    phone,
+                    "✅ Perfil de LinkedIn encontrado."
+                )
+            
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result or {"error": "No se pudieron encontrar redes"}
 
@@ -315,6 +369,14 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 return {
                     "error": "No se proporcionó rubro/actividad de la empresa"
                 }
+
+            # Mensaje de progreso
+            phone = context.get("phone_whatsapp", "")
+            if phone:
+                await send_progress_message(
+                    phone,
+                    "📊 Investigando desafíos típicos de tu industria..."
+                )
 
             result = await investigar_desafios_empresa(
                 rubro=rubro,

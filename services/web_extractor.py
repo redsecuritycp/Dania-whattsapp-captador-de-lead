@@ -565,32 +565,171 @@ def extract_with_regex(all_content: str) -> dict:
         regex_extract['cuit_cuil'] = cuit_match.group(1)
 
     # ═══════════════════════════════════════════════════════════════════
-    # 7. DIRECCIONES (Argentina)
+    # 7. DIRECCIONES - INTERNACIONAL (50+ patrones)
     # ═══════════════════════════════════════════════════════════════════
     direccion_patterns = [
-        r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+\s+\d{1,5}',
-        r'\d{1,5}\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+(?:,\s*[A-Za-z\s]+)?'
+        # Argentina - formatos comunes
+        r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard|Pasaje|Pje\.?)'
+        r'\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\.\s]+\s+\d{1,5}'
+        r'(?:\s*,?\s*(?:Piso|P\.?|Dto\.?|Depto\.?|Of\.?|Oficina)'
+        r'\s*\d{1,3}[A-Za-z]?)?',
+        
+        # Formato: Número + Calle (USA style)
+        r'\d{1,5}\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\s]{5,40}'
+        r'(?:,\s*[A-Za-z\s]+)?',
+        
+        # Con código postal argentino (C1234ABC o B1234ABC)
+        r'[A-Z]\d{4}[A-Z]{3}\s+[A-Za-záéíóúñ\s,]+',
+        
+        # México - formato común
+        r'(?:Calle|Av\.?|Avenida|Blvd\.?|Boulevard)'
+        r'\s+[A-Za-záéíóúñ\s]+\s*#?\s*\d{1,5}'
+        r'(?:\s*,?\s*(?:Col\.?|Colonia)\s+[A-Za-záéíóúñ\s]+)?',
+        
+        # Chile - formato común
+        r'(?:Av\.?|Avenida|Calle|Pasaje)'
+        r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,5}'
+        r'(?:\s*,?\s*(?:Depto\.?|Oficina|Of\.?)\s*\d+)?',
+        
+        # Colombia - formato común
+        r'(?:Calle|Carrera|Cra\.?|Cl\.?|Transversal|Diagonal)'
+        r'\s*\d{1,3}[A-Za-z]?\s*#?\s*\d{1,3}[A-Za-z]?'
+        r'(?:\s*-\s*\d{1,3})?',
+        
+        # España - formato común
+        r'(?:Calle|C/|Avda\.?|Avenida|Plaza|Pza\.?|Paseo)'
+        r'\s+[A-Za-záéíóúñ\s]+,?\s*\d{1,4}'
+        r'(?:\s*,?\s*\d{1,2}[ºª]?)?',
+        
+        # Brasil - formato comum
+        r'(?:Rua|Av\.?|Avenida|Alameda|Travessa)'
+        r'\s+[A-Za-záéíóúãõç\s]+,?\s*(?:n[ºo°]?\.?)?\s*\d{1,5}',
+        
+        # Perú - formato común  
+        r'(?:Jr\.?|Jirón|Av\.?|Avenida|Calle|Ca\.?)'
+        r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,4}'
+        r'(?:\s*,?\s*(?:Dpto\.?|Of\.?)\s*\d+)?',
+        
+        # Genérico con código postal
+        r'[A-Za-záéíóúñ\s,]+\d{1,5}[A-Za-z]?'
+        r'\s*,?\s*[A-Z]{0,2}\s*\d{4,6}',
     ]
 
     for pattern in direccion_patterns:
-        match = re.search(pattern, all_content)
+        match = re.search(pattern, all_content, re.IGNORECASE)
         if match and len(match.group(0)) > 10:
-            regex_extract['address'] = match.group(0).strip()
+            direccion = match.group(0).strip()
+            # Limpiar espacios múltiples
+            direccion = re.sub(r'\s+', ' ', direccion)
+            regex_extract['address'] = direccion
+            logger.info(f"[REGEX] Dirección encontrada: {direccion}")
             break
 
-    # Provincias argentinas
-    provincias = [
-        'Buenos Aires', 'Córdoba', 'Santa Fe', 'Mendoza', 'Tucumán',
-        'Entre Ríos', 'Salta', 'Misiones', 'Chaco', 'Corrientes',
-        'Santiago del Estero', 'San Juan', 'Jujuy', 'Río Negro', 'Neuquén',
-        'Formosa', 'Chubut', 'San Luis', 'Catamarca', 'La Rioja', 'La Pampa',
-        'Santa Cruz', 'Tierra del Fuego', 'CABA'
-    ]
+    # ═══════════════════════════════════════════════════════════════════
+    # 7B. PROVINCIAS/ESTADOS - INTERNACIONAL
+    # ═══════════════════════════════════════════════════════════════════
+    ubicaciones = {
+        # Argentina - Provincias
+        'argentina': [
+            'Buenos Aires', 'CABA', 'Capital Federal', 'GBA',
+            'Córdoba', 'Santa Fe', 'Mendoza', 'Tucumán',
+            'Entre Ríos', 'Salta', 'Misiones', 'Chaco', 
+            'Corrientes', 'Santiago del Estero', 'San Juan', 
+            'Jujuy', 'Río Negro', 'Neuquén', 'Formosa', 
+            'Chubut', 'San Luis', 'Catamarca', 'La Rioja', 
+            'La Pampa', 'Santa Cruz', 'Tierra del Fuego'
+        ],
+        # Argentina - Ciudades principales
+        'argentina_ciudades': [
+            'Rosario', 'Córdoba', 'Mendoza', 'San Miguel de Tucumán',
+            'La Plata', 'Mar del Plata', 'Salta', 'Santa Fe',
+            'San Juan', 'Resistencia', 'Corrientes', 'Posadas',
+            'Neuquén', 'Formosa', 'San Luis', 'Bahía Blanca',
+            'Paraná', 'Santiago del Estero', 'Río Cuarto',
+            'San Salvador de Jujuy', 'Comodoro Rivadavia',
+            'San Rafael', 'Concordia', 'San Nicolás', 'Tandil',
+            'San Fernando del Valle', 'Villa María', 'Pilar',
+            'Tigre', 'San Isidro', 'Vicente López', 'Núñez',
+            'Palermo', 'Recoleta', 'Belgrano', 'Caballito'
+        ],
+        # México - Estados
+        'mexico': [
+            'Ciudad de México', 'CDMX', 'Jalisco', 'Nuevo León',
+            'Estado de México', 'Puebla', 'Guanajuato', 'Chihuahua',
+            'Veracruz', 'Baja California', 'Tamaulipas', 'Sonora',
+            'Coahuila', 'Michoacán', 'Oaxaca', 'Querétaro',
+            'Yucatán', 'Sinaloa', 'San Luis Potosí', 'Chiapas',
+            'Aguascalientes', 'Morelos', 'Hidalgo', 'Tabasco',
+            'Quintana Roo', 'Guerrero', 'Durango', 'Zacatecas',
+            'Nayarit', 'Tlaxcala', 'Campeche', 'Colima',
+            'Baja California Sur'
+        ],
+        # Colombia - Departamentos
+        'colombia': [
+            'Bogotá', 'Antioquia', 'Valle del Cauca', 'Cundinamarca',
+            'Atlántico', 'Santander', 'Bolívar', 'Nariño',
+            'Córdoba', 'Tolima', 'Cauca', 'Norte de Santander',
+            'Boyacá', 'Magdalena', 'Huila', 'Cesar', 'Caldas',
+            'Risaralda', 'Meta', 'Sucre', 'Quindío', 'La Guajira'
+        ],
+        # Chile - Regiones
+        'chile': [
+            'Santiago', 'Región Metropolitana', 'Valparaíso',
+            'Biobío', 'Maule', "O'Higgins", 'Araucanía',
+            'Los Lagos', 'Coquimbo', 'Antofagasta', 'Los Ríos',
+            'Atacama', 'Tarapacá', 'Ñuble', 'Arica y Parinacota',
+            'Magallanes', 'Aysén'
+        ],
+        # Perú - Departamentos
+        'peru': [
+            'Lima', 'Arequipa', 'La Libertad', 'Piura', 'Cusco',
+            'Junín', 'Lambayeque', 'Callao', 'Áncash', 'Cajamarca',
+            'Puno', 'Loreto', 'Ica', 'San Martín', 'Tacna'
+        ],
+        # España - Comunidades
+        'espana': [
+            'Madrid', 'Cataluña', 'Barcelona', 'Andalucía',
+            'Valencia', 'Galicia', 'Castilla y León', 'País Vasco',
+            'Castilla-La Mancha', 'Canarias', 'Murcia', 'Aragón',
+            'Baleares', 'Extremadura', 'Asturias', 'Navarra',
+            'Cantabria', 'La Rioja'
+        ],
+        # Brasil - Estados
+        'brasil': [
+            'São Paulo', 'Rio de Janeiro', 'Minas Gerais',
+            'Bahia', 'Paraná', 'Rio Grande do Sul', 'Pernambuco',
+            'Ceará', 'Santa Catarina', 'Goiás', 'Maranhão',
+            'Amazonas', 'Espírito Santo', 'Paraíba', 'Mato Grosso',
+            'Distrito Federal', 'Brasília'
+        ],
+    }
 
-    for prov in provincias:
-        if prov.lower() in all_content.lower():
-            regex_extract['province'] = prov
+    content_lower = all_content.lower()
+    
+    # Buscar provincia/estado
+    for pais, lista in ubicaciones.items():
+        if 'ciudades' in pais:
+            continue  # Procesar ciudades después
+        for ubicacion in lista:
+            if ubicacion.lower() in content_lower:
+                regex_extract['province'] = ubicacion
+                logger.info(f"[REGEX] Provincia/Estado: {ubicacion}")
+                break
+        if regex_extract.get('province'):
             break
+
+    # Buscar ciudad (si no se encontró como provincia)
+    if not regex_extract.get('city'):
+        for pais, lista in ubicaciones.items():
+            if 'ciudades' not in pais:
+                continue
+            for ciudad in lista:
+                if ciudad.lower() in content_lower:
+                    regex_extract['city'] = ciudad
+                    logger.info(f"[REGEX] Ciudad: {ciudad}")
+                    break
+            if regex_extract.get('city'):
+                break
 
     # ═══════════════════════════════════════════════════════════════════
     # 8. HORARIOS
@@ -628,6 +767,150 @@ def extract_with_regex(all_content: str) -> dict:
     regex_extract['servicios'] = list(set(servicios_encontrados))
 
     return regex_extract
+
+
+def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
+    """
+    Extrae el cargo de una persona desde secciones de Equipo/Team.
+    Busca patrones como:
+    - "Damián Menke - Presidente"
+    - "CEO: Juan Pérez"
+    - "Nombre\nCargo"
+    """
+    if not all_content:
+        return ""
+    
+    # Normalizar contenido
+    content = all_content.replace('\r\n', '\n').replace('\r', '\n')
+    
+    # Lista de cargos a buscar
+    cargos_conocidos = [
+        # Ejecutivos C-Level
+        'CEO', 'CFO', 'CTO', 'COO', 'CMO', 'CIO', 'CHRO',
+        'Chief Executive Officer', 'Chief Financial Officer',
+        'Chief Technology Officer', 'Chief Operating Officer',
+        'Chief Marketing Officer', 'Chief Information Officer',
+        
+        # Directivos
+        'Presidente', 'President', 'Vicepresidente', 'Vice President',
+        'Director General', 'Director Ejecutivo', 'Managing Director',
+        'Director Comercial', 'Director de Tecnología',
+        'Director de Operaciones', 'Director de Marketing',
+        'Director de Ventas', 'Director Financiero',
+        'Director de Recursos Humanos', 'Director de IT',
+        
+        # Fundadores
+        'Fundador', 'Founder', 'Co-Fundador', 'Co-Founder',
+        'Cofundador', 'Cofounder', 'Socio Fundador',
+        
+        # Gerentes
+        'Gerente General', 'Gerente Comercial', 'Gerente de Ventas',
+        'Gerente de Operaciones', 'Gerente de Marketing',
+        'Gerente de Tecnología', 'Gerente Administrativo',
+        'Gerente de Desarrollo', 'Gerente de Proyectos',
+        'Gerenta', 'General Manager', 'Sales Manager',
+        
+        # Dueños
+        'Dueño', 'Dueña', 'Owner', 'Propietario', 'Propietaria',
+        'Titular', 'Socio', 'Partner', 'Managing Partner',
+        
+        # Otros ejecutivos
+        'Head of', 'Jefe de', 'Líder de', 'Lead',
+        'Country Manager', 'Regional Manager',
+    ]
+    
+    cargo_encontrado = ""
+    
+    # ═══════════════════════════════════════════════════════════════
+    # MÉTODO 1: Buscar nombre + cargo en la misma línea o cercano
+    # ═══════════════════════════════════════════════════════════════
+    if nombre_persona:
+        nombre_parts = nombre_persona.lower().split()
+        primer_nombre = nombre_parts[0] if nombre_parts else ""
+        apellido = nombre_parts[-1] if len(nombre_parts) > 1 else ""
+        
+        # Patrón: "Nombre Apellido - Cargo" o "Nombre Apellido, Cargo"
+        for cargo in cargos_conocidos:
+            patterns = [
+                # Nombre - Cargo
+                rf'{re.escape(primer_nombre)}[^<>\n]{{0,30}}'
+                rf'{re.escape(apellido)}[^<>\n]{{0,5}}'
+                rf'[\-–—:,\s]+({re.escape(cargo)}[^<>\n]{{0,50}})',
+                
+                # Cargo: Nombre
+                rf'{re.escape(cargo)}[:\s]+[^<>\n]{{0,10}}'
+                rf'{re.escape(primer_nombre)}[^<>\n]{{0,30}}'
+                rf'{re.escape(apellido)}',
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, content, re.IGNORECASE)
+                if match:
+                    cargo_encontrado = match.group(1) if match.lastindex else cargo
+                    cargo_encontrado = cargo_encontrado.strip(' -–—:,')
+                    logger.info(f"[CARGO] Encontrado por nombre: "
+                                f"{cargo_encontrado}")
+                    return cargo_encontrado
+
+    # ═══════════════════════════════════════════════════════════════
+    # MÉTODO 2: Buscar estructura de sección Equipo/Team
+    # Patrón: Línea con nombre, siguiente línea con cargo
+    # ═══════════════════════════════════════════════════════════════
+    lines = content.split('\n')
+    
+    for i, line in enumerate(lines):
+        line_clean = line.strip()
+        
+        # Si la línea contiene un cargo conocido
+        for cargo in cargos_conocidos:
+            if cargo.lower() in line_clean.lower():
+                # Verificar contexto (no sea parte de texto largo)
+                if len(line_clean) < 100:
+                    # Extraer el cargo completo de la línea
+                    # Buscar desde el cargo hasta el final o hasta un delimitador
+                    cargo_match = re.search(
+                        rf'({re.escape(cargo)}[^<>\n]{{0,50}})',
+                        line_clean,
+                        re.IGNORECASE
+                    )
+                    if cargo_match:
+                        cargo_encontrado = cargo_match.group(1).strip()
+                        # Limpiar caracteres extraños
+                        cargo_encontrado = re.sub(
+                            r'[\*#\[\]]+', '', cargo_encontrado
+                        ).strip()
+                        if cargo_encontrado and len(cargo_encontrado) < 60:
+                            logger.info(f"[CARGO] Encontrado en línea: "
+                                        f"{cargo_encontrado}")
+                            return cargo_encontrado
+
+    # ═══════════════════════════════════════════════════════════════
+    # MÉTODO 3: Buscar en estructuras HTML de equipos
+    # ═══════════════════════════════════════════════════════════════
+    html_patterns = [
+        # Clases comunes para cargo en HTML
+        r'class=["\'][^"\']*(?:cargo|role|position|title|job)'
+        r'[^"\']*["\'][^>]*>([^<]{3,60})<',
+        
+        # Spans/divs después de nombres
+        r'<(?:span|div|p)[^>]*class=["\'][^"\']*'
+        r'(?:cargo|position|role)[^"\']*["\'][^>]*>'
+        r'([^<]{3,60})<',
+    ]
+    
+    for pattern in html_patterns:
+        matches = re.findall(pattern, content, re.IGNORECASE)
+        for match in matches:
+            match_clean = match.strip()
+            # Verificar que sea un cargo válido
+            for cargo in cargos_conocidos:
+                if cargo.lower() in match_clean.lower():
+                    cargo_encontrado = match_clean
+                    logger.info(f"[CARGO] Encontrado en HTML: "
+                                f"{cargo_encontrado}")
+                    return cargo_encontrado
+
+    return cargo_encontrado
 
 
 async def extract_with_gpt(all_content: str, website: str) -> dict:
@@ -805,11 +1088,35 @@ def merge_results(gpt_data: dict,
             'google_maps_url'):
         resultado['google_maps_url'] = regex_data['google_maps_url']
 
-    # Ubicación
+    # Ubicación - COMPLETA (address, city, province, country)
     if not resultado.get('address') and regex_data.get('address'):
         resultado['address'] = regex_data['address']
-    if not resultado.get('province') and regex_data.get('province'):
-        resultado['province'] = regex_data['province']
+    
+    # City - prioridad: GPT > Regex
+    if not resultado.get('city') or resultado.get('city') == 'No encontrado':
+        if regex_data.get('city'):
+            resultado['city'] = regex_data['city']
+    
+    # Province - prioridad: GPT > Regex  
+    if not resultado.get('province') or resultado.get('province') == 'No encontrado':
+        if regex_data.get('province'):
+            resultado['province'] = regex_data['province']
+    
+    # Country - asegurar que tenga valor
+    if not resultado.get('country') or resultado.get('country') == 'No encontrado':
+        # Inferir país del TLD del website
+        if website:
+            tld = website.split('.')[-1].lower().replace('/', '')
+            tld_pais = {
+                'ar': 'Argentina', 'mx': 'México', 'co': 'Colombia',
+                'cl': 'Chile', 'pe': 'Perú', 'br': 'Brasil',
+                'es': 'España', 'uy': 'Uruguay', 'py': 'Paraguay',
+                'ec': 'Ecuador', 've': 'Venezuela', 'bo': 'Bolivia',
+            }
+            if tld in tld_pais:
+                resultado['country'] = tld_pais[tld]
+                logger.info(f"[MERGE] País inferido por TLD: {tld_pais[tld]}")
+    
     if not resultado.get('horarios') and regex_data.get('horarios'):
         resultado['horarios'] = regex_data['horarios']
 
@@ -1208,6 +1515,22 @@ async def extract_web_data(website: str) -> dict:
     # 10. Merge de resultados
     resultado = merge_results(gpt_data, regex_data, tavily_answer,
                               website_full)
+
+    # ═══════════════════════════════════════════════════════════════
+    # 10B. DETECCIÓN DE CARGO desde sección Equipo/Team
+    # ═══════════════════════════════════════════════════════════════
+    if secundarias_content or main_content:
+        # Buscar cargo en contenido de páginas de equipo
+        contenido_equipo = secundarias_content + "\n" + main_content
+        nombre_contacto = resultado.get('contact_name', '')
+        
+        cargo = extraer_cargo_de_equipo(contenido_equipo, nombre_contacto)
+        
+        if cargo:
+            resultado['cargo_detectado'] = cargo
+            logger.info(f"[CARGO] ✓ Detectado: {cargo}")
+        else:
+            resultado['cargo_detectado'] = 'No encontrado'
 
     # ═══════════════════════════════════════════════════════════════
     # BÚSQUEDA DE WHATSAPP EN HTML CRUDO (widgets JS)

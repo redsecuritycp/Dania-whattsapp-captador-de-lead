@@ -2252,3 +2252,97 @@ def format_fecha_es(dt) -> str:
     mes_en = dt.strftime("%B")
     mes_es = MESES_ES.get(mes_en, mes_en)
     return f"{dia} de {mes_es}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# SALARIOS PROMEDIO POR PAÍS (USD/mes) - Para cálculo de facturación
+# ═══════════════════════════════════════════════════════════════════
+
+SALARIOS_PROMEDIO = {
+    # LATAM
+    "Argentina": 1500,
+    "México": 1800,
+    "Chile": 2000,
+    "Colombia": 1400,
+    "Perú": 1300,
+    "Brasil": 1600,
+    "Uruguay": 2200,
+    "Ecuador": 1200,
+    "Bolivia": 1000,
+    "Paraguay": 1100,
+    "Venezuela": 800,
+    "Costa Rica": 1500,
+    "Panamá": 1600,
+    "Guatemala": 1200,
+    "El Salvador": 1100,
+    "Honduras": 900,
+    "Nicaragua": 800,
+    "República Dominicana": 1300,
+    "Cuba": 900,
+    "Puerto Rico": 2500,
+    
+    # EUROPA
+    "España": 3500,
+    "Alemania": 5000,
+    "Francia": 4500,
+    "Italia": 3800,
+    "Reino Unido": 5500,
+    "Portugal": 2500,
+    "Países Bajos": 5200,
+    "Bélgica": 4800,
+    "Suiza": 7500,
+    "Austria": 4500,
+    "Suecia": 5000,
+    "Noruega": 6000,
+    "Dinamarca": 5500,
+    "Finlandia": 4500,
+    "Irlanda": 5000,
+    "Polonia": 2000,
+    "República Checa": 2200,
+    "Grecia": 2000,
+    "Rumania": 1500,
+    "Bulgaria": 1200,
+    
+    # NORTEAMÉRICA
+    "Estados Unidos": 7000,
+    "Canadá": 5500,
+    
+    # ASIA
+    "Japón": 4000,
+    "Corea del Sur": 3500,
+    "China": 2000,
+    "India": 1000,
+    "Singapur": 5500,
+    "Hong Kong": 4500,
+    "Taiwán": 2500,
+    "Tailandia": 1200,
+    "Malasia": 1500,
+    "Indonesia": 800,
+    "Filipinas": 800,
+    "Vietnam": 700,
+    
+    # OCEANÍA
+    "Australia": 6000,
+    "Nueva Zelanda": 5000,
+    
+    # MEDIO ORIENTE
+    "Israel": 4000,
+    "Emiratos Árabes Unidos": 4500,
+    "Arabia Saudita": 4000,
+    "Turquía": 1500,
+    
+    # ÁFRICA
+    "Sudáfrica": 1800,
+    "Egipto": 800,
+    "Nigeria": 700,
+    "Kenia": 800,
+    "Marruecos": 1000,
+}
+
+
+def get_salario_promedio(country: str) -> int:
+    """
+    Retorna el salario promedio en USD/mes para un país.
+    Si el país no está en la tabla, retorna 2000 (default).
+    """
+    return SALARIOS_PROMEDIO.get(country, 2000)
