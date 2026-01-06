@@ -727,50 +727,88 @@ def extract_with_regex(all_content: str) -> dict:
     
     # Lista mínima solo para validar provincias/estados principales
     # NO incluir ciudades/barrios - eso lo detecta GPT del contenido
-    ubicaciones_provincias = {
-        'argentina': [
-            'Buenos Aires', 'CABA', 'Capital Federal',
-            'Córdoba', 'Santa Fe', 'Mendoza', 'Tucumán',
-            'Entre Ríos', 'Salta', 'Misiones', 'Chaco',
-            'Corrientes', 'Santiago del Estero', 'San Juan',
-            'Jujuy', 'Río Negro', 'Neuquén', 'Formosa',
-            'Chubut', 'San Luis', 'Catamarca', 'La Rioja',
-            'La Pampa', 'Santa Cruz', 'Tierra del Fuego'
-        ],
-        'mexico': [
-            'Ciudad de México', 'CDMX', 'Jalisco', 
-            'Nuevo León', 'Estado de México', 'Puebla',
-            'Guanajuato', 'Querétaro', 'Yucatán'
-        ],
-        'colombia': [
-            'Bogotá', 'Antioquia', 'Valle del Cauca',
-            'Cundinamarca', 'Atlántico', 'Santander'
-        ],
-        'chile': [
-            'Santiago', 'Región Metropolitana', 
-            'Valparaíso', 'Biobío'
-        ],
-        'espana': [
-            'Madrid', 'Cataluña', 'Barcelona', 
-            'Andalucía', 'Valencia', 'País Vasco'
-        ],
-        'brasil': [
-            'São Paulo', 'Rio de Janeiro', 
-            'Minas Gerais', 'Bahia'
-        ],
+    # Diccionario provincia -> país (para asignar país correcto)
+    provincia_a_pais = {
+        # Argentina
+        'Buenos Aires': 'Argentina', 'CABA': 'Argentina',
+        'Capital Federal': 'Argentina', 'Córdoba': 'Argentina',
+        'Santa Fe': 'Argentina', 'Mendoza': 'Argentina',
+        'Tucumán': 'Argentina', 'Entre Ríos': 'Argentina',
+        'Salta': 'Argentina', 'Misiones': 'Argentina',
+        'Chaco': 'Argentina', 'Corrientes': 'Argentina',
+        'Santiago del Estero': 'Argentina', 'San Juan': 'Argentina',
+        'Jujuy': 'Argentina', 'Río Negro': 'Argentina',
+        'Neuquén': 'Argentina', 'Formosa': 'Argentina',
+        'Chubut': 'Argentina', 'San Luis': 'Argentina',
+        'Catamarca': 'Argentina', 'La Rioja': 'Argentina',
+        'La Pampa': 'Argentina', 'Santa Cruz': 'Argentina',
+        'Tierra del Fuego': 'Argentina',
+        # México
+        'Ciudad de México': 'México', 'CDMX': 'México',
+        'Jalisco': 'México', 'Nuevo León': 'México',
+        'Estado de México': 'México', 'Puebla': 'México',
+        'Guanajuato': 'México', 'Querétaro': 'México',
+        'Yucatán': 'México', 'Monterrey': 'México',
+        'Guadalajara': 'México',
+        # Colombia
+        'Bogotá': 'Colombia', 'Antioquia': 'Colombia',
+        'Valle del Cauca': 'Colombia', 'Cundinamarca': 'Colombia',
+        'Atlántico': 'Colombia', 'Santander': 'Colombia',
+        'Medellín': 'Colombia', 'Cali': 'Colombia',
+        'Barranquilla': 'Colombia',
+        # Chile
+        'Santiago': 'Chile', 'Región Metropolitana': 'Chile',
+        'Valparaíso': 'Chile', 'Biobío': 'Chile',
+        'Concepción': 'Chile',
+        # España
+        'Madrid': 'España', 'Cataluña': 'España',
+        'Barcelona': 'España', 'Andalucía': 'España',
+        'Valencia': 'España', 'País Vasco': 'España',
+        'Sevilla': 'España', 'Bilbao': 'España',
+        'Málaga': 'España', 'Galicia': 'España',
+        # Brasil
+        'São Paulo': 'Brasil', 'Rio de Janeiro': 'Brasil',
+        'Minas Gerais': 'Brasil', 'Bahia': 'Brasil',
+        # Perú
+        'Lima': 'Perú', 'Arequipa': 'Perú', 'Cusco': 'Perú',
+        # Uruguay
+        'Montevideo': 'Uruguay',
+        # Ecuador
+        'Quito': 'Ecuador', 'Guayaquil': 'Ecuador',
     }
-
+    
     content_lower = all_content.lower()
     
-    # Solo buscar provincia/estado (NO ciudades)
-    for pais, lista in ubicaciones_provincias.items():
-        for ubicacion in lista:
-            if ubicacion.lower() in content_lower:
-                regex_extract['province'] = ubicacion
-                logger.info(f"[REGEX] Provincia/Estado: {ubicacion}")
+    # NO buscar provincias genéricas en todo el contenido
+    # Solo GPT debe detectar ubicación del contexto real
+    # El regex solo se usa como fallback si GPT no encuentra nada
+    # y solo si la palabra aparece cerca de palabras clave de ubicación
+    
+    ubicacion_keywords = [
+        'dirección', 'direccion', 'ubicación', 'ubicacion',
+        'oficina', 'sede', 'domicilio', 'address', 'location',
+        'calle', 'avenida', 'av.', 'av ', 'carrera', 'piso'
+    ]
+    
+    # Buscar si hay contexto de ubicación
+    tiene_contexto_ubicacion = any(
+        kw in content_lower for kw in ubicacion_keywords
+    )
+    
+    # Solo buscar provincia si hay contexto de ubicación
+    if tiene_contexto_ubicacion:
+        for provincia, pais in provincia_a_pais.items():
+            # Buscar provincia con límites de palabra para evitar 
+            # falsos positivos
+            pattern = r'\b' + re.escape(provincia) + r'\b'
+            if re.search(pattern, all_content, re.IGNORECASE):
+                regex_extract['province'] = provincia
+                regex_extract['country_from_province'] = pais
+                logger.info(
+                    f"[REGEX] Provincia/Estado: {provincia} "
+                    f"-> País: {pais}"
+                )
                 break
-        if regex_extract.get('province'):
-            break
     
     # Ciudad: NO buscar en lista, dejar que GPT la detecte
     # del contenido real de la página
@@ -1306,7 +1344,7 @@ DATOS A EXTRAER:
 - address: Dirección física
 {instruccion_city}
 - province: Provincia
-- country: País (default Argentina)
+- country: País (detectar del contenido, NO inventar)
 - horarios: Horarios de atención
 - linkedin_empresa: URL LinkedIn de la empresa
 - instagram_empresa: URL Instagram de la empresa  
@@ -1464,7 +1502,21 @@ def merge_results(gpt_data: dict,
     # 3. Regex
     if not resultado.get('address') or resultado.get('address') == 'No encontrado':
         if regex_data.get('address'):
-            resultado['address'] = regex_data['address']
+            # Validar que sea una dirección real, no texto basura
+            addr = regex_data['address']
+            # Rechazar si es muy corto o tiene palabras sospechosas
+            palabras_invalidas = [
+                'aumentar', 'facturación', 'strongest', 
+                'click', 'here', 'más', 'more', 'ver'
+            ]
+            es_valida = (
+                len(addr) > 10 and
+                not any(p in addr.lower() for p in palabras_invalidas)
+            )
+            if es_valida:
+                resultado['address'] = addr
+            else:
+                logger.info(f"[MERGE] Address descartada (basura): {addr}")
         elif all_content:
             # Intentar extracción por contexto
             direccion_contexto = extraer_direccion_por_contexto(all_content)
@@ -1483,8 +1535,15 @@ def merge_results(gpt_data: dict,
     
     # Country - asegurar que tenga valor
     if not resultado.get('country') or resultado.get('country') == 'No encontrado':
-        # Inferir país del TLD del website
-        if website:
+        # Prioridad 1: País inferido de la provincia detectada
+        if regex_data.get('country_from_province'):
+            resultado['country'] = regex_data['country_from_province']
+            logger.info(
+                f"[MERGE] País inferido de provincia: "
+                f"{resultado['country']}"
+            )
+        # Prioridad 2: Inferir país del TLD del website
+        elif website:
             tld = website.split('.')[-1].lower().replace('/', '')
             tld_pais = {
                 # Latinoamérica
