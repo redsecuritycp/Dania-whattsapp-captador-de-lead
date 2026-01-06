@@ -36,13 +36,13 @@ async def fetch_with_firecrawl(website: str) -> str:
     if not FIRECRAWL_API_KEY:
         logger.warning("[FIRECRAWL] API key no configurada")
         return ""
-    
+
     try:
         url = f"https://{website}" if not website.startswith(
             "http") else website
-        
+
         logger.info(f"[FIRECRAWL] Extrayendo: {url}")
-        
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 "https://api.firecrawl.dev/v1/scrape",
@@ -63,26 +63,26 @@ async def fetch_with_firecrawl(website: str) -> str:
                     "timeout":
                     60000
                 })
-            
+
             if response.status_code == 200:
                 data = response.json()
-                
+
                 if not data.get("success"):
                     logger.warning(
                         f"[FIRECRAWL] Extracción fallida: {data.get('error', 'Unknown')}"
                     )
                     return ""
-                
+
                 result_data = data.get("data", {})
                 content = result_data.get("markdown", "")
                 links = result_data.get("links", [])
-                
+
                 # Agregar links al final (como hace Jina con X-With-Links-Summary)
                 if links:
                     content += "\n\n--- Links encontrados ---\n"
                     for link in links[:50]:  # Limitar a 50 links
                         content += f"- {link}\n"
-                
+
                 logger.info(
                     f"[FIRECRAWL] ✓ {len(content)} caracteres extraídos, {len(links)} links"
                 )
@@ -92,7 +92,7 @@ async def fetch_with_firecrawl(website: str) -> str:
                     f"[FIRECRAWL] Error {response.status_code}: {response.text[:200]}"
                 )
                 return ""
-                
+
     except Exception as e:
         logger.error(f"[FIRECRAWL] Error: {e}")
         return ""
@@ -105,17 +105,17 @@ async def fetch_with_jina(website: str) -> str:
     """
     try:
         url = f"https://r.jina.ai/{website}"
-        
+
         headers = {"Accept": "text/plain", "X-With-Links-Summary": "true"}
-        
+
         if JINA_API_KEY:
             headers["Authorization"] = f"Bearer {JINA_API_KEY}"
-        
+
         logger.info(f"[JINA] Extrayendo (backup): {website}")
-        
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=headers)
-            
+
             if response.status_code == 200:
                 content = response.text
                 if "https://r.jina.ai/YOUR_URL" in content:
@@ -139,11 +139,11 @@ async def fetch_html_direct(url: str) -> str:
             "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
-        
+
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT,
                                      follow_redirects=True) as client:
             response = await client.get(url, headers=headers)
-            
+
             if response.status_code == 200:
                 return response.text[:50000]
             return ""
@@ -189,19 +189,19 @@ async def search_with_tavily(query: str) -> dict:
     """
     if not TAVILY_API_KEY:
         return {}
-    
+
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post("https://api.tavily.com/search",
-                json={
-                    "api_key": TAVILY_API_KEY,
-                    "query": query,
-                    "search_depth": "advanced",
-                    "max_results": 5,
-                    "include_answer": True,
-                    "include_raw_content": True
+                                         json={
+                                             "api_key": TAVILY_API_KEY,
+                                             "query": query,
+                                             "search_depth": "advanced",
+                                             "max_results": 5,
+                                             "include_answer": True,
+                                             "include_raw_content": True
                                          })
-            
+
             if response.status_code == 200:
                 return response.json()
             return {}
@@ -231,13 +231,13 @@ def extract_with_regex(all_content: str) -> dict:
         'business_activity': '',
         'servicios': []
     }
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 1. EMAILS
     # ═══════════════════════════════════════════════════════════════════
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     emails_found = re.findall(email_pattern, all_content)
-    
+
     # Filtrar emails basura
     emails_filtered = []
     for email in emails_found:
@@ -247,10 +247,10 @@ def extract_with_regex(all_content: str) -> dict:
                 'domain.com'
         ]):
             emails_filtered.append(email_lower)
-    
+
     regex_extract['emails'] = list(set(emails_filtered))[:5]
     logger.info(f"[REGEX] Emails encontrados: {regex_extract['emails']}")
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 2. TELÉFONOS - Filtrar falsos positivos (IDs de Wix, etc.)
     # ═══════════════════════════════════════════════════════════════════
@@ -293,7 +293,7 @@ def extract_with_regex(all_content: str) -> dict:
                 phones.append(m.strip())
     
     regex_extract['phones'] = list(set(phones))[:5]
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 3. WHATSAPP - 50+ PATRONES UNIVERSALES
     # Cubre: Elfsight, JoinChat, GetButton, Tawk, Crisp, WhatsHelp,
@@ -514,7 +514,7 @@ def extract_with_regex(all_content: str) -> dict:
         r'\+234\s*(\d{10})',  # Nigeria
         r'\+254\s*(\d{9})',  # Kenia
     ]
-    
+
     for pattern in wa_patterns:
         match = re.search(pattern, all_content, re.IGNORECASE | re.DOTALL)
         if match:
@@ -523,11 +523,11 @@ def extract_with_regex(all_content: str) -> dict:
                 regex_extract['whatsapp'] = '+' + wa_num
                 logger.info(f"[REGEX] ✓ WhatsApp encontrado: +{wa_num}")
                 break
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 4. REDES SOCIALES
     # ═══════════════════════════════════════════════════════════════════
-    
+
     # Instagram
     ig_match = re.search(
         r'(?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9._]+)',
@@ -537,7 +537,7 @@ def extract_with_regex(all_content: str) -> dict:
     ]:
         regex_extract[
             'instagram'] = f"https://instagram.com/{ig_match.group(1)}"
-    
+
     # Facebook
     fb_match = re.search(
         r'(?:https?://)?(?:www\.)?facebook\.com/([a-zA-Z0-9.]+)', all_content,
@@ -546,7 +546,7 @@ def extract_with_regex(all_content: str) -> dict:
             'sharer', 'share', 'dialog', 'plugins'
     ]:
         regex_extract['facebook'] = f"https://facebook.com/{fb_match.group(1)}"
-    
+
     # LinkedIn empresa
     li_match = re.search(
         r'(?:https?://)?(?:www\.)?linkedin\.com/company/([a-zA-Z0-9_-]+)',
@@ -554,14 +554,14 @@ def extract_with_regex(all_content: str) -> dict:
     if li_match:
         regex_extract[
             'linkedin'] = f"https://linkedin.com/company/{li_match.group(1)}"
-    
+
     # Twitter/X
     tw_match = re.search(
         r'(?:https?://)?(?:www\.)?(?:twitter|x)\.com/([a-zA-Z0-9_]+)',
         all_content, re.IGNORECASE)
     if tw_match and tw_match.group(1) not in ['share', 'intent', 'home']:
         regex_extract['twitter'] = f"https://twitter.com/{tw_match.group(1)}"
-    
+
     # YouTube - múltiples formatos de URL
     regex_extract['youtube'] = ''
     yt_patterns = [
@@ -582,7 +582,7 @@ def extract_with_regex(all_content: str) -> dict:
         # En href
         r'href=["\']?(https?://(?:www\.)?youtube\.com/[^"\'>\\s]+)["\']?',
     ]
-
+    
     for pattern in yt_patterns:
         yt_match = re.search(pattern, all_content, re.IGNORECASE)
         if yt_match:
@@ -600,7 +600,7 @@ def extract_with_regex(all_content: str) -> dict:
                     excluir = ['/watch', '/embed', '/playlist', '/results', 
                                '/feed', '/gaming', '/premium', '/music']
                     if not any(x in yt_url for x in excluir):
-                regex_extract['youtube'] = yt_url
+                        regex_extract['youtube'] = yt_url
                         logger.info(f"[REGEX] YouTube encontrado: {yt_url}")
                         break
             else:
@@ -613,8 +613,8 @@ def extract_with_regex(all_content: str) -> dict:
                     if canal.lower() not in excluir:
                         regex_extract['youtube'] = f"https://youtube.com/{canal}"
                         logger.info(f"[REGEX] YouTube encontrado: {regex_extract['youtube']}")
-                break
-    
+                        break
+
     # ═══════════════════════════════════════════════════════════════════
     # 5. GOOGLE MAPS
     # ═══════════════════════════════════════════════════════════════════
@@ -623,7 +623,7 @@ def extract_with_regex(all_content: str) -> dict:
     if maps_match:
         regex_extract['google_maps_url'] = maps_match.group(0).split(
             '"')[0].split("'")[0]
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 6. CUIT/CUIL (Argentina)
     # ═══════════════════════════════════════════════════════════════════
@@ -631,7 +631,7 @@ def extract_with_regex(all_content: str) -> dict:
                            all_content, re.IGNORECASE)
     if cuit_match:
         regex_extract['cuit_cuil'] = cuit_match.group(1)
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 7. DIRECCIONES - INTERNACIONAL (Mejorados para detectar más casos)
     # ═══════════════════════════════════════════════════════════════════
@@ -709,7 +709,7 @@ def extract_with_regex(all_content: str) -> dict:
         r'\s+[A-Za-zàèéìòù\s]+,?\s*\d{1,4}'
         r'(?:\s*,?\s*\d{5})?',
     ]
-    
+
     for pattern in direccion_patterns:
         match = re.search(pattern, all_content, re.IGNORECASE)
         if match and len(match.group(0)) > 10:
@@ -719,7 +719,7 @@ def extract_with_regex(all_content: str) -> dict:
             regex_extract['address'] = direccion
             logger.info(f"[REGEX] Dirección encontrada: {direccion}")
             break
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 7B. PROVINCIAS/ESTADOS - Solo para VALIDACIÓN, no para detección
     # GPT extrae ciudad/barrio del contenido real de la web
@@ -808,11 +808,11 @@ def extract_with_regex(all_content: str) -> dict:
                     f"[REGEX] Provincia/Estado: {provincia} "
                     f"-> País: {pais}"
                 )
-            break
+                break
     
     # Ciudad: NO buscar en lista, dejar que GPT la detecte
     # del contenido real de la página
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 8. HORARIOS
     # ═══════════════════════════════════════════════════════════════════
@@ -820,13 +820,13 @@ def extract_with_regex(all_content: str) -> dict:
         r'(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom|L|M|X|J|V|S|D)[a-z]*[\s\-a]+(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom|L|M|X|J|V|S|D)[a-z]*[:\s]+\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm)?\s*[\-a]+\s*\d{1,2}[:\.]?\d{0,2}\s*(?:hs|hrs|am|pm)?',
         r'\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm)?\s*[\-a]+\s*\d{1,2}:\d{2}\s*(?:hs|hrs|am|pm)?'
     ]
-    
+
     for pattern in horarios_patterns:
         match = re.search(pattern, all_content, re.IGNORECASE)
         if match:
             regex_extract['horarios'] = match.group(0).strip()
             break
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # 9. SERVICIOS (Keywords)
     # ═══════════════════════════════════════════════════════════════════
@@ -838,16 +838,16 @@ def extract_with_regex(all_content: str) -> dict:
         'FIBRA OPTICA', 'UPS', 'ENERGÍA', 'ENERGIA', 'MONITOREO', 'ALARMAS',
         'RASTREO', 'GPS', 'VIGILANCIA'
     ]
-    
+
     content_upper = all_content.upper()
     servicios_encontrados = []
-    
+
     for keyword in servicios_keywords:
         if keyword in content_upper:
             servicios_encontrados.append(keyword.title())
-    
+
     regex_extract['servicios'] = list(set(servicios_encontrados))
-    
+
     return regex_extract
 
 
@@ -1297,7 +1297,7 @@ async def extract_with_gpt(all_content: str, website: str, titulo_pagina: str = 
     """
     if not OPENAI_API_KEY:
         return {}
-    
+
     # Instrucción sobre el título
     instruccion_titulo = ""
     ciudad_del_titulo = ""
@@ -1320,18 +1320,9 @@ Si no encuentras ciudad en el contenido, buscar en el título.
 """
 
     # Construir instrucción de city
-    instruccion_city = """- city: Ciudad REAL donde opera la empresa. 
-  IMPORTANTE: Solo nombres de ciudades reales (ej: Madrid, Buenos Aires, 
-  Ciudad de México, Bogotá, Santiago, Lima, São Paulo, Barcelona, etc.)
-  NO poner: nombre de empresa, servicios, texto promocional, slogan.
-  Si no encontrás una ciudad real clara, poner "No encontrado"."""
+    instruccion_city = "- city: Ciudad (revisar también el TÍTULO de la página)"
     if ciudad_del_titulo:
-        instruccion_city = f"""- city: Ciudad REAL donde opera la empresa.
-  PISTA: El título tiene "{ciudad_del_titulo}" que podría ser la ciudad.
-  IMPORTANTE: Solo nombres de ciudades reales (ej: Madrid, Buenos Aires, 
-  Ciudad de México, Bogotá, Santiago, Lima, São Paulo, Barcelona, etc.)
-  NO poner: nombre de empresa, servicios, texto promocional, slogan.
-  Si no encontrás una ciudad real clara, poner "No encontrado"."""
+        instruccion_city = f'- city: Ciudad (revisar también el TÍTULO de la página. Si el título tiene "{ciudad_del_titulo}", usar ese valor)'
 
     prompt = f"""Extraé los siguientes datos del contenido de este sitio web ({website}).
 Respondé SOLO con JSON válido, sin explicaciones.
@@ -1381,11 +1372,11 @@ JSON:"""
                     "temperature": 0.1,
                     "max_tokens": 1500
                 })
-            
+
             if response.status_code == 200:
                 data = response.json()
                 content = data["choices"][0]["message"]["content"]
-                
+
                 # Limpiar respuesta
                 content = content.strip()
                 if content.startswith("```json"):
@@ -1394,13 +1385,13 @@ JSON:"""
                     content = content[3:]
                 if content.endswith("```"):
                     content = content[:-3]
-                
+
                 logger.info(f"[GPT] ✓ Datos extraídos correctamente")
                 return json.loads(content.strip())
             else:
                 logger.error(f"[GPT] Error {response.status_code}")
                 return {}
-                
+
     except json.JSONDecodeError as e:
         logger.error(f"[GPT] Error parseando JSON: {e}")
         return {}
@@ -1419,18 +1410,18 @@ def merge_results(gpt_data: dict,
     Prioridad: GPT > Regex > Tavily
     """
     resultado = gpt_data.copy() if gpt_data else {}
-    
+
     # Descripción - usar Tavily si GPT no encontró buena
     desc_gpt = resultado.get('business_description', '')
     es_mala = not desc_gpt or desc_gpt == 'No encontrado' or len(desc_gpt) < 50
-    
+
     if es_mala and tavily_answer:
         resultado['business_description'] = tavily_answer
-    
+
     # Servicios
     if not resultado.get('services') and regex_data.get('servicios'):
         resultado['services'] = regex_data['servicios']
-    
+
     # Emails - Priorizar email del dominio del sitio
     gpt_email = resultado.get('email_principal', '')
     regex_emails = regex_data.get('emails', [])
@@ -1438,7 +1429,7 @@ def merge_results(gpt_data: dict,
                                      "").replace("http://",
                                                  "").replace("www.",
                                                              "").split("/")[0]
-    
+
     # Buscar email que coincida con el dominio del sitio
     domain_email = None
     other_emails = []
@@ -1449,7 +1440,7 @@ def merge_results(gpt_data: dict,
             break
         else:
             other_emails.append(email)
-    
+
     # Prioridad: 1) Email del dominio, 2) GPT, 3) Otros emails
     if domain_email:
         resultado['email_principal'] = domain_email
@@ -1458,7 +1449,7 @@ def merge_results(gpt_data: dict,
         if other_emails:
             resultado['email_principal'] = other_emails[0]
             logger.info(f"[MERGE] Email alternativo: {other_emails[0]}")
-    
+
     # Validar que phone_empresa no sea un año (ej: 2024-2025)
     phone_empresa = resultado.get("phone_empresa", "No encontrado")
     if phone_empresa and phone_empresa != "No encontrado":
@@ -1479,7 +1470,7 @@ def merge_results(gpt_data: dict,
             resultado['phone_empresa'] = regex_data['phones'][0]
             if len(regex_data['phones']) > 1:
                 resultado['phones_adicionales'] = regex_data['phones'][1:]
-    
+
     # WhatsApp - de regex
     if not resultado.get('whatsapp_empresa') and regex_data.get('whatsapp'):
         resultado['whatsapp_empresa'] = regex_data['whatsapp']
@@ -1488,7 +1479,7 @@ def merge_results(gpt_data: dict,
     if not resultado.get('whatsapp_empresa') or \
        resultado.get('whatsapp_empresa') == 'No encontrado':
         resultado['_necesita_wa_externo'] = True
-    
+
     # Redes sociales
     if not resultado.get('linkedin_empresa') and regex_data.get('linkedin'):
         resultado['linkedin_empresa'] = regex_data['linkedin']
@@ -1503,7 +1494,7 @@ def merge_results(gpt_data: dict,
     if not resultado.get('google_maps_url') and regex_data.get(
             'google_maps_url'):
         resultado['google_maps_url'] = regex_data['google_maps_url']
-    
+
     # Ubicación - COMPLETA (address, city, province, country)
     # PRIORIDAD: 
     # 1. GPT 
@@ -1532,46 +1523,7 @@ def merge_results(gpt_data: dict,
             if direccion_contexto:
                 resultado['address'] = direccion_contexto
     
-    # City - prioridad: GPT > Regex (con validación)
-    city_actual = resultado.get('city', '')
-    
-    # Validar que city no sea basura
-    if city_actual and city_actual != 'No encontrado':
-        # Lista de palabras que indican que NO es una ciudad real
-        palabras_invalidas_city = [
-            'pizza', 'comida', 'domicilio', 'delivery', 'envío',
-            'servicio', 'producto', 'tienda', 'online', 'shop',
-            'alfajor', 'café', 'coffee', 'restaurant', 'bar',
-            'empresa', 'company', 'negocio', 'business',
-            'contacto', 'contact', 'inicio', 'home', 'about',
-            'gratis', 'free', 'descuento', 'oferta', 'promo'
-        ]
-        
-        city_lower = city_actual.lower()
-        
-        # Rechazar si contiene palabras inválidas
-        es_ciudad_invalida = any(
-            palabra in city_lower for palabra in palabras_invalidas_city
-        )
-        
-        # Rechazar si es muy largo (ciudades reales son cortas)
-        es_muy_largo = len(city_actual) > 40
-        
-        # Rechazar si es igual al nombre de la empresa
-        nombre_empresa = resultado.get('business_name', '').lower()
-        es_nombre_empresa = (
-            city_lower == nombre_empresa or 
-            nombre_empresa in city_lower or
-            city_lower in nombre_empresa
-        )
-        
-        if es_ciudad_invalida or es_muy_largo or es_nombre_empresa:
-            logger.info(
-                f"[MERGE] City descartada (inválida): {city_actual}"
-            )
-            resultado['city'] = 'No encontrado'
-    
-    # Fallback a regex si GPT no encontró
+    # City - prioridad: GPT > Regex
     if not resultado.get('city') or resultado.get('city') == 'No encontrado':
         if regex_data.get('city'):
             resultado['city'] = regex_data['city']
@@ -1579,7 +1531,7 @@ def merge_results(gpt_data: dict,
     # Province - prioridad: GPT > Regex  
     if not resultado.get('province') or resultado.get('province') == 'No encontrado':
         if regex_data.get('province'):
-        resultado['province'] = regex_data['province']
+            resultado['province'] = regex_data['province']
     
     # Country - asegurar que tenga valor
     if not resultado.get('country') or resultado.get('country') == 'No encontrado':
@@ -1629,16 +1581,16 @@ def merge_results(gpt_data: dict,
     
     if not resultado.get('horarios') and regex_data.get('horarios'):
         resultado['horarios'] = regex_data['horarios']
-    
+
     # CUIT/CUIL
     if not resultado.get('cuit_cuil') and regex_data.get('cuit_cuil'):
         resultado['cuit_cuil'] = regex_data['cuit_cuil']
-    
+
     # Business activity
     if not resultado.get('business_activity') and regex_data.get(
             'business_activity'):
         resultado['business_activity'] = regex_data['business_activity']
-    
+
     # ═══════════════════════════════════════════════════════════════
     # Business model - Asegurar que tenga valor
     # ═══════════════════════════════════════════════════════════════
@@ -1666,7 +1618,7 @@ def merge_results(gpt_data: dict,
             [s for s in services if s and s != 'No encontrado'])
     else:
         resultado['services_text'] = 'No encontrado'
-    
+
     return resultado
 
 
@@ -1941,26 +1893,26 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
         nombre_contacto: Nombre del contacto para buscar cargo asociado
     """
     logger.info(f"[EXTRACTOR] ========== Iniciando: {website} ==========")
-    
+
     website_clean = clean_url(website)
     website_full = f"https://{website_clean}"
-    
+
     # ═══════════════════════════════════════════════════════════════════
     # EXTRACCIÓN MÚLTIPLE: Firecrawl → Jina → HTTP → Tavily (máxima cobertura)
     # ═══════════════════════════════════════════════════════════════════
-    
+
     # 1. FIRECRAWL (mejor JS rendering, contenido dinámico)
     firecrawl_content = await fetch_with_firecrawl(website_clean)
     logger.info(f"[FIRECRAWL] {len(firecrawl_content)} caracteres")
-    
+
     # 2. JINA (X-With-Links-Summary captura TODOS los links incluyendo mailto:)
     jina_content = await fetch_with_jina(website_clean)
     logger.info(f"[JINA] {len(jina_content)} caracteres")
-    
+
     # 3. HTTP DIRECTO (HTML raw, a veces tiene datos que los otros no ven)
     http_content = await fetch_html_direct(website_full)
     logger.info(f"[HTTP] {len(http_content)} caracteres")
-    
+
     # 4. PÁGINAS SECUNDARIAS (contacto, nosotros, equipo)
     secundarias_content = await extraer_paginas_secundarias(website_clean)
     logger.info(f"[SECUNDARIAS] {len(secundarias_content)} caracteres")
@@ -1976,28 +1928,28 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
     if secundarias_content:
         main_content += "=== PÁGINAS SECUNDARIAS ===\n"
         main_content += secundarias_content + "\n\n"
-    
+
     # 5. Tavily para búsqueda complementaria y descripción
     tavily_query = f'"{website_clean}" contacto dirección teléfono email Argentina'
     tavily_data = await search_with_tavily(tavily_query)
-    
+
     tavily_answer = tavily_data.get("answer", "")
     tavily_raw = ""
-    
+
     for r in tavily_data.get("results", []):
         if r.get('raw_content'):
             tavily_raw += r['raw_content'][:3000] + "\n"
-    
+
     # 7. Combinar todo el contenido
     all_content = ""
     if main_content:
         all_content += "=== SITIO WEB ===\n" + main_content + "\n\n"
     if tavily_raw:
         all_content += "=== DATOS ADICIONALES (TAVILY) ===\n" + tavily_raw
-    
+
     if len(all_content) > 20000:
         all_content = all_content[:20000]
-    
+
     # Fallback 4: Tavily
     if not all_content:
         logger.info(f"[TAVILY] Fallback: extrayendo {website}...")
@@ -2006,7 +1958,7 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
             all_content = tavily_content
             logger.info(
                 f"[TAVILY] ✓ {len(tavily_content)} caracteres extraídos")
-    
+
     if not all_content:
         logger.warning(f"[EXTRACTOR] Los 4 métodos fallaron para {website}")
         return {
@@ -2015,9 +1967,9 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
             "website": website_full,
             "extraction_status": "failed"
         }
-    
+
     logger.info(f"[EXTRACTOR] Contenido total: {len(all_content)} chars")
-    
+
     # 8. Extraer título de la página (para detectar ciudad)
     titulo_pagina = ""
     if http_content:
@@ -2028,7 +1980,7 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
     # 9. Extracción Regex
     logger.info(f"[EXTRACTOR] Aplicando regex...")
     regex_data = extract_with_regex(all_content)
-    
+
     # 10. Extracción GPT (con título para detectar ciudad)
     logger.info(f"[GPT] Extrayendo datos estructurados...")
     gpt_data = await extract_with_gpt(all_content, website_clean, titulo_pagina)
@@ -2122,7 +2074,7 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
 
     resultado['website'] = website_full
     resultado['extraction_status'] = 'success'
-    
+
     logger.info(f"[EXTRACTOR] ========== Completado ==========")
-    
+
     return resultado
