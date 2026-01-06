@@ -257,17 +257,17 @@ def extract_with_regex(all_content: str) -> dict:
     phone_patterns = [
         # 1. href="tel:..." - MÁS CONFIABLE
         r'href=["\']tel:([^"\']+)',
-        
+
         # 2. Con código de país: +54 11 1234-5678
         r'\+\d{1,4}[\s.-]?\(?\d{1,5}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}[\s.-]?\d{0,4}',
-        
+
         # 3. Con código de área entre paréntesis: (011) 1234-5678
         r'\(\d{2,5}\)[\s.-]?\d{3,4}[\s.-]?\d{3,4}',
-        
-        # NOTA: NO incluir patrón genérico \d{4}[\s.-]\d{4} 
+
+        # NOTA: NO incluir patrón genérico \d{4}[\s.-]\d{4}
         # porque captura IDs, códigos, etc. (ej: "2050.3359" de Wix)
     ]
-    
+
     phones = []
     for pattern in phone_patterns:
         matches = re.findall(pattern, all_content, re.IGNORECASE)
@@ -278,20 +278,20 @@ def extract_with_regex(all_content: str) -> dict:
             # Máximo 15 dígitos (estándar internacional)
             if 8 <= len(phone_digits) <= 15:
                 phones.append(m.strip() if isinstance(m, str) else m)
-    
+
     # También buscar teléfonos con contexto textual
     context_patterns = [
         r'(?:Tel[éeÉE]?fono|Tel\.?|Phone|Fono|Llamar?)[\s:]+([+\d\s\-\(\)\.]{8,20})',
         r'(?:Contacto|Contact)[\s:]+([+\d\s\-\(\)\.]{8,20})',
     ]
-    
+
     for pattern in context_patterns:
         matches = re.findall(pattern, all_content, re.IGNORECASE)
         for m in matches:
             phone_digits = re.sub(r'\D', '', str(m))
             if 8 <= len(phone_digits) <= 15:
                 phones.append(m.strip())
-    
+
     regex_extract['phones'] = list(set(phones))[:5]
 
     # ═══════════════════════════════════════════════════════════════════
@@ -569,20 +569,20 @@ def extract_with_regex(all_content: str) -> dict:
         r'(?:https?://)?(?:www\.)?youtube\.com/'
         r'(?:channel|c|user|@)/'
         r'([A-Za-z0-9_-]+)',
-        
+
         # URL directa: youtube.com/nombrecanal
         r'(?:https?://)?(?:www\.)?youtube\.com/'
         r'([A-Za-z0-9_-]{3,30})'
         r'(?:\?|$|"|\'|\s)',
-        
-        # Formato con @: youtube.com/@nombrecanal  
+
+        # Formato con @: youtube.com/@nombrecanal
         r'(?:https?://)?(?:www\.)?youtube\.com/'
         r'@([A-Za-z0-9_-]+)',
-        
+
         # En href
         r'href=["\']?(https?://(?:www\.)?youtube\.com/[^"\'>\\s]+)["\']?',
     ]
-    
+
     for pattern in yt_patterns:
         yt_match = re.search(pattern, all_content, re.IGNORECASE)
         if yt_match:
@@ -591,14 +591,14 @@ def extract_with_regex(all_content: str) -> dict:
             if 'youtube.com' in matched:
                 # Ya es URL completa
                 yt_url_match = re.search(
-                    r'https?://(?:www\.)?youtube\.com/[^\s"\'<>]+', 
-                    matched
-                )
+                    r'https?://(?:www\.)?youtube\.com/[^\s"\'<>]+', matched)
                 if yt_url_match:
                     yt_url = yt_url_match.group(0).split('?')[0].split('#')[0]
                     # Excluir watch, embed, etc.
-                    excluir = ['/watch', '/embed', '/playlist', '/results', 
-                               '/feed', '/gaming', '/premium', '/music']
+                    excluir = [
+                        '/watch', '/embed', '/playlist', '/results', '/feed',
+                        '/gaming', '/premium', '/music'
+                    ]
                     if not any(x in yt_url for x in excluir):
                         regex_extract['youtube'] = yt_url
                         logger.info(f"[REGEX] YouTube encontrado: {yt_url}")
@@ -608,11 +608,16 @@ def extract_with_regex(all_content: str) -> dict:
                 canal = yt_match.group(1) if yt_match.lastindex else ""
                 if canal:
                     # Excluir palabras comunes que no son canales
-                    excluir = ['watch', 'embed', 'playlist', 'results', 
-                               'feed', 'gaming', 'premium', 'music']
+                    excluir = [
+                        'watch', 'embed', 'playlist', 'results', 'feed',
+                        'gaming', 'premium', 'music'
+                    ]
                     if canal.lower() not in excluir:
-                        regex_extract['youtube'] = f"https://youtube.com/{canal}"
-                        logger.info(f"[REGEX] YouTube encontrado: {regex_extract['youtube']}")
+                        regex_extract[
+                            'youtube'] = f"https://youtube.com/{canal}"
+                        logger.info(
+                            f"[REGEX] YouTube encontrado: {regex_extract['youtube']}"
+                        )
                         break
 
     # ═══════════════════════════════════════════════════════════════════
@@ -639,7 +644,7 @@ def extract_with_regex(all_content: str) -> dict:
         # ══════════════════════════════════════════════════════
         # FORMATO GENERAL: Av/Calle + Nombre + Número + Extras
         # ══════════════════════════════════════════════════════
-        
+
         # Patrón universal flexible (captura la mayoría)
         r'(?:Av\.?|Avenida|Calle|Ca\.?|C/|Bv\.?|Boulevard|Blvd\.?|'
         r'Pasaje|Pje\.?|Paseo|Jr\.?|Jirón|Rua|Alameda|Travessa|'
@@ -647,63 +652,63 @@ def extract_with_regex(all_content: str) -> dict:
         r'\s*[A-Za-záéíóúñüÁÉÍÓÚÑÜçÇ\.\s]{2,40}'
         r'\s*\d{1,5}'
         r'(?:\s*[-,]\s*[A-Za-záéíóúñ\.\s\d]+)?',
-        
+
         # Argentina: "Av. Congreso 2595, Piso 2 C1428BVM"
         r'(?:Av\.?|Avenida|Calle|Bv\.?|Boulevard)'
         r'\s+[A-Za-záéíóúñÁÉÍÓÚÑ\s\.]+\s+\d{1,5}'
         r'(?:\s*,?\s*(?:Piso|P\.?)\s*\d{1,2}'
         r'(?:\s*,?\s*(?:Dto\.?|Depto\.?|Dpto\.?)\s*[A-Za-z0-9]+)?)?'
         r'(?:\s*[A-Z]\d{4}[A-Z]{3})?',
-        
+
         # México: "Calle X #123, Col. Centro, CP 12345"
         r'(?:Calle|Av\.?|Avenida|Blvd\.?)'
         r'\s+[A-Za-záéíóúñ\s]+\s*#?\s*\d{1,5}'
         r'(?:\s*,?\s*(?:Col\.?|Colonia)\s+[A-Za-záéíóúñ\s]+)?'
         r'(?:\s*,?\s*(?:CP\.?|C\.?P\.?)\s*\d{5})?',
-        
+
         # Colombia: "Calle 45 #23-67" o "Carrera 7 No. 123-45"
         r'(?:Calle|Carrera|Cra\.?|Cl\.?|Transversal|Diagonal)'
         r'\s*\d{1,3}[A-Za-z]?\s*(?:#|No\.?|N°)?\s*\d{1,3}[A-Za-z]?'
         r'(?:\s*[-]\s*\d{1,3})?',
-        
+
         # Chile: "Av. Providencia 1234, Depto 5"
         r'(?:Av\.?|Avenida|Calle|Pasaje)'
         r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,5}'
         r'(?:\s*,?\s*(?:Depto\.?|Oficina|Of\.?|Dpto\.?)\s*\d+)?',
-        
+
         # España: "C/ Mayor, 12, 3º, 28001 Madrid"
         r'(?:Calle|C/|Avda\.?|Avenida|Plaza|Pza\.?|Paseo)'
         r'\s+[A-Za-záéíóúñ\s]+,?\s*\d{1,4}'
         r'(?:\s*,?\s*\d{1,2}[ºª°]?)?'
         r'(?:\s*,?\s*\d{5})?',
-        
+
         # Brasil: "Rua das Flores, nº 789, CEP 01234-567"
         r'(?:Rua|Av\.?|Avenida|Alameda|Travessa)'
         r'\s+[A-Za-záéíóúãõçÁÉÍÓÚÃÕÇ\s]+,?\s*(?:n[ºo°]?\.?)?\s*\d{1,5}'
         r'(?:\s*,?\s*(?:CEP|Cep)\s*\d{5}[-]?\d{3})?',
-        
+
         # Perú: "Jr. Lima 234, Of. 5"
         r'(?:Jr\.?|Jirón|Av\.?|Avenida|Calle|Ca\.?)'
         r'\s+[A-Za-záéíóúñ\s]+\s+\d{1,4}'
         r'(?:\s*,?\s*(?:Of\.?|Oficina|Dpto\.?)\s*\d+)?',
-        
+
         # USA/UK: "123 Main Street, Suite 456, 90210"
         r'\d{1,5}\s+[A-Za-z\s]{3,40}'
         r'(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|'
         r'Drive|Dr\.?|Lane|Ln\.?|Way|Place|Pl\.?)'
         r'(?:\s*,?\s*(?:Suite|Ste\.?|Apt\.?|Unit|#)\s*[A-Za-z0-9]+)?'
         r'(?:\s*,?\s*\d{5}(?:-\d{4})?)?',
-        
+
         # Alemania: "Hauptstraße 45, 10115 Berlin"
         r'[A-Za-zäöüÄÖÜß]+(?:straße|strasse|str\.?|weg|platz|allee)'
         r'\s*\d{1,4}[a-z]?'
         r'(?:\s*,?\s*\d{5})?',
-        
+
         # Francia: "45 Rue de la Paix, 75002 Paris"
         r'\d{1,4}\s+(?:Rue|Avenue|Boulevard|Place|Allée)'
         r'\s+[A-Za-zàâäéèêëïîôùûüÿœæ\s]+'
         r'(?:\s*,?\s*\d{5})?',
-        
+
         # Italia: "Via Roma 45, 00100 Roma"
         r'(?:Via|Viale|Piazza|Corso|Largo)'
         r'\s+[A-Za-zàèéìòù\s]+,?\s*\d{1,4}'
@@ -724,92 +729,122 @@ def extract_with_regex(all_content: str) -> dict:
     # 7B. PROVINCIAS/ESTADOS - Solo para VALIDACIÓN, no para detección
     # GPT extrae ciudad/barrio del contenido real de la web
     # ═══════════════════════════════════════════════════════════════════
-    
+
     # Lista mínima solo para validar provincias/estados principales
     # NO incluir ciudades/barrios - eso lo detecta GPT del contenido
     # Diccionario provincia -> país (para asignar país correcto)
     provincia_a_pais = {
         # Argentina
-        'Buenos Aires': 'Argentina', 'CABA': 'Argentina',
-        'Capital Federal': 'Argentina', 'Córdoba': 'Argentina',
-        'Santa Fe': 'Argentina', 'Mendoza': 'Argentina',
-        'Tucumán': 'Argentina', 'Entre Ríos': 'Argentina',
-        'Salta': 'Argentina', 'Misiones': 'Argentina',
-        'Chaco': 'Argentina', 'Corrientes': 'Argentina',
-        'Santiago del Estero': 'Argentina', 'San Juan': 'Argentina',
-        'Jujuy': 'Argentina', 'Río Negro': 'Argentina',
-        'Neuquén': 'Argentina', 'Formosa': 'Argentina',
-        'Chubut': 'Argentina', 'San Luis': 'Argentina',
-        'Catamarca': 'Argentina', 'La Rioja': 'Argentina',
-        'La Pampa': 'Argentina', 'Santa Cruz': 'Argentina',
+        'Buenos Aires': 'Argentina',
+        'CABA': 'Argentina',
+        'Capital Federal': 'Argentina',
+        'Córdoba': 'Argentina',
+        'Santa Fe': 'Argentina',
+        'Mendoza': 'Argentina',
+        'Tucumán': 'Argentina',
+        'Entre Ríos': 'Argentina',
+        'Salta': 'Argentina',
+        'Misiones': 'Argentina',
+        'Chaco': 'Argentina',
+        'Corrientes': 'Argentina',
+        'Santiago del Estero': 'Argentina',
+        'San Juan': 'Argentina',
+        'Jujuy': 'Argentina',
+        'Río Negro': 'Argentina',
+        'Neuquén': 'Argentina',
+        'Formosa': 'Argentina',
+        'Chubut': 'Argentina',
+        'San Luis': 'Argentina',
+        'Catamarca': 'Argentina',
+        'La Rioja': 'Argentina',
+        'La Pampa': 'Argentina',
+        'Santa Cruz': 'Argentina',
         'Tierra del Fuego': 'Argentina',
         # México
-        'Ciudad de México': 'México', 'CDMX': 'México',
-        'Jalisco': 'México', 'Nuevo León': 'México',
-        'Estado de México': 'México', 'Puebla': 'México',
-        'Guanajuato': 'México', 'Querétaro': 'México',
-        'Yucatán': 'México', 'Monterrey': 'México',
+        'Ciudad de México': 'México',
+        'CDMX': 'México',
+        'Jalisco': 'México',
+        'Nuevo León': 'México',
+        'Estado de México': 'México',
+        'Puebla': 'México',
+        'Guanajuato': 'México',
+        'Querétaro': 'México',
+        'Yucatán': 'México',
+        'Monterrey': 'México',
         'Guadalajara': 'México',
         # Colombia
-        'Bogotá': 'Colombia', 'Antioquia': 'Colombia',
-        'Valle del Cauca': 'Colombia', 'Cundinamarca': 'Colombia',
-        'Atlántico': 'Colombia', 'Santander': 'Colombia',
-        'Medellín': 'Colombia', 'Cali': 'Colombia',
+        'Bogotá': 'Colombia',
+        'Antioquia': 'Colombia',
+        'Valle del Cauca': 'Colombia',
+        'Cundinamarca': 'Colombia',
+        'Atlántico': 'Colombia',
+        'Santander': 'Colombia',
+        'Medellín': 'Colombia',
+        'Cali': 'Colombia',
         'Barranquilla': 'Colombia',
         # Chile
-        'Santiago': 'Chile', 'Región Metropolitana': 'Chile',
-        'Valparaíso': 'Chile', 'Biobío': 'Chile',
+        'Santiago': 'Chile',
+        'Región Metropolitana': 'Chile',
+        'Valparaíso': 'Chile',
+        'Biobío': 'Chile',
         'Concepción': 'Chile',
         # España
-        'Madrid': 'España', 'Cataluña': 'España',
-        'Barcelona': 'España', 'Andalucía': 'España',
-        'Valencia': 'España', 'País Vasco': 'España',
-        'Sevilla': 'España', 'Bilbao': 'España',
-        'Málaga': 'España', 'Galicia': 'España',
+        'Madrid': 'España',
+        'Cataluña': 'España',
+        'Barcelona': 'España',
+        'Andalucía': 'España',
+        'Valencia': 'España',
+        'País Vasco': 'España',
+        'Sevilla': 'España',
+        'Bilbao': 'España',
+        'Málaga': 'España',
+        'Galicia': 'España',
         # Brasil
-        'São Paulo': 'Brasil', 'Rio de Janeiro': 'Brasil',
-        'Minas Gerais': 'Brasil', 'Bahia': 'Brasil',
+        'São Paulo': 'Brasil',
+        'Rio de Janeiro': 'Brasil',
+        'Minas Gerais': 'Brasil',
+        'Bahia': 'Brasil',
         # Perú
-        'Lima': 'Perú', 'Arequipa': 'Perú', 'Cusco': 'Perú',
+        'Lima': 'Perú',
+        'Arequipa': 'Perú',
+        'Cusco': 'Perú',
         # Uruguay
         'Montevideo': 'Uruguay',
         # Ecuador
-        'Quito': 'Ecuador', 'Guayaquil': 'Ecuador',
+        'Quito': 'Ecuador',
+        'Guayaquil': 'Ecuador',
     }
-    
+
     content_lower = all_content.lower()
-    
+
     # NO buscar provincias genéricas en todo el contenido
     # Solo GPT debe detectar ubicación del contexto real
     # El regex solo se usa como fallback si GPT no encuentra nada
     # y solo si la palabra aparece cerca de palabras clave de ubicación
-    
+
     ubicacion_keywords = [
-        'dirección', 'direccion', 'ubicación', 'ubicacion',
-        'oficina', 'sede', 'domicilio', 'address', 'location',
-        'calle', 'avenida', 'av.', 'av ', 'carrera', 'piso'
+        'dirección', 'direccion', 'ubicación', 'ubicacion', 'oficina', 'sede',
+        'domicilio', 'address', 'location', 'calle', 'avenida', 'av.', 'av ',
+        'carrera', 'piso'
     ]
-    
+
     # Buscar si hay contexto de ubicación
-    tiene_contexto_ubicacion = any(
-        kw in content_lower for kw in ubicacion_keywords
-    )
-    
+    tiene_contexto_ubicacion = any(kw in content_lower
+                                   for kw in ubicacion_keywords)
+
     # Solo buscar provincia si hay contexto de ubicación
     if tiene_contexto_ubicacion:
         for provincia, pais in provincia_a_pais.items():
-            # Buscar provincia con límites de palabra para evitar 
+            # Buscar provincia con límites de palabra para evitar
             # falsos positivos
             pattern = r'\b' + re.escape(provincia) + r'\b'
             if re.search(pattern, all_content, re.IGNORECASE):
                 regex_extract['province'] = provincia
                 regex_extract['country_from_province'] = pais
-                logger.info(
-                    f"[REGEX] Provincia/Estado: {provincia} "
-                    f"-> País: {pais}"
-                )
+                logger.info(f"[REGEX] Provincia/Estado: {provincia} "
+                            f"-> País: {pais}")
                 break
-    
+
     # Ciudad: NO buscar en lista, dejar que GPT la detecte
     # del contenido real de la página
 
@@ -853,11 +888,8 @@ def extract_with_regex(all_content: str) -> dict:
 
 def extraer_titulo_pagina(html_content: str) -> str:
     """Extrae el título de la página del HTML."""
-    title_match = re.search(
-        r'<title[^>]*>([^<]+)</title>', 
-        html_content, 
-        re.IGNORECASE
-    )
+    title_match = re.search(r'<title[^>]*>([^<]+)</title>', html_content,
+                            re.IGNORECASE)
     if title_match:
         return title_match.group(1).strip()
     return ""
@@ -866,90 +898,108 @@ def extraer_titulo_pagina(html_content: str) -> str:
 def extraer_ciudad_de_titulo(titulo: str) -> str:
     """
     Extrae ciudad/barrio del título de la página.
-    
+
     Ejemplos:
     - "Empresa X | Núñez" → "Núñez"
     - "Servicios en Madrid | Empresa" → "Madrid"
     - "Company - New York Office" → "New York"
     """
     import re
-    
+
     if not titulo:
         return ""
-    
+
     # Separadores comunes en títulos
     separadores = ['|', '-', '–', '—', '•', '·', ':']
-    
+
     partes = [titulo]
     for sep in separadores:
         nuevas_partes = []
         for parte in partes:
             nuevas_partes.extend(parte.split(sep))
         partes = nuevas_partes
-    
+
     # Limpiar partes
     partes = [p.strip() for p in partes if p.strip()]
-    
+
     # Palabras a ignorar (no son ciudades)
     ignorar = [
-        'home', 'inicio', 'principal', 'bienvenido', 'welcome',
-        'contacto', 'contact', 'nosotros', 'about', 'servicios',
-        'services', 'productos', 'products', 'blog', 'empresa',
-        'company', 'oficial', 'official', 'sitio', 'site', 'web',
-        'página', 'page', 'tienda', 'store', 'shop',
+        'home',
+        'inicio',
+        'principal',
+        'bienvenido',
+        'welcome',
+        'contacto',
+        'contact',
+        'nosotros',
+        'about',
+        'servicios',
+        'services',
+        'productos',
+        'products',
+        'blog',
+        'empresa',
+        'company',
+        'oficial',
+        'official',
+        'sitio',
+        'site',
+        'web',
+        'página',
+        'page',
+        'tienda',
+        'store',
+        'shop',
     ]
-    
+
     # Buscar la parte que parece ciudad (corta, sin palabras comunes)
     for parte in partes:
         parte_lower = parte.lower()
-        
+
         # Ignorar si es muy larga (probablemente no es ciudad)
         if len(parte) > 30:
             continue
-        
+
         # Ignorar si contiene palabras comunes
         es_ignorable = False
         for palabra in ignorar:
             if palabra in parte_lower:
                 es_ignorable = True
                 break
-        
+
         if es_ignorable:
             continue
-        
+
         # Ignorar si parece nombre de empresa (tiene SA, SRL, LLC, etc.)
-        if re.search(
-            r'\b(?:SA|SRL|LLC|Inc|Corp|Ltd|GmbH|SAS|SAC)\b', 
-            parte, 
-            re.IGNORECASE
-        ):
+        if re.search(r'\b(?:SA|SRL|LLC|Inc|Corp|Ltd|GmbH|SAS|SAC)\b', parte,
+                     re.IGNORECASE):
             continue
-        
+
         # Si llegó acá, puede ser ciudad
         # Verificar que tenga formato de nombre propio
         if re.match(r'^[A-ZÁÉÍÓÚÑ][a-záéíóúñ\s]+$', parte):
             return parte
-    
+
     return ""
 
 
 def extraer_direccion_por_contexto(all_content: str) -> str:
     """
     Extrae dirección buscando por contexto semántico.
-    
+
     LÓGICA UNIVERSAL:
     1. Buscar palabras clave que indican dirección
     2. Extraer texto después de esas palabras
     3. Validar que parezca una dirección real
-    
+
     Funciona para cualquier idioma/país porque busca 
     por SEMÁNTICA, no por formato específico.
     """
     import re
-    
+
     if not all_content:
         return ""
-    
+
     # Palabras clave que indican dirección (multi-idioma)
     keywords_direccion = [
         # Español
@@ -961,7 +1011,7 @@ def extraer_direccion_por_contexto(all_content: str) -> str:
         r'd[oó]nde\s+estamos[:\s]*',
         r'enc[uo]ntranos[:\s]+',
         r'vis[ií]tanos[:\s]+',
-        
+
         # Inglés
         r'address[:\s]+',
         r'location[:\s]+',
@@ -969,20 +1019,20 @@ def extraer_direccion_por_contexto(all_content: str) -> str:
         r'headquarters[:\s]+',
         r'find\s+us[:\s]+',
         r'visit\s+us[:\s]+',
-        
+
         # Portugués
         r'endere[cç]o[:\s]+',
         r'localiza[cç][aã]o[:\s]+',
-        
+
         # Alemán
         r'adresse[:\s]+',
         r'standort[:\s]+',
-        
+
         # Francés
         r'adresse[:\s]+',
         r'si[eè]ge[:\s]+',
     ]
-    
+
     # Indicadores de que el texto es una dirección
     indicadores_direccion = [
         # Prefijos de calle (multi-país)
@@ -991,177 +1041,226 @@ def extraer_direccion_por_contexto(all_content: str) -> str:
         r'Alameda|Travessa|Carrera|Cra\.?|Via|Viale|Piazza|'
         r'Corso|Rue|Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|'
         r'Drive|Dr\.?|Lane|Ln\.?|Place|Pl\.?)\b',
-        
+
         # Números de calle
         r'\b\d{1,5}\b',
-        
+
         # Pisos/Departamentos
         r'\b(?:Piso|P\.?|Dto\.?|Depto\.?|Dpto\.?|Of\.?|'
         r'Oficina|Suite|Ste\.?|Apt\.?|Floor|Unit)\b',
-        
+
         # Códigos postales
         r'\b[A-Z]?\d{4,5}[A-Z]{0,3}\b',
     ]
-    
+
     content = all_content.replace('\n', ' ').replace('\r', ' ')
     content = re.sub(r'\s+', ' ', content)
-    
+
     # Buscar cada palabra clave
     for keyword in keywords_direccion:
         matches = re.finditer(keyword, content, re.IGNORECASE)
-        
+
         for match in matches:
             # Extraer texto después de la palabra clave (hasta 150 chars)
             inicio = match.end()
             fin = min(len(content), inicio + 150)
             texto_despues = content[inicio:fin]
-            
-            # Cortar en punto, coma seguida de espacio y mayúscula, 
+
+            # Cortar en punto, coma seguida de espacio y mayúscula,
             # o salto implícito
             cortes = [
                 r'\.\s+[A-Z]',  # Punto seguido de mayúscula
-                r'\s{2,}',      # Múltiples espacios
-                r'[|]',         # Separador
+                r'\s{2,}',  # Múltiples espacios
+                r'[|]',  # Separador
                 r'(?:Tel[éeÉE]?fono|Email|Mail|Contacto)',  # Otra sección
             ]
-            
+
             for corte in cortes:
                 corte_match = re.search(corte, texto_despues)
                 if corte_match:
                     texto_despues = texto_despues[:corte_match.start()]
                     break
-            
+
             texto_despues = texto_despues.strip()
-            
+
             # Validar que parece dirección (tiene indicadores)
             indicadores_encontrados = 0
             for indicador in indicadores_direccion:
                 if re.search(indicador, texto_despues, re.IGNORECASE):
                     indicadores_encontrados += 1
-            
+
             # Necesita al menos 2 indicadores para ser válida
             if indicadores_encontrados >= 2 and len(texto_despues) >= 10:
                 # Limpiar
                 texto_despues = texto_despues.strip(' ,.-:')
-                logger.info(
-                    f"[DIRECCION] ✓ Encontrada por contexto: "
-                    f"{texto_despues[:80]}"
-                )
+                logger.info(f"[DIRECCION] ✓ Encontrada por contexto: "
+                            f"{texto_despues[:80]}")
                 return texto_despues[:100]  # Limitar longitud
-    
+
     return ""
 
 
-def extraer_cargo_de_equipo(
-    all_content: str, 
-    nombre_persona: str = ""
-) -> str:
+def extraer_cargo_de_equipo(all_content: str, nombre_persona: str = "") -> str:
     """
     Extrae el cargo de una persona específica del contenido.
-    
+
     LÓGICA UNIVERSAL:
     1. Si hay nombre, buscar cargo ASOCIADO a ese nombre
     2. Buscar en bloques cercanos al nombre
     3. Solo si no encuentra, buscar cargo genérico (CEO/Fundador)
-    
+
     Args:
         all_content: Contenido HTML/texto de la página
         nombre_persona: Nombre de la persona a buscar
-    
+
     Returns:
         Cargo encontrado o "No detectado"
     """
     import re
-    
+
     if not all_content:
         return "No detectado"
-    
+
     # Limpiar contenido
     content = all_content.replace('\n', ' ').replace('\r', ' ')
     content = re.sub(r'\s+', ' ', content)
-    
+
     # Lista de cargos ejecutivos (internacional)
     cargos_ejecutivos = [
         # C-Level
-        'CEO', 'CFO', 'CTO', 'COO', 'CMO', 'CIO', 'CISO', 'CPO',
-        'Chief Executive Officer', 'Chief Financial Officer',
-        'Chief Technology Officer', 'Chief Operating Officer',
-        'Chief Marketing Officer', 'Chief Information Officer',
-        
+        'CEO',
+        'CFO',
+        'CTO',
+        'COO',
+        'CMO',
+        'CIO',
+        'CISO',
+        'CPO',
+        'Chief Executive Officer',
+        'Chief Financial Officer',
+        'Chief Technology Officer',
+        'Chief Operating Officer',
+        'Chief Marketing Officer',
+        'Chief Information Officer',
+
         # Dirección
-        'Director General', 'Director Ejecutivo', 'Director Comercial',
-        'Director de Tecnología', 'Director de Marketing',
-        'Director de Operaciones', 'Director de Ventas',
-        'Director Financiero', 'Director de RRHH',
-        'Managing Director', 'Executive Director',
-        
+        'Director General',
+        'Director Ejecutivo',
+        'Director Comercial',
+        'Director de Tecnología',
+        'Director de Marketing',
+        'Director de Operaciones',
+        'Director de Ventas',
+        'Director Financiero',
+        'Director de RRHH',
+        'Managing Director',
+        'Executive Director',
+
         # Presidencia
-        'Presidente', 'President', 'Vicepresidente', 'Vice President',
-        'VP', 'Chairman', 'Chairwoman',
-        
+        'Presidente',
+        'President',
+        'Vicepresidente',
+        'Vice President',
+        'VP',
+        'Chairman',
+        'Chairwoman',
+
         # Fundadores
-        'Fundador', 'Founder', 'Co-Fundador', 'Co-Founder',
-        'Cofundador', 'Cofounder', 'Socio Fundador',
-        
+        'Fundador',
+        'Founder',
+        'Co-Fundador',
+        'Co-Founder',
+        'Cofundador',
+        'Cofounder',
+        'Socio Fundador',
+
         # Gerencia
-        'Gerente General', 'Gerente Comercial', 'Gerente de Ventas',
-        'Gerente de Marketing', 'Gerente de Operaciones',
-        'Gerente de Tecnología', 'Gerente de Sistemas',
-        'Gerente de Administración', 'Gerente de RRHH',
-        'General Manager', 'Sales Manager', 'Marketing Manager',
-        
+        'Gerente General',
+        'Gerente Comercial',
+        'Gerente de Ventas',
+        'Gerente de Marketing',
+        'Gerente de Operaciones',
+        'Gerente de Tecnología',
+        'Gerente de Sistemas',
+        'Gerente de Administración',
+        'Gerente de RRHH',
+        'General Manager',
+        'Sales Manager',
+        'Marketing Manager',
+
         # Propiedad
-        'Propietario', 'Owner', 'Dueño', 'Socio', 'Partner',
-        
+        'Propietario',
+        'Owner',
+        'Dueño',
+        'Socio',
+        'Partner',
+
         # Otros
-        'Head of', 'Jefe de', 'Líder de', 'Lead',
-        'Country Manager', 'Regional Manager',
+        'Head of',
+        'Jefe de',
+        'Líder de',
+        'Lead',
+        'Country Manager',
+        'Regional Manager',
     ]
-    
+
     # Palabras que invalidan un cargo (falsos positivos)
     invalidos = [
-        'negocio', 'servicio', 'comercio', 'inicio', 'ejercicio',
-        'beneficio', 'precio', 'espacio', 'edificio', 'oficio',
-        'cliente', 'usuario', 'nuestro', 'nuestra', 'empresa',
-        'solución', 'soluciones', 'producto', 'productos',
+        'negocio',
+        'servicio',
+        'comercio',
+        'inicio',
+        'ejercicio',
+        'beneficio',
+        'precio',
+        'espacio',
+        'edificio',
+        'oficio',
+        'cliente',
+        'usuario',
+        'nuestro',
+        'nuestra',
+        'empresa',
+        'solución',
+        'soluciones',
+        'producto',
+        'productos',
     ]
-    
+
     def es_cargo_valido(texto: str, cargo: str) -> bool:
         """Verifica que el cargo no sea un falso positivo."""
         texto_lower = texto.lower()
         cargo_lower = cargo.lower()
-        
+
         for invalido in invalidos:
             # Si el cargo está dentro de una palabra inválida
             if cargo_lower in invalido:
                 if invalido in texto_lower:
                     return False
         return True
-    
-    def buscar_cargo_cerca_de_nombre(
-        contenido: str, 
-        nombre: str, 
-        ventana: int = 200
-    ) -> str:
+
+    def buscar_cargo_cerca_de_nombre(contenido: str,
+                                     nombre: str,
+                                     ventana: int = 200) -> str:
         """
         Busca un cargo dentro de una ventana de caracteres 
         alrededor del nombre.
         """
         nombre_lower = nombre.lower()
         contenido_lower = contenido.lower()
-        
+
         # Buscar todas las ocurrencias del nombre
         pos = 0
         while True:
             idx = contenido_lower.find(nombre_lower, pos)
             if idx == -1:
                 break
-            
+
             # Extraer ventana alrededor del nombre
             inicio = max(0, idx - ventana)
             fin = min(len(contenido), idx + len(nombre) + ventana)
             bloque = contenido[inicio:fin]
-            
+
             # Buscar cargos en este bloque
             for cargo in cargos_ejecutivos:
                 # Usar word boundary para evitar falsos positivos
@@ -1172,15 +1271,13 @@ def extraer_cargo_de_equipo(
                     if es_cargo_valido(bloque, cargo_encontrado):
                         # Buscar cargo compuesto (ej: "Presidente y Director")
                         cargo_extendido = extraer_cargo_completo(
-                            bloque, 
-                            match.start()
-                        )
+                            bloque, match.start())
                         return cargo_extendido or cargo_encontrado
-            
+
             pos = idx + 1
-        
+
         return ""
-    
+
     def extraer_cargo_completo(texto: str, pos_inicio: int) -> str:
         """
         Extrae cargo compuesto como "Presidente y Director Comercial".
@@ -1189,7 +1286,7 @@ def extraer_cargo_de_equipo(
         inicio = max(0, pos_inicio - 20)
         fin = min(len(texto), pos_inicio + 80)
         fragmento = texto[inicio:fin]
-        
+
         # Patrón para cargos compuestos
         patron_compuesto = (
             r'((?:Presidente|Director|Gerente|CEO|Fundador|Socio)'
@@ -1198,18 +1295,17 @@ def extraer_cargo_de_equipo(
             r'de\s+\w+)?'
             r'(?:\s+y\s+|\s*/\s*)?'
             r'(?:Director|Gerente|Comercial|Ejecutivo|General|'
-            r'de\s+\w+)?)'
-        )
-        
+            r'de\s+\w+)?)')
+
         match = re.search(patron_compuesto, fragmento, re.IGNORECASE)
         if match:
             cargo = match.group(1).strip()
             # Limpiar espacios extras
             cargo = re.sub(r'\s+', ' ', cargo)
             return cargo
-        
+
         return ""
-    
+
     def buscar_en_estructura_equipo(contenido: str, nombre: str) -> str:
         """
         Busca cargo en estructuras típicas de página de equipo.
@@ -1218,7 +1314,7 @@ def extraer_cargo_de_equipo(
         nombre_parts = nombre.lower().split()
         if len(nombre_parts) < 2:
             return ""
-        
+
         # Patrones comunes de estructura nombre-cargo
         patrones_estructura = [
             # "Juan Pérez - Director General"
@@ -1230,7 +1326,7 @@ def extraer_cargo_de_equipo(
             # Apellido seguido de cargo (en listas)
             rf'{re.escape(nombre_parts[-1])}\s+([A-Za-záéíóúñ]+\s+(?:de\s+)?[A-Za-záéíóúñ]+)',
         ]
-        
+
         for patron in patrones_estructura:
             match = re.search(patron, contenido, re.IGNORECASE)
             if match:
@@ -1239,59 +1335,62 @@ def extraer_cargo_de_equipo(
                 for cargo in cargos_ejecutivos:
                     if cargo.lower() in posible_cargo.lower():
                         return posible_cargo[:50]  # Limitar longitud
-        
+
         return ""
-    
+
     # ═══════════════════════════════════════════════════════════════
     # LÓGICA PRINCIPAL
     # ═══════════════════════════════════════════════════════════════
-    
+
     # PASO 1: Si hay nombre, buscar cargo asociado
     if nombre_persona and len(nombre_persona) >= 3:
         logger.info(f"[CARGO] Buscando cargo para: {nombre_persona}")
-        
+
         # 1A: Buscar en estructura típica de equipo
         cargo = buscar_en_estructura_equipo(content, nombre_persona)
         if cargo:
             logger.info(f"[CARGO] ✓ Encontrado en estructura: {cargo}")
             return cargo
-        
+
         # 1B: Buscar en ventana cercana al nombre
         cargo = buscar_cargo_cerca_de_nombre(content, nombre_persona)
         if cargo:
             logger.info(f"[CARGO] ✓ Encontrado cerca del nombre: {cargo}")
             return cargo
-        
+
         # 1C: Intentar solo con el apellido
         partes_nombre = nombre_persona.split()
         if len(partes_nombre) >= 2:
             apellido = partes_nombre[-1]
             cargo = buscar_cargo_cerca_de_nombre(content, apellido)
             if cargo:
-                logger.info(f"[CARGO] ✓ Encontrado cerca del apellido: {cargo}")
+                logger.info(
+                    f"[CARGO] ✓ Encontrado cerca del apellido: {cargo}")
                 return cargo
-    
+
     # PASO 2: Si no hay nombre o no encontró, buscar cargo principal
     # Solo CEO, Presidente, Fundador, Director General
     cargos_principales = [
-        'CEO', 'Presidente', 'Fundador', 'Director General',
-        'Founder', 'President', 'Propietario', 'Owner'
+        'CEO', 'Presidente', 'Fundador', 'Director General', 'Founder',
+        'President', 'Propietario', 'Owner'
     ]
-    
+
     for cargo in cargos_principales:
         pattern = r'\b' + re.escape(cargo) + r'\b'
         match = re.search(pattern, content, re.IGNORECASE)
         if match:
-            bloque = content[max(0, match.start()-50):match.end()+50]
+            bloque = content[max(0, match.start() - 50):match.end() + 50]
             if es_cargo_valido(bloque, cargo):
                 logger.info(f"[CARGO] ✓ Cargo principal encontrado: {cargo}")
                 return match.group(0)
-    
+
     logger.info("[CARGO] ✗ No se encontró cargo")
     return "No detectado"
 
 
-async def extract_with_gpt(all_content: str, website: str, titulo_pagina: str = "") -> dict:
+async def extract_with_gpt(all_content: str,
+                           website: str,
+                           titulo_pagina: str = "") -> dict:
     """
     Usa GPT-4o-mini para extraer datos estructurados.
     """
@@ -1351,7 +1450,7 @@ DATOS A EXTRAER:
 - facebook_empresa: URL Facebook de la empresa
 
 CONTENIDO DEL SITIO:
-{all_content[:15000]}
+{all_content[:30000]}
 
 JSON:"""
 
@@ -1364,13 +1463,13 @@ JSON:"""
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "gpt-4o-mini",
+                    "model": "gpt-4o",
                     "messages": [{
                         "role": "user",
                         "content": prompt
                     }],
                     "temperature": 0.1,
-                    "max_tokens": 1500
+                    "max_tokens": 2000
                 })
 
             if response.status_code == 200:
@@ -1422,7 +1521,9 @@ def merge_results(gpt_data: dict,
     if not resultado.get('services') and regex_data.get('servicios'):
         resultado['services'] = regex_data['servicios']
 
-    # Emails - Priorizar email del dominio del sitio
+    # ══════════════════════════════════════════════════════════════════
+    # EMAILS - Prioridad mejorada: dominio > genéricos > GPT > otros
+    # ══════════════════════════════════════════════════════════════════
     gpt_email = resultado.get('email_principal', '')
     regex_emails = regex_data.get('emails', [])
     website_domain = website.replace("https://",
@@ -1430,54 +1531,134 @@ def merge_results(gpt_data: dict,
                                                  "").replace("www.",
                                                              "").split("/")[0]
 
-    # Buscar email que coincida con el dominio del sitio
+    # Separar emails por tipo
     domain_email = None
+    generic_emails = []
     other_emails = []
+
+    generic_prefixes = [
+        'info', 'contacto', 'contact', 'ventas', 'sales', 'hola', 'hello',
+        'soporte', 'support', 'admin', 'consultas', 'atencion', 'comercial'
+    ]
+
     for email in regex_emails:
-        email_domain = email.split("@")[1] if "@" in email else ""
+        if "@" not in email:
+            continue
+        email_prefix = email.split("@")[0].lower()
+        email_domain = email.split("@")[1].lower()
+
         if website_domain in email_domain or email_domain in website_domain:
-            domain_email = email
-            break
+            if any(p in email_prefix for p in generic_prefixes):
+                domain_email = email
+                break
+            elif not domain_email:
+                domain_email = email
+        elif any(p in email_prefix for p in generic_prefixes):
+            generic_emails.append(email)
         else:
             other_emails.append(email)
 
-    # Prioridad: 1) Email del dominio, 2) GPT, 3) Otros emails
     if domain_email:
         resultado['email_principal'] = domain_email
         logger.info(f"[MERGE] Email del dominio: {domain_email}")
-    elif not gpt_email or gpt_email == "No encontrado":
-        if other_emails:
-            resultado['email_principal'] = other_emails[0]
-            logger.info(f"[MERGE] Email alternativo: {other_emails[0]}")
+    elif generic_emails:
+        resultado['email_principal'] = generic_emails[0]
+        logger.info(f"[MERGE] Email genérico: {generic_emails[0]}")
+    elif gpt_email and gpt_email != "No encontrado" and "@" in gpt_email:
+        resultado['email_principal'] = gpt_email
+        logger.info(f"[MERGE] Email de GPT: {gpt_email}")
+    elif other_emails:
+        resultado['email_principal'] = other_emails[0]
+        logger.info(f"[MERGE] Email alternativo: {other_emails[0]}")
+    else:
+        resultado['email_principal'] = "No encontrado"
 
-    # Validar que phone_empresa no sea un año (ej: 2024-2025)
+    todos_emails = list(
+        set([e for e in [domain_email] + generic_emails + other_emails if e]))
+    if len(todos_emails) > 1:
+        resultado['emails_adicionales'] = todos_emails[1:4]
+
+    # ══════════════════════════════════════════════════════════════════
+    # TELÉFONO - Validación mejorada + fallback agresivo a regex
+    # ══════════════════════════════════════════════════════════════════
     phone_empresa = resultado.get("phone_empresa", "No encontrado")
+    phone_valido = False
+
     if phone_empresa and phone_empresa != "No encontrado":
-        # Si parece un año o rango de años, descartarlo
-        import re
-        if re.match(r'^[\d\-\s]+$', phone_empresa) and len(phone_empresa) < 12:
-            # Parece año (ej: "2024-2025", "2024", "2025")
-            if any(str(year) in phone_empresa for year in range(2020, 2030)):
-                resultado['phone_empresa'] = "No encontrado"
-                logger.warning(
-                    f"[EXTRACTOR] phone_empresa descartado (parece año): {phone_empresa}"
-                )
+        phone_limpio = re.sub(r'[^\d+]', '', str(phone_empresa))
 
-    # Teléfono
-    if not resultado.get('phone_empresa') or resultado.get(
-            'phone_empresa') == 'No encontrado':
-        if regex_data.get('phones'):
-            resultado['phone_empresa'] = regex_data['phones'][0]
-            if len(regex_data['phones']) > 1:
-                resultado['phones_adicionales'] = regex_data['phones'][1:]
+        es_invalido = (len(phone_limpio) < 7 or any(
+            str(y) == phone_limpio for y in range(2020, 2030))
+                       or len(set(phone_limpio.replace('+', ''))) <= 2)
 
-    # WhatsApp - de regex
-    if not resultado.get('whatsapp_empresa') and regex_data.get('whatsapp'):
-        resultado['whatsapp_empresa'] = regex_data['whatsapp']
+        if es_invalido:
+            logger.warning(
+                f"[MERGE] phone_empresa descartado: {phone_empresa}")
+            resultado['phone_empresa'] = "No encontrado"
+        else:
+            phone_valido = True
 
-    # Marcar si necesita búsqueda externa (se hace después)
-    if not resultado.get('whatsapp_empresa') or \
-       resultado.get('whatsapp_empresa') == 'No encontrado':
+    if not phone_valido:
+        regex_phones = regex_data.get('phones', [])
+        for phone in regex_phones:
+            phone_limpio = re.sub(r'[^\d+]', '', str(phone))
+            if 7 <= len(phone_limpio) <= 15:
+                if not any(str(y) == phone_limpio for y in range(2020, 2030)):
+                    resultado['phone_empresa'] = phone
+                    logger.info(f"[MERGE] Teléfono de regex: {phone}")
+                    phone_valido = True
+                    break
+
+    if regex_data.get('phones') and len(regex_data['phones']) > 1:
+        resultado['phones_adicionales'] = regex_data['phones'][1:4]
+
+    # ══════════════════════════════════════════════════════════════════
+    # WHATSAPP - Validación de país + fallback
+    # ══════════════════════════════════════════════════════════════════
+    wa_empresa = resultado.get('whatsapp_empresa', '')
+    wa_valido = False
+
+    codigos_pais_validos = [
+        '54',
+        '52',
+        '57',
+        '56',
+        '51',
+        '55',
+        '598',
+        '595',
+        '593',
+        '58',
+        '591',
+        '506',
+        '507',
+        '34',
+        '1',
+    ]
+
+    def validar_whatsapp(numero):
+        if not numero or numero == "No encontrado":
+            return False
+        num_limpio = re.sub(r'[^\d]', '', str(numero))
+        if not (10 <= len(num_limpio) <= 15):
+            return False
+        for codigo in codigos_pais_validos:
+            if num_limpio.startswith(codigo):
+                return True
+        return False
+
+    if validar_whatsapp(wa_empresa):
+        wa_valido = True
+    else:
+        wa_regex = regex_data.get('whatsapp', '')
+        if validar_whatsapp(wa_regex):
+            resultado['whatsapp_empresa'] = wa_regex
+            logger.info(f"[MERGE] WhatsApp de regex: {wa_regex}")
+            wa_valido = True
+        else:
+            resultado['whatsapp_empresa'] = "No encontrado"
+
+    if not wa_valido:
         resultado['_necesita_wa_externo'] = True
 
     # Redes sociales
@@ -1496,23 +1677,23 @@ def merge_results(gpt_data: dict,
         resultado['google_maps_url'] = regex_data['google_maps_url']
 
     # Ubicación - COMPLETA (address, city, province, country)
-    # PRIORIDAD: 
-    # 1. GPT 
-    # 2. Contexto semántico 
+    # PRIORIDAD:
+    # 1. GPT
+    # 2. Contexto semántico
     # 3. Regex
-    if not resultado.get('address') or resultado.get('address') == 'No encontrado':
+    if not resultado.get('address') or resultado.get(
+            'address') == 'No encontrado':
         if regex_data.get('address'):
             # Validar que sea una dirección real, no texto basura
             addr = regex_data['address']
             # Rechazar si es muy corto o tiene palabras sospechosas
             palabras_invalidas = [
-                'aumentar', 'facturación', 'strongest', 
-                'click', 'here', 'más', 'more', 'ver'
+                'aumentar', 'facturación', 'strongest', 'click', 'here', 'más',
+                'more', 'ver'
             ]
-            es_valida = (
-                len(addr) > 10 and
-                not any(p in addr.lower() for p in palabras_invalidas)
-            )
+            es_valida = (len(addr) > 10
+                         and not any(p in addr.lower()
+                                     for p in palabras_invalidas))
             if es_valida:
                 resultado['address'] = addr
             else:
@@ -1522,92 +1703,113 @@ def merge_results(gpt_data: dict,
             direccion_contexto = extraer_direccion_por_contexto(all_content)
             if direccion_contexto:
                 resultado['address'] = direccion_contexto
-    
+
     # City - prioridad: GPT > Regex (con validación anti-basura)
     city_actual = resultado.get('city', '')
-    
+
     # Validar que city no sea basura
     if city_actual and city_actual != 'No encontrado':
         palabras_invalidas_city = [
-            'pizza', 'comida', 'domicilio', 'delivery', 'envío',
-            'servicio', 'producto', 'tienda', 'online', 'shop',
-            'alfajor', 'café', 'coffee', 'restaurant', 'bar',
-            'empresa', 'company', 'negocio', 'business',
-            'contacto', 'contact', 'inicio', 'home', 'about',
+            'pizza', 'comida', 'domicilio', 'delivery', 'envío', 'servicio',
+            'producto', 'tienda', 'online', 'shop', 'alfajor', 'café',
+            'coffee', 'restaurant', 'bar', 'empresa', 'company', 'negocio',
+            'business', 'contacto', 'contact', 'inicio', 'home', 'about',
             'gratis', 'free', 'descuento', 'oferta', 'promo'
         ]
         city_lower = city_actual.lower()
         nombre_empresa = resultado.get('business_name', '').lower()
-        
+
         # Rechazar si es basura
-        es_invalida = (
-            any(p in city_lower for p in palabras_invalidas_city) or
-            len(city_actual) > 40 or
-            city_lower == nombre_empresa or
-            nombre_empresa in city_lower or
-            city_lower in nombre_empresa
-        )
-        
+        es_invalida = (any(p in city_lower for p in palabras_invalidas_city)
+                       or len(city_actual) > 40 or city_lower == nombre_empresa
+                       or nombre_empresa in city_lower
+                       or city_lower in nombre_empresa)
+
         if es_invalida:
             logger.info(f"[MERGE] City descartada: {city_actual}")
             resultado['city'] = 'No encontrado'
-    
+
     # Fallback a regex
     if not resultado.get('city') or resultado.get('city') == 'No encontrado':
         if regex_data.get('city'):
             resultado['city'] = regex_data['city']
-    
-    # Province - prioridad: GPT > Regex  
-    if not resultado.get('province') or resultado.get('province') == 'No encontrado':
+
+    # Province - prioridad: GPT > Regex
+    if not resultado.get('province') or resultado.get(
+            'province') == 'No encontrado':
         if regex_data.get('province'):
             resultado['province'] = regex_data['province']
-    
+
     # Country - asegurar que tenga valor
-    if not resultado.get('country') or resultado.get('country') == 'No encontrado':
+    if not resultado.get('country') or resultado.get(
+            'country') == 'No encontrado':
         # Prioridad 1: País inferido de la provincia detectada
         if regex_data.get('country_from_province'):
             resultado['country'] = regex_data['country_from_province']
-            logger.info(
-                f"[MERGE] País inferido de provincia: "
-                f"{resultado['country']}"
-            )
+            logger.info(f"[MERGE] País inferido de provincia: "
+                        f"{resultado['country']}")
         # Prioridad 2: Inferir país del TLD del website
         elif website:
             tld = website.split('.')[-1].lower().replace('/', '')
             tld_pais = {
                 # Latinoamérica
-                'ar': 'Argentina', 'mx': 'México', 
-                'co': 'Colombia', 'cl': 'Chile', 
-                'pe': 'Perú', 'br': 'Brasil',
-                'uy': 'Uruguay', 'py': 'Paraguay',
-                'ec': 'Ecuador', 've': 'Venezuela', 
-                'bo': 'Bolivia', 'cr': 'Costa Rica',
-                'pa': 'Panamá', 'do': 'República Dominicana',
-                'gt': 'Guatemala', 'sv': 'El Salvador',
-                'hn': 'Honduras', 'ni': 'Nicaragua',
-                'cu': 'Cuba', 'pr': 'Puerto Rico',
+                'ar': 'Argentina',
+                'mx': 'México',
+                'co': 'Colombia',
+                'cl': 'Chile',
+                'pe': 'Perú',
+                'br': 'Brasil',
+                'uy': 'Uruguay',
+                'py': 'Paraguay',
+                'ec': 'Ecuador',
+                've': 'Venezuela',
+                'bo': 'Bolivia',
+                'cr': 'Costa Rica',
+                'pa': 'Panamá',
+                'do': 'República Dominicana',
+                'gt': 'Guatemala',
+                'sv': 'El Salvador',
+                'hn': 'Honduras',
+                'ni': 'Nicaragua',
+                'cu': 'Cuba',
+                'pr': 'Puerto Rico',
                 # Europa
-                'es': 'España', 'pt': 'Portugal',
-                'uk': 'Reino Unido', 'de': 'Alemania',
-                'fr': 'Francia', 'it': 'Italia',
-                'nl': 'Países Bajos', 'be': 'Bélgica',
-                'at': 'Austria', 'ch': 'Suiza',
-                'pl': 'Polonia', 'se': 'Suecia',
-                'no': 'Noruega', 'dk': 'Dinamarca',
-                'fi': 'Finlandia', 'ie': 'Irlanda',
-                'gr': 'Grecia', 'cz': 'República Checa',
+                'es': 'España',
+                'pt': 'Portugal',
+                'uk': 'Reino Unido',
+                'de': 'Alemania',
+                'fr': 'Francia',
+                'it': 'Italia',
+                'nl': 'Países Bajos',
+                'be': 'Bélgica',
+                'at': 'Austria',
+                'ch': 'Suiza',
+                'pl': 'Polonia',
+                'se': 'Suecia',
+                'no': 'Noruega',
+                'dk': 'Dinamarca',
+                'fi': 'Finlandia',
+                'ie': 'Irlanda',
+                'gr': 'Grecia',
+                'cz': 'República Checa',
                 # Otros
-                'us': 'Estados Unidos', 'ca': 'Canadá',
-                'au': 'Australia', 'nz': 'Nueva Zelanda',
-                'jp': 'Japón', 'kr': 'Corea del Sur',
-                'cn': 'China', 'in': 'India',
-                'za': 'Sudáfrica', 'ae': 'Emiratos Árabes',
-                'il': 'Israel', 'ru': 'Rusia',
+                'us': 'Estados Unidos',
+                'ca': 'Canadá',
+                'au': 'Australia',
+                'nz': 'Nueva Zelanda',
+                'jp': 'Japón',
+                'kr': 'Corea del Sur',
+                'cn': 'China',
+                'in': 'India',
+                'za': 'Sudáfrica',
+                'ae': 'Emiratos Árabes',
+                'il': 'Israel',
+                'ru': 'Rusia',
             }
             if tld in tld_pais:
                 resultado['country'] = tld_pais[tld]
                 logger.info(f"[MERGE] País inferido por TLD: {tld_pais[tld]}")
-    
+
     if not resultado.get('horarios') and regex_data.get('horarios'):
         resultado['horarios'] = regex_data['horarios']
 
@@ -1916,7 +2118,7 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
     """
     Pipeline completo de extracción web.
     Orden: Firecrawl → Jina → HTTP directo → Tavily (fallback) → Regex → GPT-4o → Merge
-    
+
     Args:
         website: URL del sitio web
         nombre_contacto: Nombre del contacto para buscar cargo asociado
@@ -2012,7 +2214,8 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
 
     # 10. Extracción GPT (con título para detectar ciudad)
     logger.info(f"[GPT] Extrayendo datos estructurados...")
-    gpt_data = await extract_with_gpt(all_content, website_clean, titulo_pagina)
+    gpt_data = await extract_with_gpt(all_content, website_clean,
+                                      titulo_pagina)
 
     # 10. Merge de resultados (pasar all_content para extracción por contexto)
     resultado = merge_results(gpt_data, regex_data, tavily_answer,
@@ -2025,10 +2228,11 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
         # Buscar cargo en contenido de páginas de equipo
         contenido_equipo = secundarias_content + "\n" + main_content
         # Usar nombre_contacto del parámetro o del resultado
-        nombre_para_cargo = nombre_contacto or resultado.get('contact_name', '')
-        
+        nombre_para_cargo = nombre_contacto or resultado.get(
+            'contact_name', '')
+
         cargo = extraer_cargo_de_equipo(contenido_equipo, nombre_para_cargo)
-        
+
         if cargo:
             resultado['cargo_detectado'] = cargo
             logger.info(f"[CARGO] ✓ Detectado: {cargo}")
