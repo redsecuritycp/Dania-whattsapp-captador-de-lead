@@ -953,6 +953,151 @@ async def test_extract_web(request: Request):
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# ENDPOINT DE PRUEBA - Extracción Web sin WhatsApp
+# ═══════════════════════════════════════════════════════════════════════
+@app.get("/test-extract-web")
+async def test_extract_web(website: str):
+    """
+    Endpoint de prueba para extraer datos de una web.
+    No envía mensajes de WhatsApp.
+    
+    Uso: curl "http://localhost:8000/test-extract-web?website=globant.com"
+    """
+    from services.web_extractor import extract_web_data
+    
+    try:
+        logger.info(f"[TEST] ══════ Extrayendo: {website} ══════")
+        
+        resultado = await extract_web_data(website)
+        
+        # Resumen de campos importantes
+        resumen = {
+            "website": resultado.get("website"),
+            "business_name": resultado.get("business_name"),
+            "business_activity": resultado.get("business_activity"),
+            "business_model": resultado.get("business_model"),
+            "business_description": resultado.get("business_description"),
+            "services": resultado.get("services"),
+            "phone_empresa": resultado.get("phone_empresa"),
+            "whatsapp_empresa": resultado.get("whatsapp_empresa"),
+            "email_principal": resultado.get("email_principal"),
+            "address": resultado.get("address"),
+            "city": resultado.get("city"),
+            "province": resultado.get("province"),
+            "country": resultado.get("country"),
+            "linkedin_empresa": resultado.get("linkedin_empresa"),
+            "instagram_empresa": resultado.get("instagram_empresa"),
+            "facebook_empresa": resultado.get("facebook_empresa"),
+            "youtube": resultado.get("youtube"),
+            "twitter": resultado.get("twitter"),
+            "extraction_status": resultado.get("extraction_status")
+        }
+        
+        logger.info(f"[TEST] ══════ Extracción completada ══════")
+        
+        return JSONResponse({
+            "status": "success",
+            "resumen": resumen,
+            "datos_completos": resultado
+        })
+    
+    except Exception as e:
+        logger.error(f"[TEST] Error: {e}")
+        return JSONResponse(
+            {"status": "error", "error": str(e)},
+            status_code=500
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENDPOINT DE PRUEBA - Investigación completa (LinkedIn + Noticias)
+# ═══════════════════════════════════════════════════════════════════════
+@app.get("/test-full-research")
+async def test_full_research(
+    nombre: str,
+    website: str,
+    empresa: str = ""
+):
+    """
+    Endpoint de prueba para investigación completa.
+    Extrae web + LinkedIn personal + Noticias.
+    No envía mensajes de WhatsApp.
+    
+    Uso: curl "http://localhost:8000/test-full-research?nombre=Martin%20Migoya&website=globant.com&empresa=Globant"
+    """
+    from services.web_extractor import extract_web_data
+    from services.social_research import research_person_and_company
+    
+    try:
+        logger.info(f"[TEST-FULL] ══════ Iniciando ══════")
+        logger.info(f"[TEST-FULL] Nombre: {nombre}")
+        logger.info(f"[TEST-FULL] Website: {website}")
+        logger.info(f"[TEST-FULL] Empresa: {empresa or website}")
+        
+        # Paso 1: Extraer datos web
+        logger.info(f"[TEST-FULL] Paso 1: Extrayendo web...")
+        datos_web = await extract_web_data(website)
+        
+        empresa_nombre = empresa or datos_web.get(
+            "business_name") or website
+        
+        # Paso 2: Investigar persona (LinkedIn + Noticias)
+        logger.info(f"[TEST-FULL] Paso 2: Investigando persona...")
+        datos_research = await research_person_and_company(
+            nombre_persona=nombre,
+            empresa=empresa_nombre,
+            website=website,
+            linkedin_empresa_input=datos_web.get("linkedin_empresa"),
+            facebook_empresa_input=datos_web.get("facebook_empresa"),
+            instagram_empresa_input=datos_web.get("instagram_empresa"),
+            city=datos_web.get("city", ""),
+            province=datos_web.get("province", ""),
+            country=datos_web.get("country", ""),
+            email_contacto=datos_web.get("email_principal", "")
+        )
+        
+        logger.info(f"[TEST-FULL] ══════ Completado ══════")
+        
+        return JSONResponse({
+            "status": "success",
+            "datos_web": {
+                "business_name": datos_web.get("business_name"),
+                "business_activity": datos_web.get("business_activity"),
+                "business_model": datos_web.get("business_model"),
+                "business_description": datos_web.get(
+                    "business_description"),
+                "services": datos_web.get("services"),
+                "email": datos_web.get("email_principal"),
+                "phone": datos_web.get("phone_empresa"),
+                "linkedin_empresa": datos_web.get("linkedin_empresa"),
+                "city": datos_web.get("city"),
+                "province": datos_web.get("province")
+            },
+            "datos_persona": {
+                "nombre": datos_research.get("nombre"),
+                "linkedin_personal": datos_research.get(
+                    "linkedin_personal"),
+                "linkedin_confianza": datos_research.get(
+                    "linkedin_personal_confianza"),
+                "linkedin_source": datos_research.get(
+                    "linkedin_personal_source")
+            },
+            "noticias": {
+                "count": datos_research.get("noticias_count"),
+                "source": datos_research.get("noticias_source"),
+                "lista": datos_research.get("noticias_lista", [])[:5]
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"[TEST-FULL] Error: {e}", exc_info=True)
+        return JSONResponse(
+            {"status": "error", "error": str(e)},
+            status_code=500
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
