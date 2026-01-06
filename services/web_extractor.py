@@ -1523,7 +1523,36 @@ def merge_results(gpt_data: dict,
             if direccion_contexto:
                 resultado['address'] = direccion_contexto
     
-    # City - prioridad: GPT > Regex
+    # City - prioridad: GPT > Regex (con validación anti-basura)
+    city_actual = resultado.get('city', '')
+    
+    # Validar que city no sea basura
+    if city_actual and city_actual != 'No encontrado':
+        palabras_invalidas_city = [
+            'pizza', 'comida', 'domicilio', 'delivery', 'envío',
+            'servicio', 'producto', 'tienda', 'online', 'shop',
+            'alfajor', 'café', 'coffee', 'restaurant', 'bar',
+            'empresa', 'company', 'negocio', 'business',
+            'contacto', 'contact', 'inicio', 'home', 'about',
+            'gratis', 'free', 'descuento', 'oferta', 'promo'
+        ]
+        city_lower = city_actual.lower()
+        nombre_empresa = resultado.get('business_name', '').lower()
+        
+        # Rechazar si es basura
+        es_invalida = (
+            any(p in city_lower for p in palabras_invalidas_city) or
+            len(city_actual) > 40 or
+            city_lower == nombre_empresa or
+            nombre_empresa in city_lower or
+            city_lower in nombre_empresa
+        )
+        
+        if es_invalida:
+            logger.info(f"[MERGE] City descartada: {city_actual}")
+            resultado['city'] = 'No encontrado'
+    
+    # Fallback a regex
     if not resultado.get('city') or resultado.get('city') == 'No encontrado':
         if regex_data.get('city'):
             resultado['city'] = regex_data['city']
