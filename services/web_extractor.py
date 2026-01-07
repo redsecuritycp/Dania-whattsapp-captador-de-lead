@@ -1510,12 +1510,10 @@ def merge_results(gpt_data: dict,
     """
     resultado = gpt_data.copy() if gpt_data else {}
 
-    # Descripción - usar Tavily si GPT no encontró buena
+    # Descripción - solo de GPT (sin fuentes externas)
     desc_gpt = resultado.get('business_description', '')
-    es_mala = not desc_gpt or desc_gpt == 'No encontrado' or len(desc_gpt) < 50
-
-    if es_mala and tavily_answer:
-        resultado['business_description'] = tavily_answer
+    if not desc_gpt or desc_gpt == 'No encontrado' or len(desc_gpt) < 50:
+        resultado['business_description'] = "No encontrado"
 
     # Servicios
     if not resultado.get('services') and regex_data.get('servicios'):
@@ -2101,6 +2099,21 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
                                 if not num.startswith('549'):
                                     continue
 
+                            # Validar código de país (LATAM + España + USA)
+                            codigos_validos = [
+                                '54', '52', '57', '56', '51', '55',
+                                '598', '595', '593', '58', '591',
+                                '506', '507', '34', '1',
+                            ]
+                            es_valido = any(
+                                num.startswith(c) for c in codigos_validos
+                            )
+                            if not es_valido:
+                                logger.debug(
+                                    f"[WA-EXTERNO] Descartado (país): +{num}"
+                                )
+                                continue
+
                             resultado = '+' + num
                             logger.info(
                                 f"[WA-EXTERNO] ✓ Encontrado: {resultado}")
@@ -2160,23 +2173,8 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
         main_content += "=== PÁGINAS SECUNDARIAS ===\n"
         main_content += secundarias_content + "\n\n"
 
-    # 5. Tavily para búsqueda complementaria y descripción
-    tavily_query = f'"{website_clean}" contacto dirección teléfono email Argentina'
-    tavily_data = await search_with_tavily(tavily_query)
-
-    tavily_answer = tavily_data.get("answer", "")
-    tavily_raw = ""
-
-    for r in tavily_data.get("results", []):
-        if r.get('raw_content'):
-            tavily_raw += r['raw_content'][:3000] + "\n"
-
-    # 7. Combinar todo el contenido
-    all_content = ""
-    if main_content:
-        all_content += "=== SITIO WEB ===\n" + main_content + "\n\n"
-    if tavily_raw:
-        all_content += "=== DATOS ADICIONALES (TAVILY) ===\n" + tavily_raw
+    # 5. Contenido final (solo de la web de la empresa)
+    all_content = main_content
 
     if len(all_content) > 20000:
         all_content = all_content[:20000]
@@ -2194,7 +2192,7 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
         logger.warning(f"[EXTRACTOR] Los 4 métodos fallaron para {website}")
         return {
             "business_name": "No encontrado",
-            "business_description": tavily_answer or "No encontrado",
+            "business_description": "No encontrado",
             "website": website_full,
             "extraction_status": "failed"
         }
@@ -2218,7 +2216,7 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
                                       titulo_pagina)
 
     # 10. Merge de resultados (pasar all_content para extracción por contexto)
-    resultado = merge_results(gpt_data, regex_data, tavily_answer,
+    resultado = merge_results(gpt_data, regex_data, "",
                               website_full, all_content)
 
     # ═══════════════════════════════════════════════════════════════
@@ -2243,23 +2241,13 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
     # BÚSQUEDA DE WHATSAPP EN HTML CRUDO (widgets JS)
     # Primero intentamos extraer del HTML directo (más confiable)
     # ═══════════════════════════════════════════════════════════════
+    # Búsqueda de WhatsApp solo en HTML de la web (widgets JS)
     if resultado.get('_necesita_wa_externo'):
-        # Paso 1: Buscar en HTML crudo (scripts, widgets)
         wa_html = await buscar_whatsapp_en_html_crudo(website_clean)
         if wa_html:
             resultado['whatsapp_empresa'] = wa_html
             resultado['whatsapp_source'] = 'html_widget'
-            resultado.pop('_necesita_wa_externo', None)
-        else:
-            # Paso 2: Buscar en fuentes externas (directorios)
-            empresa_nombre = resultado.get('business_name', '')
-            wa_externo = await buscar_whatsapp_externo(website_clean,
-                                                       empresa_nombre)
-            if wa_externo:
-                resultado['whatsapp_empresa'] = wa_externo
-                resultado['whatsapp_source'] = 'externo'
-
-            resultado.pop('_necesita_wa_externo', None)
+        resultado.pop('_necesita_wa_externo', None)
 
     # ═══════════════════════════════════════════════════════════════
     # BÚSQUEDA DE LINKEDIN PERSONAL EN CONTENIDO WEB
