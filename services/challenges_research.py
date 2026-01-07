@@ -65,10 +65,11 @@ async def investigar_desafios_empresa(
             )
             return results
     
-    # Si no encontró nada específico, preguntar directo (sin inventar)
-    logger.warning("[CHALLENGES] No se encontraron desafíos - pregunta directa")
-    results["desafios_texto"] = (
-        "¿Cuál es el principal desafío que enfrenta tu empresa hoy?"
+    # Si no encontró específicos, usar genéricos universales
+    logger.warning("[CHALLENGES] No se encontraron desafíos específicos")
+    results["desafios"] = _get_desafios_genericos()
+    results["desafios_texto"] = _formatear_desafios_genericos(
+        results["desafios"]
     )
     
     return results
@@ -303,3 +304,35 @@ async def calcular_qualification_tier(
         result["estimated_potential"] = "medio"
     
     return result
+
+
+def _get_desafios_genericos() -> List[str]:
+    """
+    Desafíos universales que aplican a cualquier empresa.
+    Se usan SOLO cuando no se encuentran desafíos específicos.
+    """
+    return [
+        "Captación de nuevos clientes de forma constante",
+        "Procesos manuales que consumen tiempo del equipo",
+        "Seguimiento inconsistente de leads y oportunidades",
+        "Presencia digital que no genera resultados",
+        "Falta de automatización en tareas repetitivas"
+    ]
+
+
+def _formatear_desafios_genericos(desafios: List[str]) -> str:
+    """Formatea desafíos genéricos (sin mencionar rubro ni país)."""
+    texto = (
+        "Investigando desafíos típicos de tu industria...\n\n"
+        "Muchas empresas enfrentan estos desafíos:\n\n"
+    )
+    
+    for i, desafio in enumerate(desafios, 1):
+        texto += f"{i}. {desafio}\n"
+    
+    texto += (
+        "\n¿Te identificás con alguno? "
+        "¿O hay otro más importante para vos?"
+    )
+    
+    return texto
