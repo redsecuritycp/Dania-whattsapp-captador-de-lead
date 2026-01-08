@@ -248,6 +248,57 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
         return ""
 
 
+async def send_typing_indicator(phone: str, typing_on: bool = True) -> bool:
+    """
+    Envía indicador de 'escribiendo...' a WhatsApp
+    
+    Args:
+        phone: Número en formato E.164
+        typing_on: True para activar, False para desactivar
+    """
+    try:
+        token = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+        
+        if not token or not phone_id:
+            logger.error("WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados")
+            return False
+        
+        phone_clean = phone.lstrip('+')
+        
+        # Usar v21.0 para typing indicator (según especificación)
+        url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": phone_clean,
+            "type": "typing",
+            "typing": {
+                "action": "typing_on" if typing_on else "typing_off"
+            }
+        }
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            
+            if response.status_code == 200:
+                logger.info(f"Typing indicator {'ON' if typing_on else 'OFF'} sent to {phone_clean}")
+                return True
+            else:
+                logger.warning(f"Typing indicator failed: {response.status_code} - {response.text}")
+                return False
+                
+    except Exception as e:
+        logger.error(f"Error sending typing indicator: {e}")
+        return False
+
+
 async def send_template_reminder_24h(
     phone: str,
     nombre: str,
