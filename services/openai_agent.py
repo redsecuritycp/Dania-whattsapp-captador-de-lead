@@ -506,7 +506,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             logger.info(f"[TOOL] ✓ Mensaje de espera enviado")
             
             # 2. Lanzar investigación en background (NO esperar)
-            nombre_usuario = arguments.get("nombre_persona", "")
+            nombre_usuario = context.get("name", "")
             ubicacion = context.get("country_detected", "Argentina")
             
             asyncio.create_task(
@@ -517,9 +517,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     ubicacion=ubicacion
                 )
             )
-            logger.info(
-                f"[TOOL] ✓ Investigación: {nombre_usuario}, {website}"
-            )
+            logger.info(f"[TOOL] ✓ Investigación lanzada en background")
             
             # 3. ESPERAR 50 SEGUNDOS (temporizador real)
             logger.info(f"[TOOL] Esperando 50 segundos...")

@@ -23,13 +23,9 @@ TOOLS = [
                     "website": {
                         "type": "string",
                         "description": "URL del sitio web a extraer"
-                    },
-                    "nombre_persona": {
-                        "type": "string",
-                        "description": "Nombre completo del usuario"
                     }
                 },
-                "required": ["website", "nombre_persona"]
+                "required": ["website"]
             }
         }
     },
