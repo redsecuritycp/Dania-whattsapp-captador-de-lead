@@ -4,9 +4,7 @@ Versión 2.0 - Incluye tool de investigación de desafíos
 """
 import logging
 import json
-import asyncio
 from typing import Optional
-from datetime import datetime, timezone
 from openai import OpenAI
 
 from config import OPENAI_API_KEY, OPENAI_MODEL
@@ -17,8 +15,7 @@ from services.mongodb import (
     save_chat_message,
     get_chat_history, 
     update_lead_summary,
-    get_lead_field,
-    get_database
+    get_lead_field
 )
 from services.web_extractor import extract_web_data
 from services.social_research import research_person_and_company
@@ -62,157 +59,6 @@ try:
         logger.error("OPENAI_API_KEY no configurada")
 except Exception as e:
     logger.error(f"Error inicializando OpenAI: {e}")
-
-
-async def iniciar_investigacion_background(
-    phone: str,
-    nombre: str, 
-    web: str,
-    ubicacion: str
-):
-    """
-    Ejecuta investigación completa en background mientras usuario 
-    responde preguntas.
-    
-    Flujo:
-    1. Extrae datos web
-    2. Busca LinkedIn personal
-    3. Busca noticias
-    4. Investiga desafíos del rubro
-    5. Guarda todo en MongoDB con status "completada"
-    """
-    try:
-        db = get_database()
-        if db is None:
-            logger.error("[BACKGROUND] No hay conexión a MongoDB")
-            return
-        
-        collection = db["leads_fortia"]
-        
-        collection.update_one(
-            {"phone_whatsapp": phone},
-            {"$set": {"investigacion_status": "en_progreso"}},
-            upsert=True
-        )
-        
-        logger.info(f"[BACKGROUND] Iniciando investigación para {phone}")
-        
-        logger.info(f"[BACKGROUND] Extrayendo web: {web}")
-        datos_web = await extract_web_data(web)
-        
-        if datos_web:
-            collection.update_one(
-                {"phone_whatsapp": phone},
-                {"$set": {"datos_web": datos_web}}
-            )
-            logger.info(f"[BACKGROUND] ✓ Datos web guardados")
-        
-        empresa = datos_web.get("business_name", "") if datos_web else ""
-        
-        logger.info(f"[BACKGROUND] Buscando LinkedIn: {nombre}")
-        linkedin_data = await research_person_and_company(
-            nombre_persona=nombre,
-            empresa=empresa,
-            website=web,
-            linkedin_empresa_input=datos_web.get("linkedin_empresa", "") if datos_web else "",
-            facebook_empresa_input=datos_web.get("facebook_empresa", "") if datos_web else "",
-            instagram_empresa_input=datos_web.get("instagram_empresa", "") if datos_web else "",
-            city="",
-            province="",
-            country=ubicacion
-        )
-        
-        if linkedin_data:
-            collection.update_one(
-                {"phone_whatsapp": phone},
-                {"$set": {
-                    "linkedin_personal": linkedin_data.get("linkedin_personal", "No encontrado"),
-                    "news": linkedin_data.get("news", [])
-                }}
-            )
-            logger.info(f"[BACKGROUND] ✓ LinkedIn y noticias guardados")
-        
-        rubro = datos_web.get("business_activity", "") if datos_web else ""
-        
-        if rubro and rubro != "No encontrado":
-            logger.info(f"[BACKGROUND] Investigando desafíos: {rubro}")
-            desafios_data = await investigar_desafios_empresa(
-                rubro=rubro,
-                pais=ubicacion
-            )
-            
-            if desafios_data:
-                collection.update_one(
-                    {"phone_whatsapp": phone},
-                    {"$set": {"desafios_rubro": desafios_data}}
-                )
-                logger.info(f"[BACKGROUND] ✓ Desafíos guardados")
-        
-        collection.update_one(
-            {"phone_whatsapp": phone},
-            {"$set": {
-                "investigacion_status": "completada",
-                "investigacion_completada_at": datetime.now(timezone.utc).isoformat()
-            }}
-        )
-        
-        logger.info(f"[BACKGROUND] ✅ Investigación completa para {phone}")
-    
-    except Exception as e:
-        logger.error(f"[BACKGROUND] Error: {e}")
-        try:
-            db = get_database()
-            if db:
-                db["leads_fortia"].update_one(
-                    {"phone_whatsapp": phone},
-                    {"$set": {"investigacion_status": "fallida"}}
-                )
-        except:
-            pass
-
-
-async def esperar_investigacion_completa(phone: str, max_wait_seconds: int = 180) -> bool:
-    """
-    Espera a que termine la investigación en background.
-    
-    Hace polling cada 5 segundos hasta que:
-    - investigacion_status == "completada"
-    - O timeout (default 3 minutos)
-    
-    Returns:
-        True si completó, False si timeout
-    """
-    try:
-        db = get_database()
-        if db is None:
-            return False
-        
-        collection = db["leads_fortia"]
-        elapsed = 0
-        
-        while elapsed < max_wait_seconds:
-            lead = collection.find_one({"phone_whatsapp": phone})
-            
-            if lead:
-                status = lead.get("investigacion_status", "")
-                
-                if status == "completada":
-                    logger.info(f"[BACKGROUND] ✓ Investigación completada para {phone}")
-                    return True
-                
-                elif status == "fallida":
-                    logger.warning(f"[BACKGROUND] Investigación falló para {phone}")
-                    return False
-            
-            await asyncio.sleep(5)
-            elapsed += 5
-        
-        logger.warning(f"[BACKGROUND] Timeout esperando investigación ({phone})")
-        return False
-    
-    except Exception as e:
-        logger.error(f"[BACKGROUND] Error esperando: {e}")
-        return False
 
 
 async def process_message(user_message: str,
@@ -401,36 +247,40 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
         # ═══════════════════════════════════════════════════════════════════
         if tool_name == "extraer_datos_web_cliente":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
-            
             website = arguments.get("website", "")
-            
             if not website:
-                return {"error": "No se proporcionó URL"}
+                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
+                return {"error": "No se proporcionó website"}
             
-            from services.whatsapp import send_whatsapp_message
-            phone = context.get("phone_whatsapp", "")
+            result = await extract_web_data(website)
             
-            await send_whatsapp_message(
-                phone,
-                "Perfecto! Dame unos segundos para preparar todo..."
-            )
-            
-            nombre_usuario = context.get("name", "")
-            ubicacion_usuario = context.get("country_detected", "")
-            
-            asyncio.create_task(
-                iniciar_investigacion_background(
-                    phone=phone,
-                    nombre=nombre_usuario,
-                    web=website,
-                    ubicacion=ubicacion_usuario
-                )
-            )
-            
-            logger.info(f"[TOOL] Investigación lanzada en background")
+            # NO enviar mensaje de éxito aquí - GPT mostrará 
+            # el reporte completo
+
+            # Guardar datos importantes en context
+            # NO sobrescribir city/province que vienen del número
+            if result:
+                context["linkedin_empresa"] = result.get(
+                    "linkedin_empresa", "")
+                context["facebook_empresa"] = result.get(
+                    "facebook_empresa", "")
+                context["instagram_empresa"] = result.get(
+                    "instagram_empresa", "")
+                # Ubicación de la WEB en campos separados
+                context["city_web"] = result.get("city", "")
+                context["province_web"] = result.get("province", "")
+                context["email_principal"] = result.get("email_principal", "")
+                context["business_activity"] = result.get(
+                    "business_activity", "")
+                context["business_name"] = result.get("business_name", "")
+                context["business_model"] = result.get("business_model", "")
+                logger.info(f"[CONTEXT] Datos guardados: "
+                            f"LinkedIn={context.get('linkedin_empresa')}, "
+                            f"Rubro={context.get('business_activity')}, "
+                            f"Modelo={context.get('business_model')}")
+
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-            
-            return {"status": "investigating", "website": website}
+            return result or {"error": "No se pudo extraer datos"}
 
         # ═══════════════════════════════════════════════════════════════════
         # BUSCAR REDES PERSONALES
@@ -742,64 +592,6 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
 
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"summary": summary}
-
-        # ═══════════════════════════════════════════════════════════════════
-        # VERIFICAR INVESTIGACIÓN COMPLETA
-        # ═══════════════════════════════════════════════════════════════════
-        elif tool_name == "verificar_investigacion_completa":
-            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
-            
-            try:
-                from services.whatsapp import send_whatsapp_message
-                phone = context.get("phone_whatsapp", "")
-                
-                db = get_database()
-                if db is None:
-                    return {"completada": False, "rubro": "tu empresa"}
-                
-                collection = db["leads_fortia"]
-                lead = collection.find_one({"phone_whatsapp": phone})
-                
-                if not lead:
-                    return {"completada": False, "rubro": "tu empresa"}
-                
-                status = lead.get("investigacion_status", "")
-                
-                if status != "completada":
-                    logger.info("[TOOL] Investigación no completada, esperando...")
-                    
-                    await send_whatsapp_message(
-                        phone,
-                        "Dejame chequear un par de cosas antes de la última pregunta..."
-                    )
-                    
-                    completado = await esperar_investigacion_completa(phone, 180)
-                    
-                    if not completado:
-                        logger.warning("[TOOL] Timeout esperando investigación")
-                        return {"completada": False, "rubro": "tu empresa"}
-                    
-                    lead = collection.find_one({"phone_whatsapp": phone})
-                
-                rubro = "tu empresa"
-                
-                if lead:
-                    datos_web = lead.get("datos_web", {})
-                    if datos_web:
-                        rubro_web = datos_web.get("business_activity", "")
-                        if rubro_web and rubro_web != "No encontrado":
-                            rubro = rubro_web
-                    
-                    rubro_context = context.get("business_activity", "")
-                    if rubro_context and rubro_context != "No encontrado":
-                        rubro = rubro_context
-                
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"completada": True, "rubro": rubro}
-            
-            except Exception as e:
-                logger.error(f"[TOOL] Error: {e}")
-                return {"completada": False, "rubro": "tu empresa"}
 
         # ═══════════════════════════════════════════════════════════════════
         # TOOL NO RECONOCIDA

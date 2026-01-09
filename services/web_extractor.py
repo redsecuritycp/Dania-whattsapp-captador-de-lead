@@ -1429,19 +1429,9 @@ Si no encontrás un dato, usá "No encontrado".
 
 {instruccion_titulo}
 
-IMPORTANTE PARA business_activity:
-- Identificá el RUBRO/INDUSTRIA principal de la empresa
-- Ejemplos válidos: "Distribuidora mayorista de alarmas y seguridad", "Servicios de desarrollo web y aplicaciones", "Clínica dental y ortodoncia", "E-commerce de indumentaria deportiva", "Consultoría empresarial y coaching"
-- Si no está explícito, INFERILO de: servicios listados, productos vendidos, descripción de la empresa, título del sitio
-- Si la empresa vende productos → describir QUÉ productos vende específicamente
-- Si la empresa ofrece servicios → describir QUÉ tipo de servicios ofrece
-- Si ves palabras como "distribuidora", "mayorista", "minorista", "servicios de X", incorporá esas palabras en la descripción del rubro
-- Ser específico: en vez de "Tecnología" → "Servicios de desarrollo de software"
-- NUNCA inventes información, pero SÍ inferí del contexto disponible
-
 DATOS A EXTRAER:
 - business_name: Nombre de la empresa
-- business_activity: Rubro/industria principal (OBLIGATORIO - inferir del contexto si no está explícito. Ejemplos: "Distribuidora mayorista de alarmas y seguridad", "Servicios de desarrollo web", "Clínica dental")
+- business_activity: Actividad/rubro principal
 - business_model: Modelo de negocio (B2B, B2C, SaaS, Ecommerce, 
   Servicios profesionales, Retail, Mayorista, Franquicia, 
   Suscripción, Marketplace, o el que corresponda)

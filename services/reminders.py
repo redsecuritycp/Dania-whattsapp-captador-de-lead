@@ -8,13 +8,11 @@ LÓGICA:
 - El scheduler corre cada 5 minutos
 """
 import logging
-import asyncio
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from apscheduler.triggers.date import DateTrigger
 
 from services.mongodb import get_database
 from services.whatsapp import send_whatsapp_message, send_template_reminder_24h
@@ -45,20 +43,6 @@ def init_scheduler():
 
     scheduler.start()
     logger.info("✅ Scheduler de recordatorios iniciado")
-    
-    # Programar recuperación de pendientes (2 seg después de arrancar)
-    try:
-        recovery_time = datetime.now(pytz.UTC) + timedelta(seconds=2)
-        scheduler.add_job(
-            recuperar_recordatorios_pendientes,
-            DateTrigger(run_date=recovery_time),
-            id='recovery_on_startup',
-            name='Recuperación de recordatorios pendientes',
-            replace_existing=True
-        )
-        logger.info("🔄 Programada recuperación de recordatorios pendientes (2 seg)...")
-    except Exception as e:
-        logger.error(f"Error programando recuperación: {e}")
 
     return scheduler
 
@@ -70,192 +54,6 @@ def shutdown_scheduler():
         scheduler.shutdown(wait=False)
         scheduler = None
         logger.info("Scheduler detenido")
-
-
-async def recuperar_recordatorios_pendientes():
-    """
-    Recupera y envía recordatorios que deberían haberse enviado 
-    durante un reinicio de Replit.
-    
-    Se ejecuta al arrancar el scheduler (2 seg después).
-    """
-    try:
-        db = get_database()
-        if db is None:
-            logger.warning("[RECOVERY] No hay conexión a MongoDB")
-            return
-        
-        collection = db["leads_fortia"]
-        now = datetime.now(pytz.UTC)
-        
-        logger.info("[RECOVERY] ══════ Recuperando recordatorios pendientes ══════")
-        
-        leads_with_booking = collection.find({
-            "$or": [{
-                "booking_status": "created",
-                "booking_start_time": {"$exists": True, "$ne": ""}
-            }, {
-                "reserva_estado": "created",
-                "reserva_fecha_hora": {"$exists": True, "$ne": ""}
-            }]
-        })
-        
-        leads_list = list(leads_with_booking)
-        recovered_count = 0
-        
-        for lead in leads_list:
-            try:
-                phone = lead.get("phone_whatsapp") or lead.get("telefono_whatsapp", "")
-                if not phone:
-                    continue
-                
-                booking_start_str = (lead.get("booking_start_time") or 
-                                    lead.get("reserva_fecha_hora", ""))
-                if not booking_start_str:
-                    continue
-                
-                if booking_start_str.endswith('Z'):
-                    booking_start_str = booking_start_str[:-1] + '+00:00'
-                booking_start = datetime.fromisoformat(
-                    booking_start_str.replace('Z', '+00:00'))
-                if booking_start.tzinfo is None:
-                    booking_start = pytz.UTC.localize(booking_start)
-                
-                diff = booking_start - now
-                minutes_until = diff.total_seconds() / 60
-                
-                if minutes_until < -30:
-                    continue
-                
-                reminders_sent = (lead.get("reminders_sent") or 
-                                 lead.get("recordatorios_enviados") or [])
-                
-                name = lead.get("name") or lead.get("nombre", "")
-                zoom_url = (lead.get("booking_zoom_url") or 
-                           lead.get("reserva_zoom_url", ""))
-                
-                tz_str = (lead.get("timezone_detected") or 
-                         lead.get("zona_horaria", "America/Argentina/Buenos_Aires"))
-                try:
-                    tz = pytz.timezone(tz_str)
-                    booking_local = booking_start.astimezone(tz)
-                except:
-                    booking_local = booking_start
-                
-                fecha_str = format_fecha_es(booking_local)
-                hora_str = booking_local.strftime("%H:%M")
-                
-                to_recover = []
-                
-                if minutes_until < 1380 and "24hr" not in reminders_sent:
-                    to_recover.append("24hr")
-                
-                if minutes_until < 295 and "5hr" not in reminders_sent:
-                    to_recover.append("5hr")
-                
-                if minutes_until < 55 and "1hr" not in reminders_sent:
-                    to_recover.append("1hr")
-                
-                if minutes_until < 10 and "15min" not in reminders_sent:
-                    to_recover.append("15min")
-                
-                if -5 <= minutes_until <= 5 and "at_time" not in reminders_sent:
-                    to_recover.append("at_time")
-                
-                if to_recover:
-                    logger.info(
-                        f"[RECOVERY] {name} ({phone}): faltan {int(minutes_until)} min, "
-                        f"recuperando: {to_recover}"
-                    )
-                    
-                    for reminder_type in to_recover:
-                        success = await enviar_recordatorio(
-                            lead, reminder_type, booking_start, now, 
-                            name, phone, fecha_str, hora_str, zoom_url
-                        )
-                        if success:
-                            recovered_count += 1
-            
-            except Exception as e:
-                logger.error(f"[RECOVERY] Error en lead: {e}")
-                continue
-        
-        logger.info(
-            f"[RECOVERY] ══════ Chequeados {len(leads_list)} leads, "
-            f"recuperados {recovered_count} recordatorios ══════"
-        )
-    
-    except Exception as e:
-        logger.error(f"[RECOVERY] Error general: {e}")
-
-
-async def enviar_recordatorio(lead: dict, reminder_type: str, 
-                               booking_start: datetime, now: datetime,
-                               name: str, phone: str, fecha_str: str, 
-                               hora_str: str, zoom_url: str) -> bool:
-    """
-    Envía un recordatorio específico y lo marca en MongoDB.
-    Retorna True si se envió exitosamente.
-    """
-    try:
-        if reminder_type == "24hr":
-            link_modificar = (lead.get("booking_reschedule_link") or 
-                            lead.get("reserva_link_reprogramar") or 
-                            lead.get("booking_cancel_link") or 
-                            lead.get("reserva_link_cancelar", ""))
-            pais = (lead.get("country_detected") or 
-                   lead.get("pais_detectado", "tu país"))
-            
-            template_sent = await send_template_reminder_24h(
-                phone=phone,
-                nombre=name if name else "usuario",
-                hora=hora_str,
-                fecha=fecha_str,
-                link_modificar=link_modificar if link_modificar else "N/A"
-            )
-            success = template_sent
-        
-        elif reminder_type == "5hr":
-            message = _get_message_5hr(fecha_str, hora_str, zoom_url)
-            success = await send_whatsapp_message(phone.lstrip('+'), message)
-        
-        elif reminder_type == "1hr":
-            message = _get_message_1hr(zoom_url)
-            success = await send_whatsapp_message(phone.lstrip('+'), message)
-        
-        elif reminder_type == "15min":
-            message = _get_message_15min(zoom_url)
-            success = await send_whatsapp_message(phone.lstrip('+'), message)
-        
-        elif reminder_type == "at_time":
-            message = _get_message_at_time(name, zoom_url)
-            success = await send_whatsapp_message(phone.lstrip('+'), message)
-        
-        else:
-            return False
-        
-        if success:
-            db = get_database()
-            if db is not None:
-                db["leads_fortia"].update_one(
-                    {"$or": [
-                        {"phone_whatsapp": phone},
-                        {"telefono_whatsapp": phone}
-                    ]},
-                    {"$addToSet": {
-                        "reminders_sent": reminder_type,
-                        "recordatorios_enviados": reminder_type
-                    }}
-                )
-            logger.info(f"[RECOVERY] ✓ Enviado '{reminder_type}' a {phone}")
-            return True
-        else:
-            logger.error(f"[RECOVERY] ✗ Error enviando '{reminder_type}' a {phone}")
-            return False
-    
-    except Exception as e:
-        logger.error(f"[RECOVERY] Error enviando {reminder_type}: {e}")
-        return False
 
 
 async def check_and_send_reminders():
