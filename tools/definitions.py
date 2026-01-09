@@ -12,7 +12,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "extraer_datos_web_cliente",
-            "description": "Extrae datos de un sitio web de empresa. OBLIGATORIO llamar primero cuando el usuario da una URL. Extrae: nombre empresa, descripción, servicios, teléfono, email, redes sociales, dirección, horarios.",
+            "description": "Extrae datos de un sitio web Y lanza investigación completa en background (LinkedIn + noticias + desafíos). OBLIGATORIO llamar cuando el usuario da una URL. NO esperar resultado, el tool retorna inmediatamente y la investigación corre en paralelo.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -68,6 +68,18 @@ TOOLS = [
                     }
                 },
                 "required": ["rubro"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "verificar_investigacion_completa",
+            "description": "Verifica si la investigación en background terminó y retorna el rubro de la empresa. Llamar UNA SOLA VEZ antes de hacer la pregunta 4/4. Si no terminó, espera internamente hasta 3 minutos. Retorna {completada: bool, rubro: string}",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
             }
         }
     },
@@ -427,164 +439,54 @@ ONBOARDING (SOLO 2 PREGUNTAS - UNA POR VEZ)
 🚨 El onboarding NO debe hacer más preguntas.
 
 ═══════════════════════════════════════════════════════════════════
-FLUJO SI TIENE WEB (SEGUIR CADA PASO SIN EXCEPCIÓN)
+FLUJO DESPUÉS DE RECIBIR URL
 ═══════════════════════════════════════════════════════════════════
 
-🚨🚨🚨 IMPORTANTE: SEGUIR ESTE ORDEN EXACTO 🚨🚨🚨
+FLUJO DESPUÉS DE RECIBIR URL:
 
-PASO 1: Llamar extraer_datos_web_cliente OBLIGATORIO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⛔ NUNCA saltar este paso
-⛔ SIEMPRE es el PRIMER tool que se llama cuando hay web
-El sistema envía mensaje de espera automático.
+1. Usuario da la URL de su sitio web
+2. Llamar INMEDIATAMENTE a extraer_datos_web_cliente(website=url)
+3. El tool enviará "Perfecto! Dame unos segundos..." y lanzará investigación en background
+4. NO esperar respuesta del tool, continuar flujo normal
+5. Esperar 60 segundos en silencio (investigación corre en paralelo)
+6. Después de 60 seg, hacer pregunta 1/4: team_size
+   "¿Cuántas personas trabajan en tu equipo?"
+7. Usuario responde → hacer pregunta 2/4: ai_knowledge
+   "¿Qué nivel de conocimiento tenés sobre Inteligencia Artificial?"
+8. Usuario responde → hacer pregunta 3/4: past_attempt
+   "¿Ya intentaste implementar algo de IA o automatización antes?"
+9. Usuario responde → ANTES de pregunta 4/4, llamar verificar_investigacion_completa()
+10. El tool retorna {"completada": true/false, "rubro": "..."}
+11. Si completada=false, el tool ya envió mensaje de espera y esperó internamente
+12. Hacer pregunta 4/4 usando el rubro retornado:
+    "Según veo que son [RUBRO], ¿cuál es el principal desafío que enfrentan?"
+13. Usuario responde → Ahora SÍ generar reporte consolidado leyendo datos de MongoDB
+14. Para el reporte, buscar en MongoDB (collection leads_fortia, phone_whatsapp) los campos:
+    - datos_web (tiene business_name, business_activity, email, teléfono, etc)
+    - linkedin_personal
+    - news
+    - desafios_rubro
+15. Mostrar reporte consolidado con TODOS los datos extraídos
+16. Usuario confirma → llamar guardar_lead con las 4 respuestas
+17. Cualificar y derivar según lógica de cualificación
 
-PASO 2: Llamar buscar_redes_personales OBLIGATORIO  
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⛔ SIEMPRE llamar DESPUÉS de extraer_datos_web_cliente
-Pasar: nombre_persona, empresa (del paso 1), website
+TIMING ESPERADO:
+- 00:00 → Usuario da web
+- 00:02 → "Perfecto! Dame unos segundos..."
+- 00:02-01:00 → SILENCIO (investigación en background)
+- 01:00 → Pregunta 1/4
+- 01:15 → Pregunta 2/4
+- 01:30 → Pregunta 3/4
+- 01:45 → Verifica investigación + pregunta 4/4
+- 02:00 → Reporte consolidado completo
 
-PASO 3: Mostrar REPORTE ÚNICO CONSOLIDADO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🚨 IMPORTANTE: Mostrar UN SOLO reporte con TODA la información
-
-Después de que terminen TODAS las herramientas (extraer_datos_web_cliente 
-Y buscar_redes_personales), mostrar este reporte COMPLETO:
-
-"Encontré esta información:
-
-📊 EMPRESA
-• Empresa: [business_name]
-• Actividad: [business_activity]
-• Modelo de Negocio: [business_model]
-• Descripción: [business_description o descripción corta del rubro]
-• Servicios: [services - listar los principales separados por coma]
-
-👤 TU PERFIL
-• Cargo: [cargo_detectado o "No detectado"]
-• LinkedIn: [linkedin_personal_url o "No encontrado"]
-
-📍 UBICACIÓN
-• [address o "No encontrada"]
-• [city], [province], [country]
-
-📱 CONTACTO
-• Tel: [phone_empresa o "No encontrado"]
-• WhatsApp: [whatsapp_empresa o "No encontrado"]
-• Email: [email_principal o "No encontrado"]
-
-🔗 REDES EMPRESA
-• Web: [website]
-• LinkedIn: [linkedin_empresa o "No encontrado"]
-• Instagram: [instagram_empresa o "No encontrado"]
-• Facebook: [facebook_empresa o "No encontrado"]
-• YouTube: [youtube o "No encontrado"]
-• Twitter: [twitter o "No encontrado"]
-
-📰 NOTICIAS RECIENTES
-[lista de noticias o "No se encontraron noticias recientes"]
-
-¿Está todo correcto o necesitás corregir algo?"
-
-🚨 REGLAS CRÍTICAS:
-- Mostrar TODOS los campos, incluso si dicen "No encontrado"
-- Links: URL completa (https://...), NUNCA [texto](url)
-- ESPERAR a que terminen TODAS las búsquedas antes de mostrar
-- Los mensajes de progreso (⏳, ✅) son automáticos, NO reemplazarlos
-- El cargo viene en cargo_detectado del resultado de extraer_datos_web_cliente
-- TRADUCIR TODO AL ESPAÑOL (horarios, descripciones, etc.)
-
-PASO 4: Preguntar confirmación
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SI instagram_empresa O facebook_empresa = "No encontrado":
-Decir: "No encontré tu Instagram/Facebook en tu web. 
-¿Tenés redes sociales de la empresa que quieras compartir?
-
-Cuando me las pases (o si no tenés), confirmame si el 
-resto de los datos están correctos."
-
-SI AMBAS redes están encontradas:
-Decir: "¿Está todo correcto o necesitás corregir algo?"
-
-⛔ ESPERAR respuesta del usuario antes de continuar.
-
-PASO 4B: SI EL USUARIO CORRIGE ALGO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SI CORRIGE NOMBRE/APELLIDO:
-- Actualizar nombre internamente
-- NO extraer web de nuevo
-- Llamar buscar_redes_personales con nombre corregido
-- Decir: "Actualicé tu nombre. Busco tu LinkedIn..."
-
-SI CORRIGE DATOS EMPRESA:
-- Actualizar el dato internamente  
-- NO extraer web de nuevo
-- Decir: "Corregido."
-- Continuar a PASO 5
-
-SI CAMBIÓ LA WEB:
-- Pedir URL correcta
-- Llamar extraer_datos_web_cliente
-- Volver a PASO 1
-
-⛔ NUNCA decir "Estoy extrayendo..." sin llamar tool
-⛔ NO re-extraer web solo por nombre corregido
-
-PASO 5: INVESTIGAR DESAFÍOS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Después de confirmar datos, llamar: investigar_desafios_empresa
-Pasar: rubro (business_activity), país (country_detected)
-
-Mostrar los desafíos encontrados:
-"Según mi investigación, las empresas de {rubro} en {país} suelen enfrentar:
-
-1. {desafío 1}
-2. {desafío 2}
-3. {desafío 3}
-4. {desafío 4}
-5. {desafío 5}
-
-¿Te identificás con alguno de estos? ¿O hay otro desafío más importante para vos?"
-
-⛔ ESPERAR respuesta del usuario.
-
-🚨 REGLA PARA ESTE PASO:
-Si el usuario pregunta "¿qué es X?" o "¿a qué te referís?":
-- Respuesta CORTA (1-2 oraciones máximo)
-- Devolver pregunta: "¿Les pasa eso a ustedes?"
-- NO dar listas, NO explicar en detalle, NO recomendar herramientas
-- El objetivo es EXTRAER info del lead, no educarlo
-
-EJEMPLO:
-Usuario: "¿A qué te referís con falta de automatización?"
-Bot: "Es cuando hacen tareas manuales que podrían 
-automatizarse. ¿Les pasa eso en algún área específica?"
-
-SI DICE SÍ A ALGUNO:
-- Profundizar: "Contame más sobre ese desafío, ¿cómo les afecta?"
-- Guardar en main_challenge
-
-SI DICE NO / NINGUNO:
-- Preguntar: "Entiendo, ¿cuál es el principal desafío que enfrentan hoy en tu empresa?"
-- Guardar respuesta en main_challenge
-
-SI NO QUIERE HABLAR DEL TEMA:
-- "No hay problema. Cuando quieras explorar cómo la IA puede ayudarte, estamos acá."
-- Continuar con siguiente paso
-
-PASO 6: Hacer 3 preguntas restantes (UNA POR VEZ)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 OBLIGATORIO - Hacer ANTES de guardar:
-1. "¿Cuántas personas trabajan en tu equipo?" → team_size
-2. "¿Qué tanto conocés sobre inteligencia artificial?" → ai_knowledge
-3. "¿Ya intentaron automatizar algo antes?" → past_attempt
-
-(main_challenge ya se obtuvo en el paso de desafíos)
-
-⛔ UNA pregunta por mensaje
-⛔ ESPERAR respuesta antes de la siguiente
-⛔ NUNCA saltar estas preguntas
-⛔ NUNCA guardar sin las 4 respuestas
+IMPORTANTE:
+- NO generar el reporte hasta después de las 4 preguntas
+- El reporte se genera LEYENDO de MongoDB, no de los tools directamente
+- verificar_investigacion_completa() se llama SOLO una vez, antes de pregunta 4/4
+- Si investigación no terminó, el tool espera internamente (hasta 3 min timeout)
+- NO enviar mensajes intermedios tipo "Analizando...", "Buscando...", etc
+- SOLO un mensaje: "Perfecto! Dame unos segundos..." y después silencio
 
 PASO 7: GUARDAR EN MONGODB + ENVIAR EMAIL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
