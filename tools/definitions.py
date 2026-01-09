@@ -426,47 +426,26 @@ PASO 1: Llamar extraer_datos_web_cliente OBLIGATORIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⛔ NUNCA saltar este paso
 ⛔ SIEMPRE es el PRIMER tool que se llama cuando hay web
-El sistema:
-- Envía mensaje "Perfecto! Dame unos segundos para preparar todo..."
-- Activa typing indicator
-- Extrae datos web básicos
-- Lanza investigación completa EN BACKGROUND (LinkedIn + noticias + desafíos)
-- Espera 60 segundos
-- Desactiva typing indicator
+El sistema extrae datos web y los guarda en context.
+NO enviar mensajes, NO activar typing, solo ejecutar el tool.
 
-Después de este paso, la investigación corre en paralelo mientras haces preguntas.
-
-PASO 2: Hacer preguntas 1/4, 2/4, 3/4 (UNA POR VEZ)
+PASO 2: Llamar buscar_redes_personales OBLIGATORIO  
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 OBLIGATORIO - Hacer DESPUÉS de extraer_datos_web_cliente
-🚨 La investigación corre en background, NO esperar
+⛔ SIEMPRE llamar DESPUÉS de extraer_datos_web_cliente
+Pasar: nombre_persona, empresa (del paso 1), website
+El sistema busca LinkedIn personal y noticias de la empresa.
 
-1. "1/4: ¿Cuántas personas trabajan en tu equipo?" → team_size
-2. "2/4: ¿Qué tanto conocés sobre inteligencia artificial?" → ai_knowledge
-3. "3/4: ¿Ya intentaron automatizar algo antes?" → past_attempt
-
-⛔ UNA pregunta por mensaje
-⛔ ESPERAR respuesta antes de la siguiente
-⛔ NO saltar estas preguntas
-
-PASO 3: Antes de pregunta 4/4 - Verificar investigación
+PASO 3: Llamar investigar_desafios_empresa OBLIGATORIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Antes de hacer la pregunta 4/4, verificar si la investigación terminó.
-Si no terminó, el sistema mostrará:
-"Dejame chequear un par de cosas antes de la última pregunta..."
-Y esperará hasta que termine (máximo 3 minutos).
+⛔ SIEMPRE llamar DESPUÉS de buscar_redes_personales
+Pasar: rubro (business_activity del paso 1), país (country_detected)
+El sistema investiga desafíos del rubro.
 
-PASO 4: Pregunta 4/4 PERSONALIZADA con rubro
+PASO 4: Mostrar REPORTE CONSOLIDADO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Usar el rubro (business_activity) obtenido de la investigación:
-"4/4: ¿Cuál es tu principal desafío en {rubro} para 2026/2027?" → main_challenge
-
-Si no hay rubro disponible, usar genérico:
-"4/4: ¿Cuál es tu principal desafío en tu empresa para 2026/2027?"
-
-⛔ ESPERAR respuesta del usuario.
-
-PASO 5: Mostrar REPORTE CONSOLIDADO
+🚨 CRÍTICO: SOLO mostrar el reporte DESPUÉS de que los 3 tools hayan terminado.
+NO generar el reporte hasta tener TODOS los datos de los 3 tools.
+Si algún tool falla o retorna datos incompletos, espera a que termine antes de mostrar el reporte.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚨 TRADUCIR TODO AL ESPAÑOL (horarios, descripciones, etc.)
 
@@ -538,7 +517,7 @@ Decir: "¿Está todo correcto o necesitás corregir algo?"
 
 ⛔ ESPERAR respuesta del usuario antes de continuar.
 
-PASO 6B: SI EL USUARIO CORRIGE ALGO
+PASO 5B: SI EL USUARIO CORRIGE ALGO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SI CORRIGE NOMBRE/APELLIDO:
 - Actualizar nombre internamente
@@ -557,6 +536,20 @@ SI CAMBIÓ LA WEB:
 
 ⛔ NUNCA decir "Estoy extrayendo..." sin llamar tool
 ⛔ NO re-extraer web solo por nombre corregido
+
+PASO 6: Hacer 4 preguntas obligatorias (UNA POR VEZ)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 OBLIGATORIO - Hacer ANTES de guardar:
+1. "¿Cuántas personas trabajan en tu equipo?" → team_size
+2. "¿Qué tanto conocés sobre inteligencia artificial?" → ai_knowledge
+3. "¿Ya intentaron automatizar algo antes?" → past_attempt
+4. "¿Cuál es tu principal desafío en {rubro} para 2026/2027?" → main_challenge
+   (usar business_activity del paso 1, o "tu empresa" si no está disponible)
+
+⛔ UNA pregunta por mensaje
+⛔ ESPERAR respuesta antes de la siguiente
+⛔ NUNCA saltar estas preguntas
+⛔ NUNCA guardar sin las 4 respuestas
 
 PASO 7: GUARDAR EN MONGODB + ENVIAR EMAIL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -698,16 +691,16 @@ Luego → GUARDAR EN MONGODB → Cualificar y derivar
 ═══════════════════════════════════════════════════════════════════
 Cuando el usuario da una URL de web:
 1. PRIMERO: extraer_datos_web_cliente (OBLIGATORIO)
-   → Lanza investigación en background automáticamente
-   → Espera 60 segundos
-2. SEGUNDO: Hacer preguntas 1/4, 2/4, 3/4 (UNA POR VEZ)
-   → team_size, ai_knowledge, past_attempt
-3. TERCERO: Antes de pregunta 4/4, verificar investigación
-   → Si no terminó, esperar (máximo 3 min)
-4. CUARTO: Pregunta 4/4 personalizada con rubro
-   → main_challenge (personalizada según rubro obtenido)
-5. QUINTO: Mostrar reporte consolidado
-6. SEXTO: Preguntar confirmación (opcional)
+2. SEGUNDO: buscar_redes_personales (OBLIGATORIO)
+3. TERCERO: investigar_desafios_empresa (OBLIGATORIO)
+4. CUARTO: Mostrar reporte consolidado (SOLO después de los 3 tools)
+5. QUINTO: Preguntar confirmación (opcional)
+6. SEXTO: Hacer 4 preguntas obligatorias (UNA POR VEZ):
+   - team_size: "¿Cuántas personas trabajan en tu equipo?"
+   - ai_knowledge: "¿Qué tanto conocés sobre inteligencia artificial?"
+   - past_attempt: "¿Ya intentaron automatizar algo antes?"
+   - main_challenge: "¿Cuál es tu principal desafío en {rubro} para 2026/2027?"
+     (usar business_activity del paso 1, o "tu empresa" si no está disponible)
 7. SÉPTIMO: guardar_lead_mongodb (OBLIGATORIO)
 8. OCTAVO: Cualificar y ofrecer según tier
 9. ÚLTIMO: gestionar_calcom (solo si premium acepta)
@@ -715,7 +708,7 @@ Cuando el usuario da una URL de web:
 ⛔ NUNCA saltar las 4 preguntas obligatorias
 ⛔ NUNCA ofrecer Cal.com sin haber guardado en MongoDB primero
 ⛔ NUNCA guardar sin las 4 respuestas
-⛔ La investigación corre en background, NO esperar antes de hacer preguntas 1/4, 2/4, 3/4
+⛔ NUNCA mostrar reporte antes de que los 3 tools terminen
 
 ═══════════════════════════════════════════════════════════════════
 🚨🚨🚨 MONGODB - NUNCA UNDEFINED 🚨🚨🚨

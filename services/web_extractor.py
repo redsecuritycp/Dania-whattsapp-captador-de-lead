@@ -1424,33 +1424,49 @@ Si no encuentras ciudad en el contenido, buscar en el título.
         instruccion_city = f'- city: Ciudad (revisar también el TÍTULO de la página. Si el título tiene "{ciudad_del_titulo}", usar ese valor)'
 
     prompt = f"""Extraé los siguientes datos del contenido de este sitio web ({website}).
-Respondé SOLO con JSON válido, sin explicaciones.
+
+Respondé SOLO con JSON válido, sin explicaciones ni markdown.
 Si no encontrás un dato, usá "No encontrado".
 
 {instruccion_titulo}
 
+IMPORTANTE PARA business_activity:
+- Identificá el RUBRO/INDUSTRIA principal de la empresa
+- Ejemplos: "Distribuidora de alarmas y seguridad", "Servicios de TI", 
+  "Clínica dental", "E-commerce de indumentaria", "Consultoría empresarial"
+- Si no está explícito, INFERILO de: servicios, productos, descripción, 
+  o título del sitio
+- Si la empresa vende productos → describir QUÉ vende
+- Si la empresa ofrece servicios → describir QUÉ servicios
+- NUNCA inventes, pero SÍ infiere del contexto disponible
+
 DATOS A EXTRAER:
 - business_name: Nombre de la empresa
-- business_activity: Actividad/rubro principal
-- business_model: Modelo de negocio (B2B, B2C, SaaS, Ecommerce, 
-  Servicios profesionales, Retail, Mayorista, Franquicia, 
+- business_activity: Rubro/industria principal (OBLIGATORIO - inferir 
+  del contexto si no está explícito)
+- business_model: Modelo de negocio (B2B, B2C, B2B2C, SaaS, Ecommerce, 
+  Servicios profesionales, Retail, Mayorista, Minorista, Franquicia, 
   Suscripción, Marketplace, o el que corresponda)
-- business_description: Descripción breve (máx 200 chars)
-- services: Lista de servicios/productos principales
+- business_description: Descripción breve de qué hace la empresa 
+  (máx 200 chars)
+- services: Lista de 3-5 servicios/productos principales
 - email_principal: Email de contacto principal
-- phone_empresa: Teléfono principal
-- whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets flotantes, botones de chat, atributos data-settings, data-phone, telephone, o cerca de palabras whatsapp/chat/contacto. Solo números con código país, ej: 5493416469327)
+- phone_empresa: Teléfono principal (formato E.164 si es posible)
+- whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets 
+  flotantes, botones de chat, atributos data-settings, data-phone, 
+  telephone, o cerca de palabras whatsapp/chat/contacto. Solo números 
+  con código país, ej: 5493416469327)
 - address: Dirección física
 {instruccion_city}
 - province: Provincia
-- country: País (detectar del contenido, NO inventar)
+- country: País (default Argentina si no está especificado)
 - horarios: Horarios de atención
 - linkedin_empresa: URL LinkedIn de la empresa
 - instagram_empresa: URL Instagram de la empresa  
 - facebook_empresa: URL Facebook de la empresa
 
 CONTENIDO DEL SITIO:
-{all_content[:30000]}
+{all_content[:15000]}
 
 JSON:"""
 
