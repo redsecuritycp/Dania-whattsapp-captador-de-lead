@@ -80,10 +80,11 @@ TOOLS = [
         "function": {
             "name": "verificar_investigacion_completa",
             "description": "Verifica si la investigación en background "
-                "terminó y retorna el rubro de la empresa. "
+                "terminó. Retorna rubro Y desafíos investigados. "
                 "LLAMAR UNA SOLA VEZ, después de pregunta 3/4 y ANTES "
                 "de pregunta 4/4. Si no terminó, espera internamente "
-                "hasta 3 minutos. Retorna {completada: bool, rubro: str}",
+                "hasta 3 minutos. Retorna: "
+                "{completada: bool, rubro: str, desafios: list[str]}",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -513,76 +514,91 @@ en tu empresa antes?
 
 → Guardar respuesta en past_attempt
 
-PASO 5: Verificar investigación + Pregunta 4/4
+PASO 5: Pregunta 4/4 (CON DESAFÍOS INVESTIGADOS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Usuario responde → Guardar en past_attempt
 → Llamar verificar_investigacion_completa()
+→ El tool retorna: {completada, rubro, desafios}
 
-El tool retorna {"completada": true/false, "rubro": "..."}
+SI hay desafíos (lista no vacía):
+   Enviar mensaje con formato:
+   "Según mi investigación sobre [RUBRO], estos son los 
+   principales desafíos del sector:
 
-Si completada=false: El tool ya envió "Dejame chequear..." 
-y esperó internamente. VOS no hagas nada extra.
+   1. [desafio 1]
+   2. [desafio 2]
+   3. [desafio 3]
+   ...
 
-→ Usar el rubro retornado para pregunta 4/4:
+   ¿Te identificás con alguno de estos? 
+   ¿O hay otro desafío más importante para vos?"
 
-"4/4: Según veo que son [RUBRO DEL TOOL], ¿cuál es 
-el principal desafío que enfrentan en este momento?"
+SI NO hay desafíos (lista vacía):
+   Enviar: "4/4: Según veo que son [RUBRO], ¿cuál es 
+   el principal desafío que enfrentan en este momento?"
 
-→ Guardar respuesta en main_challenge
-
-PASO 6: Mostrar REPORTE CONSOLIDADO
+PASO 6: Después de respuesta a desafío → MOSTRAR REPORTE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Usuario responde pregunta 4/4 → Guardar en main_challenge
+OBLIGATORIO mostrar reporte ANTES de cualquier solución.
 
-Ahora SÍ mostrar el reporte con todos los datos.
-Los datos están guardados en MongoDB (el background los guardó).
+Formato del reporte:
+"Perfecto, déjame mostrarte lo que encontré sobre tu empresa:
 
-Formato del reporte (omitir campos "No encontrado"):
+📊 *Datos detectados:*
+• Empresa: [business_name]
+• Rubro: [business_activity]
+• Ubicación: [city_web o country_detected]
+• Web: [website]
 
-👤 Datos Personales
-- Nombre: {name}
-- WhatsApp: {phone_whatsapp de DATOS DETECTADOS}
-- LinkedIn: {linkedin_personal}
+👤 *Información adicional:*
+• LinkedIn empresa: [si hay]
+• Equipo: [team_size] personas
+• Nivel IA: [ai_knowledge]
 
-🏢 Datos de la Empresa
-- Empresa: {business_name}
-- Actividad: {business_activity}
-- Sitio Web: {website}
+🎯 *Desafío principal:* [lo que respondió el usuario]
 
-🌐 Redes Sociales
-- LinkedIn Empresa: {linkedin_empresa}
-- Instagram: {instagram_empresa}
-- Facebook: {facebook_empresa}
+¿Está todo correcto? ¿Querés corregir algo?"
 
-📰 Noticias
-{noticias_empresa}
-
-🎯 Cualificación
-- Equipo: {team_size}
-- Conocimiento IA: {ai_knowledge}
-- Principal desafío: {main_challenge}
-- Intentos previos: {past_attempt}
-
-🚨 Links: SIEMPRE URL completa, NUNCA formato [texto](url)
-
-PASO 7: Confirmar datos
+PASO 7: SOLO después de confirmación → Guardar y derivar
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"¿Está todo correcto o necesitás corregir algo?"
+→ Esperar que usuario confirme ("sí", "correcto", etc.)
+→ RECIÉN AHÍ llamar guardar_lead_mongodb
+→ Luego cualificar y derivar según scoring
 
-⛔ ESPERAR respuesta del usuario
+🚨 PROHIBIDO: Saltar directo a soluciones sin mostrar 
+   reporte y pedir confirmación
 
-PASO 8: Guardar y derivar
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Usuario confirma → Llamar guardar_lead_mongodb con TODOS 
-  los datos incluyendo las 4 respuestas
+═══════════════════════════════════════════════════════════════════
+FLUJO COMPLETO SI TIENE WEB:
+═══════════════════════════════════════════════════════════════════
 
-→ Cualificar según tier:
-  • team_size >= 10 + indicadores → PREMIUM
-  • team_size < 10 → STANDARD
-  • Menciona formación → EDUCATION
-  • Menciona crear agencia → AGENCY
+1. Usuario da URL → llamar extraer_datos_web_cliente
+   (Tool envía mensajes automáticos, NO duplicar)
 
-→ Ofrecer según tier correspondiente
+2. Tool retorna {"status": "ready"} → Pregunta 1/4:
+   "¿Cuántas personas trabajan en tu equipo?"
+
+3. Respuesta → Pregunta 2/4:
+   "¿Qué nivel de conocimiento tenés sobre IA?
+   • Ninguno
+   • Básico  
+   • Intermedio
+   • Avanzado"
+
+4. Respuesta → Pregunta 3/4:
+   "¿Ya intentaron automatizar o implementar IA antes?
+   • Sí
+   • No
+   • Estamos evaluando"
+
+5. Respuesta → Llamar verificar_investigacion_completa()
+   → Mostrar desafíos como opciones (ver PASO 5)
+
+6. Respuesta al desafío → MOSTRAR REPORTE COMPLETO
+   (ver PASO 6 - formato obligatorio)
+
+7. Usuario confirma → guardar_lead_mongodb → cualificar → derivar
+
+🚨 NO SALTARSE PASOS - Especialmente reporte y confirmación
 
 ═══════════════════════════════════════════════════════════════════
 LAS 4 PREGUNTAS OBLIGATORIAS (TEXTOS EXACTOS)
@@ -612,10 +628,19 @@ en tu empresa antes?
 → Guardar la opción elegida
 
 PREGUNTA 4 (main_challenge):
-"4/4: Según veo que son [RUBRO], ¿cuál es el principal 
-desafío que enfrentan en este momento?"
-→ Usar el rubro que retorna verificar_investigacion_completa
-→ Guardar respuesta textual
+→ Llamar verificar_investigacion_completa() primero
+→ Si hay desafíos en la respuesta:
+   "Según mi investigación sobre [RUBRO], estos son los 
+   principales desafíos del sector:
+   1. [desafio 1]
+   2. [desafio 2]
+   ...
+   ¿Te identificás con alguno de estos? 
+   ¿O hay otro desafío más importante para vos?"
+→ Si NO hay desafíos:
+   "4/4: Según veo que son [RUBRO], ¿cuál es el principal 
+   desafío que enfrentan en este momento?"
+→ Guardar respuesta textual en main_challenge
 
 ⛔ UNA pregunta por mensaje
 ⛔ ESPERAR respuesta antes de la siguiente

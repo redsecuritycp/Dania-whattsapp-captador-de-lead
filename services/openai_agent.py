@@ -858,7 +858,9 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
         # VERIFICAR INVESTIGACIÓN COMPLETA
         # ═══════════════════════════════════════════════════════════════════
         elif tool_name == "verificar_investigacion_completa":
-            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
+            logger.info(
+                f"[TOOL] ══════ INICIANDO: {tool_name} ══════"
+            )
             
             phone = context.get("phone_whatsapp", "")
             
@@ -870,7 +872,8 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     )
                     return {
                         "completada": False,
-                        "rubro": "tu empresa"
+                        "rubro": "tu empresa",
+                        "desafios": []
                     }
                 
                 collection = db["leads_fortia"]
@@ -882,7 +885,8 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     )
                     return {
                         "completada": False,
-                        "rubro": "tu empresa"
+                        "rubro": "tu empresa",
+                        "desafios": []
                     }
                 
                 status = lead.get("investigacion_status", "")
@@ -890,48 +894,65 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 # Si NO completó, esperar
                 if status != "completada":
                     logger.info(
-                        "[TOOL] Investigación no completada, esperando..."
+                        "[TOOL] Investigación no completada, "
+                        "esperando..."
                     )
                     
-                    # Enviar mensaje de espera
                     from services.whatsapp import send_whatsapp_message
                     await send_whatsapp_message(
                         phone,
-                        "Dejame chequear un par de cosas antes de "
-                        "la última pregunta..."
+                        "Dejame chequear un par de cosas antes "
+                        "de la última pregunta..."
                     )
                     
-                    # Esperar hasta 180 segundos
                     resultado = await esperar_investigacion_completa(
                         phone, 180
                     )
                     
-                    logger.info(
-                        f"[TOOL] ══════ COMPLETADO: {tool_name} ══════"
+                    # Recargar lead después de esperar
+                    lead = collection.find_one(
+                        {"phone_whatsapp": phone}
                     )
-                    return {
-                        "completada": resultado.get("completada", False),
-                        "rubro": resultado.get("rubro", "tu empresa")
-                    }
+                    if not lead:
+                        logger.info(
+                            f"[TOOL] ══════ COMPLETADO: "
+                            f"{tool_name} ══════"
+                        )
+                        return {
+                            "completada": False,
+                            "rubro": "tu empresa",
+                            "desafios": []
+                        }
                 
-                # Ya completó - obtener rubro
-                rubro = lead.get("business_activity", "tu empresa")
+                # Obtener rubro
+                rubro = lead.get("business_activity", "")
                 if not rubro or rubro == "No encontrado":
-                    # Intentar de datos_web_background
                     datos_bg = lead.get("datos_web_background", {})
-                    rubro = datos_bg.get(
-                        "business_activity", "tu empresa"
-                    )
+                    rubro = datos_bg.get("business_activity", "")
                 
                 if not rubro or rubro == "No encontrado":
                     rubro = "tu empresa"
                 
+                # Obtener desafíos investigados
+                desafios = lead.get("desafios_rubro", [])
+                if not desafios:
+                    desafios = []
+                
+                # Limitar a 5 desafíos máximo
+                desafios = desafios[:5]
+                
+                logger.info(
+                    f"[TOOL] Rubro: {rubro}, "
+                    f"Desafíos: {len(desafios)}"
+                )
                 logger.info(
                     f"[TOOL] ══════ COMPLETADO: {tool_name} ══════"
                 )
+                
                 return {
                     "completada": True,
-                    "rubro": rubro
+                    "rubro": rubro,
+                    "desafios": desafios
                 }
             
             except Exception as e:
@@ -941,7 +962,8 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 )
                 return {
                     "completada": False,
-                    "rubro": "tu empresa"
+                    "rubro": "tu empresa",
+                    "desafios": []
                 }
 
         # ═══════════════════════════════════════════════════════════════════
