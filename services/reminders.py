@@ -9,7 +9,7 @@ LÓGICA:
 """
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -54,6 +54,219 @@ def shutdown_scheduler():
         scheduler.shutdown(wait=False)
         scheduler = None
         logger.info("Scheduler detenido")
+
+
+# ============================================================================
+# RECOVERY DE RECORDATORIOS PENDIENTES (NUEVO)
+# ============================================================================
+
+async def recuperar_recordatorios_pendientes():
+    """
+    Al iniciar el servidor, busca leads con reuniones próximas
+    que no recibieron todos sus recordatorios.
+    
+    Esto soluciona el problema de recordatorios perdidos cuando
+    Replit reinicia durante una ventana de envío.
+    """
+    try:
+        db = get_database()
+        if db is None:
+            logger.warning(
+                "[RECOVERY] No hay conexión a MongoDB"
+            )
+            return
+        
+        collection = db["leads_fortia"]
+        now = datetime.now(pytz.UTC)
+        
+        # Buscar leads con booking activo en las próximas 25 horas
+        # (25h para cubrir el recordatorio de 24h)
+        limite = now + timedelta(hours=25)
+        
+        leads_con_booking = collection.find({
+            "booking_status": "created",
+            "booking_start_time": {"$exists": True, "$ne": ""}
+        })
+        
+        recuperados = 0
+        
+        for lead in leads_con_booking:
+            try:
+                booking_str = lead.get("booking_start_time", "")
+                if not booking_str:
+                    continue
+                
+                # Parsear fecha
+                booking_time = _parse_booking_time(booking_str)
+                if booking_time is None:
+                    continue
+                
+                # Si ya pasó la reunión, ignorar
+                if booking_time < now:
+                    continue
+                
+                # Calcular minutos hasta la reunión
+                diff = booking_time - now
+                minutes_until = diff.total_seconds() / 60
+                
+                # Obtener recordatorios ya enviados
+                reminders_sent = lead.get("reminders_sent", [])
+                phone = lead.get("phone_whatsapp", "")
+                
+                if not phone:
+                    continue
+                
+                # Verificar cada recordatorio que DEBIÓ enviarse
+                # 24h = 1440 min, 5h = 300 min, 1h = 60 min, 15min = 15
+                
+                pendientes = []
+                
+                if minutes_until < 1440 and "24hr" not in reminders_sent:
+                    pendientes.append("24hr")
+                
+                if minutes_until < 300 and "5hr" not in reminders_sent:
+                    pendientes.append("5hr")
+                
+                if minutes_until < 60 and "1hr" not in reminders_sent:
+                    pendientes.append("1hr")
+                
+                if minutes_until < 15 and "15min" not in reminders_sent:
+                    pendientes.append("15min")
+                
+                # Enviar recordatorios pendientes
+                for reminder_type in pendientes:
+                    success = await _enviar_recordatorio_recovery(
+                        lead, reminder_type, booking_time
+                    )
+                    if success:
+                        recuperados += 1
+                        logger.info(
+                            f"[RECOVERY] ✓ Enviado '{reminder_type}' "
+                            f"a {phone}"
+                        )
+            
+            except Exception as e:
+                logger.error(
+                    f"[RECOVERY] Error procesando lead: {e}"
+                )
+                continue
+        
+        if recuperados > 0:
+            logger.info(
+                f"[RECOVERY] ✅ {recuperados} recordatorios recuperados"
+            )
+        else:
+            logger.info("[RECOVERY] ✓ No hay recordatorios pendientes")
+    
+    except Exception as e:
+        logger.error(f"[RECOVERY] Error general: {e}")
+
+
+def _parse_booking_time(booking_str: str) -> Optional[datetime]:
+    """Parsea string de booking a datetime con timezone."""
+    try:
+        if booking_str.endswith('Z'):
+            booking_str = booking_str[:-1] + '+00:00'
+        
+        booking_time = datetime.fromisoformat(
+            booking_str.replace('Z', '+00:00')
+        )
+        
+        if booking_time.tzinfo is None:
+            booking_time = pytz.UTC.localize(booking_time)
+        
+        return booking_time
+    except Exception:
+        return None
+
+
+async def _enviar_recordatorio_recovery(
+    lead: dict,
+    reminder_type: str,
+    booking_time: datetime
+) -> bool:
+    """
+    Envía un recordatorio específico y lo marca como enviado.
+    """
+    try:
+        phone = lead.get("phone_whatsapp", "")
+        name = lead.get("name", "")
+        zoom_url = lead.get("booking_zoom_url", "")
+        pais = lead.get("country_detected", "tu país")
+        
+        # Formatear fecha/hora
+        tz_str = lead.get(
+            "timezone_detected",
+            "America/Argentina/Buenos_Aires"
+        )
+        try:
+            tz = pytz.timezone(tz_str)
+            booking_local = booking_time.astimezone(tz)
+        except:
+            booking_local = booking_time
+        
+        fecha_str = booking_local.strftime("%d/%m/%Y")
+        hora_str = booking_local.strftime("%H:%M")
+        
+        # Obtener mensaje según tipo
+        if reminder_type == "24hr":
+            # Para 24hr usar template si está disponible, sino mensaje simple
+            link_modificar = (lead.get("booking_reschedule_link") or 
+                            lead.get("booking_cancel_link") or "")
+            if link_modificar:
+                success = await send_template_reminder_24h(
+                    phone=phone,
+                    nombre=name if name else "usuario",
+                    hora=hora_str,
+                    fecha=fecha_str,
+                    link_modificar=link_modificar
+                )
+            else:
+                message = _get_message_24hr(name, fecha_str, hora_str, pais)
+                phone_clean = phone.lstrip('+')
+                success = await send_whatsapp_message(phone_clean, message)
+        elif reminder_type == "5hr":
+            message = _get_message_5hr(fecha_str, hora_str, zoom_url)
+            phone_clean = phone.lstrip('+')
+            success = await send_whatsapp_message(phone_clean, message)
+        elif reminder_type == "1hr":
+            message = _get_message_1hr(zoom_url)
+            phone_clean = phone.lstrip('+')
+            success = await send_whatsapp_message(phone_clean, message)
+        elif reminder_type == "15min":
+            message = _get_message_15min(zoom_url)
+            phone_clean = phone.lstrip('+')
+            success = await send_whatsapp_message(phone_clean, message)
+        else:
+            return False
+        
+        if success:
+            # Marcar como enviado
+            db = get_database()
+            if db is not None:
+                db["leads_fortia"].update_one(
+                    {"phone_whatsapp": phone},
+                    {"$push": {"reminders_sent": reminder_type}}
+                )
+            return True
+        
+        return False
+    
+    except Exception as e:
+        logger.error(f"[RECOVERY] Error enviando: {e}")
+        return False
+
+
+def _get_message_24hr(name: str, fecha_str: str, hora_str: str, pais: str) -> str:
+    """Mensaje 24 horas antes (fallback si no hay template)."""
+    saludo = f"¡Hola {name}! " if name else "¡Hola! "
+    msg = f"""{saludo}Te recordamos tu consultoría gratuita:
+
+📅 Fecha: {fecha_str}
+🕐 Hora: {hora_str} (hora de {pais})
+
+¡Nos vemos mañana! 🚀"""
+    return msg
 
 
 async def check_and_send_reminders():

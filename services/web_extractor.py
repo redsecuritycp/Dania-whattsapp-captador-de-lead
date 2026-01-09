@@ -1423,15 +1423,52 @@ Si no encuentras ciudad en el contenido, buscar en el título.
     if ciudad_del_titulo:
         instruccion_city = f'- city: Ciudad (revisar también el TÍTULO de la página. Si el título tiene "{ciudad_del_titulo}", usar ese valor)'
 
-    prompt = f"""Extraé los siguientes datos del contenido de este sitio web ({website}).
+    prompt = f"""Extraé los siguientes datos del contenido de 
+este sitio web ({website}).
 Respondé SOLO con JSON válido, sin explicaciones.
 Si no encontrás un dato, usá "No encontrado".
 
 {instruccion_titulo}
 
+═══════════════════════════════════════════════════════════════════
+IMPORTANTE PARA business_activity (RUBRO):
+═══════════════════════════════════════════════════════════════════
+- Identificá el RUBRO/INDUSTRIA principal de la empresa
+- NUNCA dejar vacío o "No encontrado" si hay contexto
+
+EJEMPLOS DE RUBROS BIEN ESCRITOS:
+• "Distribuidora mayorista de alarmas y seguridad"
+• "Agencia de marketing digital"
+• "Clínica dental"
+• "Servicios de desarrollo de software"
+• "E-commerce de indumentaria deportiva"
+• "Consultora empresarial"
+• "Fábrica de muebles"
+• "Estudio contable"
+• "Inmobiliaria"
+• "Servicios de logística y transporte"
+
+SI NO ESTÁ EXPLÍCITO, INFERIR DE:
+• Productos o servicios que ofrece
+• Descripción del sitio/empresa
+• Título y meta tags de la página
+• Categorías de productos
+• Sección "Quiénes somos" o "Nosotros"
+
+REGLAS:
+• Si vende productos → describir QUÉ vende
+• Si ofrece servicios → describir QUÉ servicios
+• Buscar palabras clave: "distribuidora", "mayorista", 
+  "fábrica", "agencia", "consultora", "servicios de"
+• NUNCA inventar, pero SÍ inferir del contexto disponible
+• Si hay suficiente info para inferir, hacerlo
+
+═══════════════════════════════════════════════════════════════════
+
 DATOS A EXTRAER:
 - business_name: Nombre de la empresa
-- business_activity: Actividad/rubro principal
+- business_activity: Rubro/industria (OBLIGATORIO - inferir si 
+  no está explícito)
 - business_model: Modelo de negocio (B2B, B2C, SaaS, Ecommerce, 
   Servicios profesionales, Retail, Mayorista, Franquicia, 
   Suscripción, Marketplace, o el que corresponda)
