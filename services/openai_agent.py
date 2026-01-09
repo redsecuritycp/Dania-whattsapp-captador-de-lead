@@ -506,7 +506,34 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             logger.info(f"[TOOL] ✓ Mensaje de espera enviado")
             
             # 2. Lanzar investigación en background (NO esperar)
-            nombre_usuario = context.get("name", "")
+            # IMPORTANTE: Leer nombre de MongoDB (ya guardado)
+            nombre_usuario = ""
+            try:
+                db = get_database()
+                if db:
+                    lead = db["leads_fortia"].find_one(
+                        {"phone_whatsapp": phone}
+                    )
+                    if lead:
+                        nombre_usuario = lead.get("name", "")
+                        logger.info(
+                            f"[TOOL] Nombre de MongoDB: {nombre_usuario}"
+                        )
+            except Exception as e:
+                logger.warning(f"[TOOL] Error leyendo nombre: {e}")
+            
+            # Fallback: intentar del context
+            if not nombre_usuario:
+                nombre_usuario = context.get("name", "")
+                logger.warning(
+                    f"[TOOL] Nombre de context: {nombre_usuario}"
+                )
+            
+            if not nombre_usuario:
+                logger.error(
+                    "[TOOL] ⚠️ NOMBRE VACÍO - LinkedIn no funcionará"
+                )
+            
             ubicacion = context.get("country_detected", "Argentina")
             
             asyncio.create_task(
@@ -517,7 +544,10 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     ubicacion=ubicacion
                 )
             )
-            logger.info(f"[TOOL] ✓ Investigación lanzada en background")
+            logger.info(
+                f"[TOOL] ✓ Investigación lanzada: "
+                f"nombre={nombre_usuario}, web={website}"
+            )
             
             # 3. ESPERAR 50 SEGUNDOS (temporizador real)
             logger.info(f"[TOOL] Esperando 50 segundos...")
