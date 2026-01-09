@@ -1,7 +1,6 @@
 """
 Agente de OpenAI con function calling para DANIA/Fortia
 Versión 2.0 - Incluye tool de investigación de desafíos
-Versión 2.2 - Flujo secuencial (sin background)
 """
 import logging
 import json
@@ -49,7 +48,6 @@ async def send_progress_message(
         logger.warning(
             f"[PROGRESS] No se pudo enviar mensaje de progreso: {e}"
         )
-
 
 # Inicializar cliente OpenAI
 client = None
@@ -254,22 +252,26 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                 return {"error": "No se proporcionó website"}
             
-            phone = context.get("phone_whatsapp", "")
+            result = await extract_web_data(website)
             
-            # Extraer datos web
-            result = await extract_web_data(website, phone=phone)
-            
+            # NO enviar mensaje de éxito aquí - GPT mostrará 
+            # el reporte completo
+
             # Guardar datos importantes en context
             # NO sobrescribir city/province que vienen del número
             if result:
-                context["linkedin_empresa"] = result.get("linkedin_empresa", "")
-                context["facebook_empresa"] = result.get("facebook_empresa", "")
-                context["instagram_empresa"] = result.get("instagram_empresa", "")
+                context["linkedin_empresa"] = result.get(
+                    "linkedin_empresa", "")
+                context["facebook_empresa"] = result.get(
+                    "facebook_empresa", "")
+                context["instagram_empresa"] = result.get(
+                    "instagram_empresa", "")
                 # Ubicación de la WEB en campos separados
                 context["city_web"] = result.get("city", "")
                 context["province_web"] = result.get("province", "")
                 context["email_principal"] = result.get("email_principal", "")
-                context["business_activity"] = result.get("business_activity", "")
+                context["business_activity"] = result.get(
+                    "business_activity", "")
                 context["business_name"] = result.get("business_name", "")
                 context["business_model"] = result.get("business_model", "")
                 logger.info(f"[CONTEXT] Datos guardados: "
@@ -306,7 +308,6 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             # Obtener email del contexto
             email_contacto = context.get("email_principal", "")
             
-            phone = context.get("phone_whatsapp", "")
             result = await research_person_and_company(
                 nombre_persona=nombre,
                 empresa=empresa,
@@ -317,8 +318,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 city=city,
                 province=province,
                 country=country,
-                email_contacto=email_contacto,
-                phone=phone)
+                email_contacto=email_contacto)
             
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result or {"error": "No se pudieron encontrar redes"}
@@ -593,9 +593,6 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"summary": summary}
 
-        # ═══════════════════════════════════════════════════════════════════
-        # VERIFICAR INVESTIGACIÓN (helper para pregunta 4/4)
-        # ═══════════════════════════════════════════════════════════════════
         # ═══════════════════════════════════════════════════════════════════
         # TOOL NO RECONOCIDA
         # ═══════════════════════════════════════════════════════════════════

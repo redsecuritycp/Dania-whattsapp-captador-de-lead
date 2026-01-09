@@ -1559,29 +1559,15 @@ async def research_person_and_company(nombre_persona: str,
                                       city: str = "",
                                       province: str = "",
                                       country: str = "",
-                                      email_contacto: str = "",
-                                      phone: str = None) -> dict:
+                                      email_contacto: str = "") -> dict:
     """
     Función principal que replica el workflow completo de n8n.
     LinkedIn empresa: SOLO desde web del cliente.
     LinkedIn personal: 2 fases de búsqueda.
-    
-    Args:
-        phone: Número de WhatsApp (opcional, para typing indicator)
     """
     logger.info(f"[RESEARCH] ========== Iniciando investigación ==========")
     logger.info(f"[RESEARCH] Persona: {nombre_persona}, "
                 f"Empresa: {empresa}, Web: {website}")
-    
-    # Activar typing indicator
-    typing_active = False
-    if phone:
-        try:
-            from services.whatsapp import send_typing_indicator
-            await send_typing_indicator(phone, typing_on=True)
-            typing_active = True
-        except Exception as e:
-            logger.warning(f"[RESEARCH] Error activando typing indicator: {e}")
 
     # ═══════════════════════════════════════════════════════════════════
     # PASO 1: PREPARAR DATOS
@@ -2035,13 +2021,6 @@ async def research_person_and_company(nombre_persona: str,
 
     except Exception as e:
         logger.error(f"[RESEARCH] Error en investigación: {e}", exc_info=True)
-        # Desactivar typing en caso de error
-        if phone and typing_active:
-            try:
-                from services.whatsapp import send_typing_indicator
-                await send_typing_indicator(phone, typing_on=False)
-            except Exception as e2:
-                logger.warning(f"[RESEARCH] Error desactivando typing indicator: {e2}")
 
     logger.info(f"[RESEARCH] ========== Investigación completada ==========")
     logger.info(
@@ -2050,14 +2029,6 @@ async def research_person_and_company(nombre_persona: str,
     logger.info(f"[RESEARCH] LinkedIn empresa: {results['linkedin_empresa']}")
     logger.info(f"[RESEARCH] Noticias: {results['noticias_count']} "
                 f"({results['noticias_source']})")
-
-    # Desactivar typing antes de retornar
-    if phone and typing_active:
-        try:
-            from services.whatsapp import send_typing_indicator
-            await send_typing_indicator(phone, typing_on=False)
-        except Exception as e:
-            logger.warning(f"[RESEARCH] Error desactivando typing indicator: {e}")
 
     return results
 

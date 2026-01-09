@@ -248,65 +248,6 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
         return ""
 
 
-async def send_typing_indicator(phone: str, typing_on: bool = True) -> bool:
-    """
-    Activa/desactiva el indicador 'escribiendo...' en WhatsApp.
-    
-    NOTA: WhatsApp Business API v21.0 NO tiene endpoint oficial para typing.
-    Esta función está deshabilitada para evitar errores 400.
-    Si se necesita, implementar usando otro método.
-    
-    Args:
-        phone: Número de teléfono (formato E.164)
-        typing_on: True para activar, False para desactivar
-    """
-    # DESHABILITADO: WhatsApp Business API no soporta typing indicator oficialmente
-    # Comentado para evitar errores 400
-    return False
-    
-    # Código original comentado (no funciona con WhatsApp API v21.0):
-    # if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
-    #     logger.warning("[TYPING] Credenciales faltantes")
-    #     return False
-    # 
-    # url = (f"https://graph.facebook.com/v21.0/"
-    #        f"{WHATSAPP_PHONE_NUMBER_ID}/messages")
-    # 
-    # headers = {
-    #     "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-    #     "Content-Type": "application/json"
-    # }
-    # 
-    # payload = {
-    #     "messaging_product": "whatsapp",
-    #     "recipient_type": "individual",
-    #     "to": phone,
-    #     "type": "text",
-    #     "text": {
-    #         "body": "typing" if typing_on else "stopped_typing"
-    #     }
-    # }
-    # 
-    # try:
-    #     async with httpx.AsyncClient(timeout=10.0) as client:
-    #         response = await client.post(url, headers=headers, json=payload)
-    #         
-    #         if response.status_code == 200:
-    #             action = "Activado" if typing_on else "Desactivado"
-    #             logger.info(f"[TYPING] {action} para {phone}")
-    #             return True
-    #         else:
-    #             logger.warning(
-    #                 f"[TYPING] Error {response.status_code}: "
-    #                 f"{response.text}"
-    #             )
-    #             return False
-    #             
-    # except Exception as e:
-    #     logger.error(f"[TYPING] Excepción: {e}")
-    #     return False
-
-
 async def send_template_reminder_24h(
     phone: str,
     nombre: str,

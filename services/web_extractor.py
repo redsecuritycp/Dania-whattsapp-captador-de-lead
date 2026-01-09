@@ -1424,49 +1424,33 @@ Si no encuentras ciudad en el contenido, buscar en el título.
         instruccion_city = f'- city: Ciudad (revisar también el TÍTULO de la página. Si el título tiene "{ciudad_del_titulo}", usar ese valor)'
 
     prompt = f"""Extraé los siguientes datos del contenido de este sitio web ({website}).
-
-Respondé SOLO con JSON válido, sin explicaciones ni markdown.
+Respondé SOLO con JSON válido, sin explicaciones.
 Si no encontrás un dato, usá "No encontrado".
 
 {instruccion_titulo}
 
-IMPORTANTE PARA business_activity:
-- Identificá el RUBRO/INDUSTRIA principal de la empresa
-- Ejemplos: "Distribuidora de alarmas y seguridad", "Servicios de TI", 
-  "Clínica dental", "E-commerce de indumentaria", "Consultoría empresarial"
-- Si no está explícito, INFERILO de: servicios, productos, descripción, 
-  o título del sitio
-- Si la empresa vende productos → describir QUÉ vende
-- Si la empresa ofrece servicios → describir QUÉ servicios
-- NUNCA inventes, pero SÍ infiere del contexto disponible
-
 DATOS A EXTRAER:
 - business_name: Nombre de la empresa
-- business_activity: Rubro/industria principal (OBLIGATORIO - inferir 
-  del contexto si no está explícito)
-- business_model: Modelo de negocio (B2B, B2C, B2B2C, SaaS, Ecommerce, 
-  Servicios profesionales, Retail, Mayorista, Minorista, Franquicia, 
+- business_activity: Actividad/rubro principal
+- business_model: Modelo de negocio (B2B, B2C, SaaS, Ecommerce, 
+  Servicios profesionales, Retail, Mayorista, Franquicia, 
   Suscripción, Marketplace, o el que corresponda)
-- business_description: Descripción breve de qué hace la empresa 
-  (máx 200 chars)
-- services: Lista de 3-5 servicios/productos principales
+- business_description: Descripción breve (máx 200 chars)
+- services: Lista de servicios/productos principales
 - email_principal: Email de contacto principal
-- phone_empresa: Teléfono principal (formato E.164 si es posible)
-- whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets 
-  flotantes, botones de chat, atributos data-settings, data-phone, 
-  telephone, o cerca de palabras whatsapp/chat/contacto. Solo números 
-  con código país, ej: 5493416469327)
+- phone_empresa: Teléfono principal
+- whatsapp_empresa: Número WhatsApp de la empresa (buscar en widgets flotantes, botones de chat, atributos data-settings, data-phone, telephone, o cerca de palabras whatsapp/chat/contacto. Solo números con código país, ej: 5493416469327)
 - address: Dirección física
 {instruccion_city}
 - province: Provincia
-- country: País (default Argentina si no está especificado)
+- country: País (detectar del contenido, NO inventar)
 - horarios: Horarios de atención
 - linkedin_empresa: URL LinkedIn de la empresa
 - instagram_empresa: URL Instagram de la empresa  
 - facebook_empresa: URL Facebook de la empresa
 
 CONTENIDO DEL SITIO:
-{all_content[:15000]}
+{all_content[:30000]}
 
 JSON:"""
 
@@ -2143,7 +2127,7 @@ async def buscar_whatsapp_externo(website: str, empresa: str = "") -> str:
     return ""
 
 
-async def extract_web_data(website: str, nombre_contacto: str = "", phone: str = None) -> dict:
+async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
     """
     Pipeline completo de extracción web.
     Orden: Firecrawl → Jina → HTTP directo → Tavily (fallback) → Regex → GPT-4o → Merge
@@ -2151,205 +2135,167 @@ async def extract_web_data(website: str, nombre_contacto: str = "", phone: str =
     Args:
         website: URL del sitio web
         nombre_contacto: Nombre del contacto para buscar cargo asociado
-        phone: Número de WhatsApp (opcional, para typing indicator)
     """
     logger.info(f"[EXTRACTOR] ========== Iniciando: {website} ==========")
-    
-    # Activar typing indicator
-    typing_active = False
-    if phone:
-        try:
-            from services.whatsapp import send_typing_indicator
-            await send_typing_indicator(phone, typing_on=True)
-            typing_active = True
-        except Exception as e:
-            logger.warning(f"[EXTRACTOR] Error activando typing indicator: {e}")
 
-    try:
-        website_clean = clean_url(website)
-        website_full = f"https://{website_clean}"
+    website_clean = clean_url(website)
+    website_full = f"https://{website_clean}"
 
-        # ═══════════════════════════════════════════════════════════════════
-        # EXTRACCIÓN MÚLTIPLE: Firecrawl → Jina → HTTP → Tavily (máxima cobertura)
-        # ═══════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════
+    # EXTRACCIÓN MÚLTIPLE: Firecrawl → Jina → HTTP → Tavily (máxima cobertura)
+    # ═══════════════════════════════════════════════════════════════════
 
-        # 1. FIRECRAWL (mejor JS rendering, contenido dinámico)
-        firecrawl_content = await fetch_with_firecrawl(website_clean)
-        logger.info(f"[FIRECRAWL] {len(firecrawl_content)} caracteres")
+    # 1. FIRECRAWL (mejor JS rendering, contenido dinámico)
+    firecrawl_content = await fetch_with_firecrawl(website_clean)
+    logger.info(f"[FIRECRAWL] {len(firecrawl_content)} caracteres")
 
-        # 2. JINA (X-With-Links-Summary captura TODOS los links incluyendo mailto:)
-        jina_content = await fetch_with_jina(website_clean)
-        logger.info(f"[JINA] {len(jina_content)} caracteres")
+    # 2. JINA (X-With-Links-Summary captura TODOS los links incluyendo mailto:)
+    jina_content = await fetch_with_jina(website_clean)
+    logger.info(f"[JINA] {len(jina_content)} caracteres")
 
-        # 3. HTTP DIRECTO (HTML raw, a veces tiene datos que los otros no ven)
-        http_content = await fetch_html_direct(website_full)
-        logger.info(f"[HTTP] {len(http_content)} caracteres")
+    # 3. HTTP DIRECTO (HTML raw, a veces tiene datos que los otros no ven)
+    http_content = await fetch_html_direct(website_full)
+    logger.info(f"[HTTP] {len(http_content)} caracteres")
 
-        # 4. PÁGINAS SECUNDARIAS (contacto, nosotros, equipo)
-        secundarias_content = await extraer_paginas_secundarias(website_clean)
-        logger.info(f"[SECUNDARIAS] {len(secundarias_content)} caracteres")
+    # 4. PÁGINAS SECUNDARIAS (contacto, nosotros, equipo)
+    secundarias_content = await extraer_paginas_secundarias(website_clean)
+    logger.info(f"[SECUNDARIAS] {len(secundarias_content)} caracteres")
 
-        # 5. COMBINAR TODO (el regex busca en todos los métodos)
-        main_content = ""
-        if firecrawl_content:
-            main_content += "=== FIRECRAWL ===\n" + firecrawl_content + "\n\n"
-        if jina_content:
-            main_content += "=== JINA ===\n" + jina_content + "\n\n"
-        if http_content:
-            main_content += "=== HTTP ===\n" + http_content[:30000] + "\n\n"
-        if secundarias_content:
-            main_content += "=== PÁGINAS SECUNDARIAS ===\n"
-            main_content += secundarias_content + "\n\n"
+    # 5. COMBINAR TODO (el regex busca en todos los métodos)
+    main_content = ""
+    if firecrawl_content:
+        main_content += "=== FIRECRAWL ===\n" + firecrawl_content + "\n\n"
+    if jina_content:
+        main_content += "=== JINA ===\n" + jina_content + "\n\n"
+    if http_content:
+        main_content += "=== HTTP ===\n" + http_content[:30000] + "\n\n"
+    if secundarias_content:
+        main_content += "=== PÁGINAS SECUNDARIAS ===\n"
+        main_content += secundarias_content + "\n\n"
 
-        # 5. Contenido final (solo de la web de la empresa)
-        all_content = main_content
+    # 5. Contenido final (solo de la web de la empresa)
+    all_content = main_content
 
-        if len(all_content) > 20000:
-            all_content = all_content[:20000]
+    if len(all_content) > 20000:
+        all_content = all_content[:20000]
 
-        # Fallback 4: Tavily
-        if not all_content:
-            logger.info(f"[TAVILY] Fallback: extrayendo {website}...")
-            tavily_content = await fetch_with_tavily(website_clean)
-            if tavily_content:
-                all_content = tavily_content
-                logger.info(
-                    f"[TAVILY] ✓ {len(tavily_content)} caracteres extraídos")
+    # Fallback 4: Tavily
+    if not all_content:
+        logger.info(f"[TAVILY] Fallback: extrayendo {website}...")
+        tavily_content = await fetch_with_tavily(website_clean)
+        if tavily_content:
+            all_content = tavily_content
+            logger.info(
+                f"[TAVILY] ✓ {len(tavily_content)} caracteres extraídos")
 
-        if not all_content:
-            logger.warning(f"[EXTRACTOR] Los 4 métodos fallaron para {website}")
-            resultado = {
-                "business_name": "No encontrado",
-                "business_description": "No encontrado",
-                "website": website_full,
-                "extraction_status": "failed"
-            }
-            # Desactivar typing antes de retornar
-            if phone and typing_active:
-                try:
-                    from services.whatsapp import send_typing_indicator
-                    await send_typing_indicator(phone, typing_on=False)
-                except Exception as e:
-                    logger.warning(f"[EXTRACTOR] Error desactivando typing indicator: {e}")
-            return resultado
+    if not all_content:
+        logger.warning(f"[EXTRACTOR] Los 4 métodos fallaron para {website}")
+        return {
+            "business_name": "No encontrado",
+            "business_description": "No encontrado",
+            "website": website_full,
+            "extraction_status": "failed"
+        }
 
-        logger.info(f"[EXTRACTOR] Contenido total: {len(all_content)} chars")
+    logger.info(f"[EXTRACTOR] Contenido total: {len(all_content)} chars")
 
-        # 8. Extraer título de la página (para detectar ciudad)
-        titulo_pagina = ""
-        if http_content:
-            titulo_pagina = extraer_titulo_pagina(http_content)
-            if titulo_pagina:
-                logger.info(f"[TITULO] Extraído: {titulo_pagina}")
+    # 8. Extraer título de la página (para detectar ciudad)
+    titulo_pagina = ""
+    if http_content:
+        titulo_pagina = extraer_titulo_pagina(http_content)
+        if titulo_pagina:
+            logger.info(f"[TITULO] Extraído: {titulo_pagina}")
 
-        # 9. Extracción Regex
-        logger.info(f"[EXTRACTOR] Aplicando regex...")
-        regex_data = extract_with_regex(all_content)
+    # 9. Extracción Regex
+    logger.info(f"[EXTRACTOR] Aplicando regex...")
+    regex_data = extract_with_regex(all_content)
 
-        # 10. Extracción GPT (con título para detectar ciudad)
-        logger.info(f"[GPT] Extrayendo datos estructurados...")
-        gpt_data = await extract_with_gpt(all_content, website_clean,
-                                          titulo_pagina)
+    # 10. Extracción GPT (con título para detectar ciudad)
+    logger.info(f"[GPT] Extrayendo datos estructurados...")
+    gpt_data = await extract_with_gpt(all_content, website_clean,
+                                      titulo_pagina)
 
-        # 10. Merge de resultados (pasar all_content para extracción por contexto)
-        resultado = merge_results(gpt_data, regex_data, "",
-                                  website_full, all_content)
+    # 10. Merge de resultados (pasar all_content para extracción por contexto)
+    resultado = merge_results(gpt_data, regex_data, "",
+                              website_full, all_content)
 
-        # ═══════════════════════════════════════════════════════════════
-        # 10B. DETECCIÓN DE CARGO desde sección Equipo/Team
-        # ═══════════════════════════════════════════════════════════════
-        if secundarias_content or main_content:
-            # Buscar cargo en contenido de páginas de equipo
-            contenido_equipo = secundarias_content + "\n" + main_content
-            # Usar nombre_contacto del parámetro o del resultado
-            nombre_para_cargo = nombre_contacto or resultado.get(
-                'contact_name', '')
+    # ═══════════════════════════════════════════════════════════════
+    # 10B. DETECCIÓN DE CARGO desde sección Equipo/Team
+    # ═══════════════════════════════════════════════════════════════
+    if secundarias_content or main_content:
+        # Buscar cargo en contenido de páginas de equipo
+        contenido_equipo = secundarias_content + "\n" + main_content
+        # Usar nombre_contacto del parámetro o del resultado
+        nombre_para_cargo = nombre_contacto or resultado.get(
+            'contact_name', '')
 
-            cargo = extraer_cargo_de_equipo(contenido_equipo, nombre_para_cargo)
+        cargo = extraer_cargo_de_equipo(contenido_equipo, nombre_para_cargo)
 
-            if cargo:
-                resultado['cargo_detectado'] = cargo
-                logger.info(f"[CARGO] ✓ Detectado: {cargo}")
-            else:
-                resultado['cargo_detectado'] = 'No encontrado'
+        if cargo:
+            resultado['cargo_detectado'] = cargo
+            logger.info(f"[CARGO] ✓ Detectado: {cargo}")
+        else:
+            resultado['cargo_detectado'] = 'No encontrado'
 
-        # ═══════════════════════════════════════════════════════════════
-        # BÚSQUEDA DE WHATSAPP EN HTML CRUDO (widgets JS)
-        # Primero intentamos extraer del HTML directo (más confiable)
-        # ═══════════════════════════════════════════════════════════════
-        # Búsqueda de WhatsApp solo en HTML de la web (widgets JS)
-        if resultado.get('_necesita_wa_externo'):
-            wa_html = await buscar_whatsapp_en_html_crudo(website_clean)
-            if wa_html:
-                resultado['whatsapp_empresa'] = wa_html
-                resultado['whatsapp_source'] = 'html_widget'
-            resultado.pop('_necesita_wa_externo', None)
+    # ═══════════════════════════════════════════════════════════════
+    # BÚSQUEDA DE WHATSAPP EN HTML CRUDO (widgets JS)
+    # Primero intentamos extraer del HTML directo (más confiable)
+    # ═══════════════════════════════════════════════════════════════
+    # Búsqueda de WhatsApp solo en HTML de la web (widgets JS)
+    if resultado.get('_necesita_wa_externo'):
+        wa_html = await buscar_whatsapp_en_html_crudo(website_clean)
+        if wa_html:
+            resultado['whatsapp_empresa'] = wa_html
+            resultado['whatsapp_source'] = 'html_widget'
+        resultado.pop('_necesita_wa_externo', None)
 
-        # ═══════════════════════════════════════════════════════════════
-        # BÚSQUEDA DE LINKEDIN PERSONAL EN CONTENIDO WEB
-        # ═══════════════════════════════════════════════════════════════
-        linkedin_encontrados = []
+    # ═══════════════════════════════════════════════════════════════
+    # BÚSQUEDA DE LINKEDIN PERSONAL EN CONTENIDO WEB
+    # ═══════════════════════════════════════════════════════════════
+    linkedin_encontrados = []
 
-        # 1. Buscar LinkedIn en el contenido web extraído
-        if main_content:
-            nombre_contacto = resultado.get('contact_name', '')
-            primer_nombre = nombre_contacto.split()[0] if nombre_contacto else ''
-            apellido = nombre_contacto.split()[-1] if len(
-                nombre_contacto.split()) > 1 else ''
+    # 1. Buscar LinkedIn en el contenido web extraído
+    if main_content:
+        nombre_contacto = resultado.get('contact_name', '')
+        primer_nombre = nombre_contacto.split()[0] if nombre_contacto else ''
+        apellido = nombre_contacto.split()[-1] if len(
+            nombre_contacto.split()) > 1 else ''
 
-            linkedin_en_web = await buscar_linkedin_en_web(
-                contenido_web=main_content,
-                nombre=primer_nombre,
-                apellido=apellido)
+        linkedin_en_web = await buscar_linkedin_en_web(
+            contenido_web=main_content,
+            nombre=primer_nombre,
+            apellido=apellido)
 
-            if linkedin_en_web:
-                logger.info(f"[LINKEDIN-WEB] ✓ Encontrados en web: "
-                            f"{len(linkedin_en_web)}")
-                linkedin_encontrados.extend(linkedin_en_web)
+        if linkedin_en_web:
+            logger.info(f"[LINKEDIN-WEB] ✓ Encontrados en web: "
+                        f"{len(linkedin_en_web)}")
+            linkedin_encontrados.extend(linkedin_en_web)
 
-        # 2. Buscar LinkedIn por email
-        email = resultado.get('email_principal', '')
-        if email and email != 'No encontrado' and '@' in email:
-            linkedin_por_email = await buscar_linkedin_por_email(email)
-            if linkedin_por_email and linkedin_por_email not in linkedin_encontrados:
-                logger.info(f"[LINKEDIN-EMAIL] ✓ Encontrado: {linkedin_por_email}")
-                linkedin_encontrados.append(linkedin_por_email)
+    # 2. Buscar LinkedIn por email
+    email = resultado.get('email_principal', '')
+    if email and email != 'No encontrado' and '@' in email:
+        linkedin_por_email = await buscar_linkedin_por_email(email)
+        if linkedin_por_email and linkedin_por_email not in linkedin_encontrados:
+            logger.info(f"[LINKEDIN-EMAIL] ✓ Encontrado: {linkedin_por_email}")
+            linkedin_encontrados.append(linkedin_por_email)
 
-        # 3. Guardar resultados si encontramos algo
-        if linkedin_encontrados:
-            # Si ya hay linkedin_personal, agregar los nuevos
-            actual = resultado.get('linkedin_personal_web', '')
-            if actual and actual != 'No encontrado':
-                todos = [actual] + [u for u in linkedin_encontrados if u != actual]
-            else:
-                todos = linkedin_encontrados
+    # 3. Guardar resultados si encontramos algo
+    if linkedin_encontrados:
+        # Si ya hay linkedin_personal, agregar los nuevos
+        actual = resultado.get('linkedin_personal_web', '')
+        if actual and actual != 'No encontrado':
+            todos = [actual] + [u for u in linkedin_encontrados if u != actual]
+        else:
+            todos = linkedin_encontrados
 
-            # Guardar máximo 3 URLs separadas por |
-            resultado['linkedin_personal_web'] = ' | '.join(todos[:3])
-            logger.info(f"[LINKEDIN] Total en web: "
-                        f"{resultado['linkedin_personal_web']}")
+        # Guardar máximo 3 URLs separadas por |
+        resultado['linkedin_personal_web'] = ' | '.join(todos[:3])
+        logger.info(f"[LINKEDIN] Total en web: "
+                    f"{resultado['linkedin_personal_web']}")
 
-        resultado['website'] = website_full
-        resultado['extraction_status'] = 'success'
+    resultado['website'] = website_full
+    resultado['extraction_status'] = 'success'
 
-        logger.info(f"[EXTRACTOR] ========== Completado ==========")
+    logger.info(f"[EXTRACTOR] ========== Completado ==========")
 
-        # Desactivar typing antes de retornar
-        if phone and typing_active:
-            try:
-                from services.whatsapp import send_typing_indicator
-                await send_typing_indicator(phone, typing_on=False)
-            except Exception as e:
-                logger.warning(f"[EXTRACTOR] Error desactivando typing indicator: {e}")
-
-        return resultado
-    
-    except Exception as e:
-        # Desactivar typing en caso de error
-        if phone and typing_active:
-            try:
-                from services.whatsapp import send_typing_indicator
-                await send_typing_indicator(phone, typing_on=False)
-            except Exception as e2:
-                logger.warning(f"[EXTRACTOR] Error desactivando typing indicator: {e2}")
-        raise
+    return resultado
