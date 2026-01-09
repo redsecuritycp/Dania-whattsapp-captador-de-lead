@@ -56,6 +56,9 @@ for handler in logging.root.handlers:
 
 logger = logging.getLogger(__name__)
 
+# Flag para saber si la app está lista
+app_ready = False
+
 # =============================================================================
 # DEDUPLICACIÓN DE WEBHOOKS (evita rate limit por retries de WhatsApp)
 # =============================================================================
@@ -87,48 +90,77 @@ class MessageDeduplicator:
 message_dedup = MessageDeduplicator()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Startup y shutdown de la aplicación."""
-    # Startup
-    logger.info("🚀 Iniciando DANIA/Fortia WhatsApp Bot...")
+async def inicializar_servicios():
+    """
+    Inicializa MongoDB, scheduler y recovery en background.
+    Se ejecuta DESPUÉS de que el puerto esté abierto.
+    """
+    global app_ready
     
-    # Verificar conexión a MongoDB
-    db = get_database()
-    if db is not None:
-        logger.info("✅ MongoDB conectado")
-    else:
-        logger.warning("⚠️ MongoDB no conectado - verificar MONGODB_URI")
+    logger.info("⏳ Inicializando servicios en background...")
     
-    # Verificar variables de entorno críticas
-    required_vars = ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "OPENAI_API_KEY"]
+    # 1. Conexión MongoDB (puede tardar)
+    try:
+        db = get_database()
+        if db is not None:
+            logger.info("✅ MongoDB conectado")
+        else:
+            logger.warning("⚠️ MongoDB no conectado")
+    except Exception as e:
+        logger.error(f"❌ Error MongoDB: {e}")
+    
+    # 2. Verificar variables de entorno
+    required_vars = [
+        "WHATSAPP_TOKEN", 
+        "WHATSAPP_PHONE_NUMBER_ID", 
+        "OPENAI_API_KEY"
+    ]
     missing = [v for v in required_vars if not os.environ.get(v)]
     if missing:
         logger.warning(f"⚠️ Variables faltantes: {missing}")
     else:
-        logger.info("✅ Variables de entorno configuradas")
+        logger.info("✅ Variables de entorno OK")
     
-    # Iniciar scheduler de recordatorios
+    # 3. Iniciar scheduler
     try:
         from services.reminders import init_scheduler
         sched = init_scheduler()
         if sched and sched.running:
-            logger.info("✅ Scheduler de recordatorios ACTIVO")
+            logger.info("✅ Scheduler ACTIVO")
         else:
-            logger.error("❌ Scheduler NO está corriendo")
+            logger.warning("⚠️ Scheduler no corriendo")
     except Exception as e:
-        logger.error(f"⚠️ Error iniciando scheduler: {e}")
+        logger.error(f"❌ Error scheduler: {e}")
     
-    # NUEVO: Recuperar recordatorios perdidos por reinicio
+    # 4. Recovery de recordatorios
     try:
         from services.reminders import recuperar_recordatorios_pendientes
         import asyncio
         asyncio.create_task(recuperar_recordatorios_pendientes())
-        logger.info("✅ Recovery de recordatorios iniciado")
+        logger.info("✅ Recovery iniciado")
     except Exception as e:
-        logger.error(f"⚠️ Error en recovery recordatorios: {e}")
+        logger.error(f"⚠️ Error recovery: {e}")
     
-    yield
+    app_ready = True
+    logger.info("🚀 DANIA/Fortia Bot LISTO")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Startup y shutdown de la aplicación.
+    NO bloquea - inicializa en background.
+    """
+    import asyncio
+    
+    # Startup: Crear task de inicialización (NO esperar)
+    logger.info("🚀 Iniciando DANIA/Fortia WhatsApp Bot...")
+    logger.info("📡 Abriendo puerto 8000...")
+    
+    # Lanzar inicialización en background (no bloquea)
+    asyncio.create_task(inicializar_servicios())
+    
+    yield  # Servidor listo para recibir requests
     
     # Shutdown
     logger.info("👋 Cerrando aplicación...")
@@ -150,25 +182,24 @@ app = FastAPI(
 # HEALTH CHECK
 # =============================================================================
 
+@app.get("/health")
+async def health_check():
+    """
+    Health check para Replit.
+    Responde INMEDIATAMENTE sin esperar MongoDB.
+    """
+    return {"status": "ok"}
+
+
 @app.get("/")
 async def root():
-    """Health check endpoint."""
+    """Status endpoint con info detallada."""
+    global app_ready
     return {
         "status": "online",
+        "ready": app_ready,
         "service": "DANIA/Fortia WhatsApp Bot",
         "version": "2.0.0",
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-
-@app.get("/health")
-async def health():
-    """Health check detallado."""
-    db = get_database()
-    return {
-        "status": "healthy",
-        "mongodb": "connected" if db is not None else "disconnected",
-        "scheduler": "running",
         "timestamp": datetime.utcnow().isoformat()
     }
 

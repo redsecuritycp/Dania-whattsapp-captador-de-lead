@@ -80,11 +80,11 @@ TOOLS = [
         "function": {
             "name": "verificar_investigacion_completa",
             "description": "Verifica si la investigación en background "
-                "terminó. Retorna rubro Y desafíos investigados. "
-                "LLAMAR UNA SOLA VEZ, después de pregunta 3/4 y ANTES "
-                "de pregunta 4/4. Si no terminó, espera internamente "
-                "hasta 3 minutos. Retorna: "
-                "{completada: bool, rubro: str, desafios: list[str]}",
+                "terminó. Retorna TODOS los datos: empresa, perfil, "
+                "ubicación, contacto, redes, noticias y desafíos. "
+                "LLAMAR después de pregunta 3/4. "
+                "Retorna: {completada: bool, datos: object, "
+                "desafios: list[str]}",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -517,12 +517,12 @@ en tu empresa antes?
 PASO 5: Pregunta 4/4 (CON DESAFÍOS INVESTIGADOS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 → Llamar verificar_investigacion_completa()
-→ El tool retorna: {completada, rubro, desafios}
+→ El tool retorna: {completada, datos, desafios}
 
 SI hay desafíos (lista no vacía):
    Enviar mensaje con formato:
-   "Según mi investigación sobre [RUBRO], estos son los 
-   principales desafíos del sector:
+   "Según mi investigación sobre [datos.business_activity], 
+   estos son los principales desafíos del sector:
 
    1. [desafio 1]
    2. [desafio 2]
@@ -533,30 +533,71 @@ SI hay desafíos (lista no vacía):
    ¿O hay otro desafío más importante para vos?"
 
 SI NO hay desafíos (lista vacía):
-   Enviar: "4/4: Según veo que son [RUBRO], ¿cuál es 
-   el principal desafío que enfrentan en este momento?"
+   Enviar: "4/4: Según veo que son [datos.business_activity], 
+   ¿cuál es el principal desafío que enfrentan en este momento?"
 
-PASO 6: Después de respuesta a desafío → MOSTRAR REPORTE
+PASO 5B: Si encontró LinkedIn personal
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OBLIGATORIO mostrar reporte ANTES de cualquier solución.
+Si datos.linkedin_personal NO es "No encontrado":
+→ Enviar PRIMERO la URL de LinkedIn SOLA en un mensaje
+→ Esperar 1 segundo
+→ Luego enviar el reporte completo
 
-Formato del reporte:
-"Perfecto, déjame mostrarte lo que encontré sobre tu empresa:
+Ejemplo:
+MENSAJE 1: "https://ar.linkedin.com/in/mariela-medini-182358224"
+(WhatsApp genera preview con foto automáticamente)
 
-📊 *Datos detectados:*
-• Empresa: [business_name]
-• Rubro: [business_activity]
-• Ubicación: [city_web o country_detected]
-• Web: [website]
+MENSAJE 2: "Encontré esta información:
+🏢 EMPRESA
+..."
 
-👤 *Información adicional:*
-• LinkedIn empresa: [si hay]
-• Equipo: [team_size] personas
-• Nivel IA: [ai_knowledge]
+PASO 6: Después de respuesta a desafío → MOSTRAR REPORTE COMPLETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OBLIGATORIO mostrar el reporte con TODOS los datos encontrados.
+Usar este formato EXACTO (omitir líneas con "No encontrado"):
 
-🎯 *Desafío principal:* [lo que respondió el usuario]
+"Encontré esta información:
 
-¿Está todo correcto? ¿Querés corregir algo?"
+🏢 EMPRESA
+• Empresa: [datos.business_name]
+• Actividad: [datos.business_activity]
+• Modelo de Negocio: [datos.business_model]
+• Descripción: [datos.business_description]
+• Servicios: [datos.services_text]
+
+👤 TU PERFIL
+• Cargo: [datos.cargo_detectado]
+• LinkedIn: [datos.linkedin_personal]
+
+📍 UBICACIÓN
+• [datos.ubicacion_completa]
+
+📞 CONTACTO
+• Tel: [datos.phone_empresa]
+• WhatsApp: [datos.whatsapp_empresa]
+• Email: [datos.email_empresa]
+
+🔗 REDES EMPRESA
+• Web: [datos.website]
+• LinkedIn: [datos.linkedin_empresa]
+• Instagram: [datos.instagram_empresa]
+• Facebook: [datos.facebook_empresa]
+• YouTube: [datos.youtube]
+• Twitter: [datos.twitter]
+
+📰 NOTICIAS RECIENTES
+[datos.noticias_empresa]
+
+¿Está todo correcto o necesitás corregir algo?"
+
+REGLAS:
+1. Si LinkedIn personal fue encontrado, enviarlo PRIMERO como mensaje 
+   separado (para que WhatsApp genere preview con foto)
+2. OMITIR líneas donde el valor sea "No encontrado"
+3. Links siempre URL completa, NUNCA formato [texto](url)
+4. Si faltan Instagram/Facebook, preguntar al final:
+   "No encontré tu Instagram/Facebook en tu web. 
+   ¿Tenés redes de la empresa que quieras compartir?"
 
 PASO 7: SOLO después de confirmación → Guardar y derivar
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -629,17 +670,18 @@ en tu empresa antes?
 
 PREGUNTA 4 (main_challenge):
 → Llamar verificar_investigacion_completa() primero
-→ Si hay desafíos en la respuesta:
-   "Según mi investigación sobre [RUBRO], estos son los 
-   principales desafíos del sector:
+→ El tool retorna {completada, datos, desafios}
+→ Si hay desafíos en desafios (lista no vacía):
+   "Según mi investigación sobre [datos.business_activity], 
+   estos son los principales desafíos del sector:
    1. [desafio 1]
    2. [desafio 2]
    ...
    ¿Te identificás con alguno de estos? 
    ¿O hay otro desafío más importante para vos?"
-→ Si NO hay desafíos:
-   "4/4: Según veo que son [RUBRO], ¿cuál es el principal 
-   desafío que enfrentan en este momento?"
+→ Si NO hay desafíos (lista vacía):
+   "4/4: Según veo que son [datos.business_activity], 
+   ¿cuál es el principal desafío que enfrentan en este momento?"
 → Guardar respuesta textual en main_challenge
 
 ⛔ UNA pregunta por mensaje

@@ -872,7 +872,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     )
                     return {
                         "completada": False,
-                        "rubro": "tu empresa",
+                        "datos": {},
                         "desafios": []
                     }
                 
@@ -885,7 +885,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     )
                     return {
                         "completada": False,
-                        "rubro": "tu empresa",
+                        "datos": {},
                         "desafios": []
                     }
                 
@@ -909,7 +909,6 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                         phone, 180
                     )
                     
-                    # Recargar lead después de esperar
                     lead = collection.find_one(
                         {"phone_whatsapp": phone}
                     )
@@ -920,49 +919,162 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                         )
                         return {
                             "completada": False,
-                            "rubro": "tu empresa",
+                            "datos": {},
                             "desafios": []
                         }
                 
-                # Obtener rubro
-                rubro = lead.get("business_activity", "")
-                if not rubro or rubro == "No encontrado":
-                    datos_bg = lead.get("datos_web_background", {})
-                    rubro = datos_bg.get("business_activity", "")
+                # ═══════════════════════════════════════════════════
+                # LEER TODOS LOS DATOS DE MONGODB
+                # ═══════════════════════════════════════════════════
                 
-                if not rubro or rubro == "No encontrado":
-                    rubro = "tu empresa"
+                # datos_web_background tiene TODO lo extraído
+                dwb = lead.get("datos_web_background", {})
                 
-                # Obtener desafíos investigados
+                # Helper para obtener con fallback
+                def get_val(campo, default="No encontrado"):
+                    # Primero de lead, luego de datos_web_background
+                    val = lead.get(campo)
+                    if val in [None, "", "null", "No encontrado"]:
+                        val = dwb.get(campo)
+                    if val in [None, "", "null", "No encontrado"]:
+                        return default
+                    return val
+                
+                # Construir objeto con TODOS los datos
+                datos = {
+                    # ═══════════════════════════════════════════
+                    # EMPRESA
+                    # ═══════════════════════════════════════════
+                    "business_name": get_val("business_name"),
+                    "business_activity": get_val("business_activity"),
+                    "business_model": get_val("business_model"),
+                    "business_description": get_val(
+                        "business_description"
+                    ),
+                    "services": get_val("services"),
+                    "services_text": get_val("services_text"),
+                    
+                    # ═══════════════════════════════════════════
+                    # TU PERFIL (persona que escribe)
+                    # ═══════════════════════════════════════════
+                    "name": lead.get("name", "No encontrado"),
+                    "cargo_detectado": get_val("cargo_detectado"),
+                    "linkedin_personal": lead.get(
+                        "linkedin_personal", "No encontrado"
+                    ),
+                    "linkedin_personal_confianza": lead.get(
+                        "linkedin_personal_confianza", 0
+                    ),
+                    
+                    # ═══════════════════════════════════════════
+                    # UBICACIÓN
+                    # ═══════════════════════════════════════════
+                    "address": get_val("address"),
+                    "city": get_val("city"),
+                    "province": get_val("province"),
+                    "country": lead.get(
+                        "country_detected", 
+                        get_val("country")
+                    ),
+                    "timezone": lead.get(
+                        "timezone_detected", "No encontrado"
+                    ),
+                    "utc_offset": lead.get(
+                        "utc_offset", "No encontrado"
+                    ),
+                    "google_maps_url": get_val("google_maps_url"),
+                    
+                    # ═══════════════════════════════════════════
+                    # CONTACTO
+                    # ═══════════════════════════════════════════
+                    "phone_empresa": get_val("phone_empresa"),
+                    "phones_adicionales": get_val(
+                        "phones_adicionales", []
+                    ),
+                    "whatsapp_empresa": get_val("whatsapp_empresa"),
+                    "email_empresa": get_val("email_principal"),
+                    "emails_adicionales": get_val(
+                        "emails_adicionales", []
+                    ),
+                    "horarios": get_val("horarios"),
+                    
+                    # ═══════════════════════════════════════════
+                    # REDES EMPRESA
+                    # ═══════════════════════════════════════════
+                    "website": lead.get("website") or dwb.get(
+                        "url", "No encontrado"
+                    ),
+                    "linkedin_empresa": get_val("linkedin_empresa"),
+                    "instagram_empresa": get_val("instagram_empresa"),
+                    "facebook_empresa": get_val("facebook_empresa"),
+                    "youtube": get_val("youtube"),
+                    "twitter": get_val("twitter"),
+                    
+                    # ═══════════════════════════════════════════
+                    # NOTICIAS
+                    # ═══════════════════════════════════════════
+                    "noticias_empresa": lead.get(
+                        "noticias_empresa", 
+                        "No se encontraron noticias recientes"
+                    ),
+                }
+                
+                # Construir ubicación completa para mostrar
+                ubicacion_parts = []
+                if datos["address"] != "No encontrado":
+                    ubicacion_parts.append(datos["address"])
+                if datos["city"] != "No encontrado":
+                    ubicacion_parts.append(datos["city"])
+                if datos["province"] != "No encontrado":
+                    ubicacion_parts.append(datos["province"])
+                if datos["country"] != "No encontrado":
+                    ubicacion_parts.append(datos["country"])
+                datos["ubicacion_completa"] = ", ".join(
+                    ubicacion_parts
+                ) if ubicacion_parts else "No encontrado"
+                
+                # Obtener desafíos
                 desafios = lead.get("desafios_rubro", [])
                 if not desafios:
                     desafios = []
-                
-                # Limitar a 5 desafíos máximo
                 desafios = desafios[:5]
                 
+                # Logs para debug
+                logger.info(f"[TOOL] Empresa: {datos['business_name']}")
+                logger.info(f"[TOOL] Rubro: {datos['business_activity']}")
+                logger.info(f"[TOOL] Modelo: {datos['business_model']}")
+                logger.info(f"[TOOL] Tel: {datos['phone_empresa']}")
+                logger.info(f"[TOOL] WA: {datos['whatsapp_empresa']}")
+                logger.info(f"[TOOL] Email: {datos['email_empresa']}")
+                logger.info(f"[TOOL] Dirección: {datos['address']}")
                 logger.info(
-                    f"[TOOL] Rubro: {rubro}, "
-                    f"Desafíos: {len(desafios)}"
+                    f"[TOOL] LinkedIn personal: "
+                    f"{datos['linkedin_personal']}"
                 )
+                logger.info(f"[TOOL] Instagram: {datos['instagram_empresa']}")
+                logger.info(f"[TOOL] Facebook: {datos['facebook_empresa']}")
+                logger.info(f"[TOOL] YouTube: {datos['youtube']}")
+                logger.info(f"[TOOL] Desafíos: {len(desafios)}")
                 logger.info(
                     f"[TOOL] ══════ COMPLETADO: {tool_name} ══════"
                 )
                 
                 return {
                     "completada": True,
-                    "rubro": rubro,
+                    "datos": datos,
                     "desafios": desafios
                 }
             
             except Exception as e:
                 logger.error(f"[TOOL] Error: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 logger.info(
                     f"[TOOL] ══════ COMPLETADO: {tool_name} ══════"
                 )
                 return {
                     "completada": False,
-                    "rubro": "tu empresa",
+                    "datos": {},
                     "desafios": []
                 }
 
