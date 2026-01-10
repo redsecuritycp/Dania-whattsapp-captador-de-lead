@@ -119,6 +119,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"⚠️ Error iniciando scheduler: {e}")
     
+    # Recovery de recordatorios pendientes
+    try:
+        from services.reminders import recuperar_recordatorios_pendientes
+        import asyncio
+        asyncio.create_task(recuperar_recordatorios_pendientes())
+        logger.info("✅ Recovery de recordatorios iniciado")
+    except Exception as e:
+        logger.error(f"⚠️ Error en recovery de recordatorios: {e}")
+    
     yield
     
     # Shutdown

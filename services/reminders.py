@@ -472,3 +472,128 @@ def reset_reminders_for_lead(phone: str):
             logger.info(f"[REMINDERS] Recordatorios reseteados: {phone}")
     except Exception as e:
         logger.error(f"[REMINDERS] Error reseteando: {e}")
+
+
+# ============================================================================
+# RECOVERY DE RECORDATORIOS AL INICIAR
+# ============================================================================
+
+
+async def recuperar_recordatorios_pendientes():
+    """
+    Al iniciar el servidor, busca leads con reuniones en las 
+    próximas 25 horas que no recibieron todos sus recordatorios.
+    
+    Esto cubre el caso donde Replit reinició y se perdió un 
+    recordatorio programado.
+    """
+    try:
+        db = get_database()
+        if db is None:
+            logger.warning("[RECOVERY] No hay conexión a MongoDB")
+            return
+        
+        collection = db["leads_fortia"]
+        now = datetime.now(pytz.UTC)
+        
+        # Buscar leads con booking en las próximas 25 horas
+        limite = now + timedelta(hours=25)
+        
+        leads_con_booking = collection.find({
+            "$or": [
+                {"booking_status": "created"},
+                {"reserva_estado": "created"}
+            ]
+        })
+        
+        leads_list = list(leads_con_booking)
+        logger.info(f"[RECOVERY] Revisando {len(leads_list)} leads con booking")
+        
+        recuperados = 0
+        
+        for lead in leads_list:
+            try:
+                # Obtener fecha de booking
+                booking_str = (lead.get("booking_start_time") 
+                               or lead.get("reserva_fecha_hora", ""))
+                if not booking_str:
+                    continue
+                
+                # Parsear fecha
+                try:
+                    if booking_str.endswith('Z'):
+                        booking_str = booking_str[:-1] + '+00:00'
+                    booking_time = datetime.fromisoformat(
+                        booking_str.replace('Z', '+00:00'))
+                    if booking_time.tzinfo is None:
+                        booking_time = pytz.UTC.localize(booking_time)
+                except:
+                    continue
+                
+                # Si ya pasó, ignorar
+                if booking_time < now:
+                    continue
+                
+                # Si es más de 25 horas, ignorar
+                if booking_time > limite:
+                    continue
+                
+                # Calcular minutos hasta la reunión
+                minutes_until = (booking_time - now).total_seconds() / 60
+                
+                # Ver qué recordatorios ya se enviaron
+                reminders_sent = (lead.get("reminders_sent") 
+                                  or lead.get("recordatorios_enviados") 
+                                  or [])
+                
+                phone = (lead.get("phone_whatsapp") 
+                         or lead.get("telefono_whatsapp", ""))
+                if not phone:
+                    continue
+                
+                # Verificar cada recordatorio que debió enviarse
+                # 24hr: si faltan menos de 24h y no se envió
+                if minutes_until < 1440 and "24hr" not in reminders_sent:
+                    logger.info(
+                        f"[RECOVERY] Pendiente 24hr para {phone} "
+                        f"(faltan {int(minutes_until)} min)")
+                    # Forzar el check normal que lo enviará
+                    await process_lead_reminders(lead, now, collection)
+                    recuperados += 1
+                    continue
+                
+                # 5hr: si faltan menos de 5h
+                if minutes_until < 300 and "5hr" not in reminders_sent:
+                    logger.info(
+                        f"[RECOVERY] Pendiente 5hr para {phone}")
+                    await process_lead_reminders(lead, now, collection)
+                    recuperados += 1
+                    continue
+                
+                # 1hr: si faltan menos de 1h
+                if minutes_until < 60 and "1hr" not in reminders_sent:
+                    logger.info(
+                        f"[RECOVERY] Pendiente 1hr para {phone}")
+                    await process_lead_reminders(lead, now, collection)
+                    recuperados += 1
+                    continue
+                
+                # 15min: si faltan menos de 15min
+                if minutes_until < 15 and "15min" not in reminders_sent:
+                    logger.info(
+                        f"[RECOVERY] Pendiente 15min para {phone}")
+                    await process_lead_reminders(lead, now, collection)
+                    recuperados += 1
+                    continue
+                    
+            except Exception as e:
+                logger.error(f"[RECOVERY] Error procesando lead: {e}")
+                continue
+        
+        if recuperados > 0:
+            logger.info(f"[RECOVERY] ✅ {recuperados} recordatorios recuperados")
+        else:
+            logger.info("[RECOVERY] ✓ No hay recordatorios pendientes")
+            
+    except Exception as e:
+        logger.error(f"[RECOVERY] Error general: {e}")
