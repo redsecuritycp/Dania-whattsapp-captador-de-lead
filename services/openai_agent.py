@@ -4,16 +4,19 @@ Versión 2.0 - Incluye tool de investigación de desafíos
 """
 import logging
 import json
-import asyncio
 from typing import Optional
-from datetime import datetime, timezone
 from openai import OpenAI
 
 from config import OPENAI_API_KEY, OPENAI_MODEL
-from services.mongodb import (save_lead, find_lead_by_phone,
-                              update_lead_calcom_email, save_chat_message,
-                              get_chat_history, update_lead_summary,
-                              get_lead_field, get_database)
+from services.mongodb import (
+    save_lead, 
+    find_lead_by_phone, 
+    update_lead_calcom_email,
+    save_chat_message,
+    get_chat_history, 
+    update_lead_summary,
+    get_lead_field
+)
 from services.web_extractor import extract_web_data
 from services.social_research import research_person_and_company
 from services.gmail import send_lead_notification
@@ -26,11 +29,14 @@ from utils.text_cleaner import clean_markdown_formatting
 
 logger = logging.getLogger(__name__)
 
-
 # ═════════════════════════════════════════════════════════
 # MENSAJES DE PROGRESO
 # ═════════════════════════════════════════════════════════
-async def send_progress_message(phone: str, message: str) -> None:
+
+async def send_progress_message(
+    phone: str, 
+    message: str
+) -> None:
     """
     Envía mensaje de progreso al usuario.
     No bloquea si falla (fire-and-forget).
@@ -40,8 +46,8 @@ async def send_progress_message(phone: str, message: str) -> None:
         await send_whatsapp_message(phone, message)
     except Exception as e:
         logger.warning(
-            f"[PROGRESS] No se pudo enviar mensaje de progreso: {e}")
-
+            f"[PROGRESS] No se pudo enviar mensaje de progreso: {e}"
+        )
 
 # Inicializar cliente OpenAI
 client = None
@@ -53,210 +59,6 @@ try:
         logger.error("OPENAI_API_KEY no configurada")
 except Exception as e:
     logger.error(f"Error inicializando OpenAI: {e}")
-
-# ============================================================================
-# INVESTIGACIÓN EN BACKGROUND
-# ============================================================================
-
-
-async def iniciar_investigacion_background(phone: str, nombre: str, web: str,
-                                           ubicacion: str):
-    """
-    Ejecuta investigación completa en background mientras el 
-    usuario responde las preguntas de cualificación.
-
-    Guarda resultados en MongoDB para que GPT los lea después.
-    """
-    try:
-        db = get_database()
-        if db is None:
-            logger.error("[BACKGROUND] No hay conexión a MongoDB")
-            return
-
-        collection = db["leads_fortia"]
-
-        # Marcar como "en progreso"
-        collection.update_one({"phone_whatsapp": phone}, {
-            "$set": {
-                "investigacion_status": "en_progreso",
-                "investigacion_started_at": datetime.now(
-                    timezone.utc).isoformat()
-            }
-        },
-                              upsert=True)
-
-        logger.info(f"[BACKGROUND] Iniciando investigación para {phone}")
-
-        # ═══════════════════════════════════════════════════════════
-        # 1. EXTRACCIÓN WEB
-        # ═══════════════════════════════════════════════════════════
-        logger.info(f"[BACKGROUND] Extrayendo web: {web}")
-        datos_web = await extract_web_data(web)
-
-        if datos_web:
-            collection.update_one({"phone_whatsapp": phone}, {
-                "$set": {
-                    "datos_web_background":
-                    datos_web,
-                    "business_name":
-                    datos_web.get("business_name", "No encontrado"),
-                    "business_activity":
-                    datos_web.get("business_activity", "No encontrado"),
-                    "linkedin_empresa":
-                    datos_web.get("linkedin_empresa", "No encontrado"),
-                    "facebook_empresa":
-                    datos_web.get("facebook_empresa", "No encontrado"),
-                    "instagram_empresa":
-                    datos_web.get("instagram_empresa", "No encontrado")
-                }
-            })
-            logger.info(f"[BACKGROUND] ✓ Datos web guardados")
-
-        # ═══════════════════════════════════════════════════════════
-        # 2. BÚSQUEDA LINKEDIN PERSONAL + NOTICIAS
-        # ═══════════════════════════════════════════════════════════
-        empresa = datos_web.get("business_name", "") if datos_web else ""
-
-        logger.info(f"[BACKGROUND] Buscando LinkedIn: {nombre}")
-        linkedin_data = await research_person_and_company(
-            nombre_persona=nombre,
-            empresa=empresa,
-            website=web,
-            linkedin_empresa_input=datos_web.get("linkedin_empresa", "")
-            if datos_web else "",
-            facebook_empresa_input=datos_web.get("facebook_empresa", "")
-            if datos_web else "",
-            instagram_empresa_input=datos_web.get("instagram_empresa", "")
-            if datos_web else "",
-            city="",
-            province="",
-            country=ubicacion)
-
-        if linkedin_data:
-            collection.update_one({"phone_whatsapp": phone}, {
-                "$set": {
-                    "linkedin_personal":
-                    linkedin_data.get("linkedin_personal", "No encontrado"),
-                    "linkedin_personal_confianza":
-                    linkedin_data.get("linkedin_personal_confianza", 0),
-                    "noticias_empresa":
-                    linkedin_data.get("noticias_empresa",
-                                      "No se encontraron noticias")
-                }
-            })
-            logger.info(f"[BACKGROUND] ✓ LinkedIn y noticias guardados")
-
-        # ═══════════════════════════════════════════════════════════
-        # 3. DESAFÍOS DEL RUBRO
-        # ═══════════════════════════════════════════════════════════
-        rubro = datos_web.get("business_activity", "") if datos_web else ""
-
-        if rubro and rubro != "No encontrado":
-            logger.info(f"[BACKGROUND] Investigando desafíos: {rubro}")
-            desafios_data = await investigar_desafios_empresa(rubro=rubro,
-                                                              pais=ubicacion)
-
-            if desafios_data:
-                collection.update_one({"phone_whatsapp": phone}, {
-                    "$set": {
-                        "desafios_rubro": desafios_data.get("desafios", []),
-                        "desafios_texto": desafios_data.get(
-                            "texto_formateado", "")
-                    }
-                })
-                logger.info(f"[BACKGROUND] ✓ Desafíos guardados")
-
-        # ═══════════════════════════════════════════════════════════
-        # MARCAR COMO COMPLETADA
-        # ═══════════════════════════════════════════════════════════
-        collection.update_one({"phone_whatsapp": phone}, {
-            "$set": {
-                "investigacion_status":
-                "completada",
-                "investigacion_completada_at":
-                datetime.now(timezone.utc).isoformat()
-            }
-        })
-
-        logger.info(f"[BACKGROUND] ✅ Investigación completa para {phone}")
-
-    except Exception as e:
-        logger.error(f"[BACKGROUND] Error: {e}", exc_info=True)
-        try:
-            db = get_database()
-            if db is not None:
-                db["leads_fortia"].update_one(
-                    {"phone_whatsapp": phone},
-                    {"$set": {
-                        "investigacion_status": "fallida"
-                    }})
-        except:
-            pass
-
-
-async def esperar_investigacion_completa(phone: str,
-                                         max_wait_seconds: int = 180) -> dict:
-    """
-    Espera a que termine la investigación en background.
-    Hace polling cada 5 segundos.
-
-    Returns:
-        {
-            "completada": bool,
-            "rubro": str,
-            "datos": dict (opcional)
-        }
-    """
-    try:
-        db = get_database()
-        if db is None:
-            return {"completada": False, "rubro": "tu empresa"}
-
-        collection = db["leads_fortia"]
-        elapsed = 0
-
-        while elapsed < max_wait_seconds:
-            lead = collection.find_one({"phone_whatsapp": phone})
-
-            if lead:
-                status = lead.get("investigacion_status", "")
-
-                if status == "completada":
-                    rubro = lead.get("business_activity", "tu empresa")
-                    if not rubro or rubro == "No encontrado":
-                        rubro = "tu empresa"
-
-                    logger.info(f"[BACKGROUND] ✓ Completada para {phone}, "
-                                f"rubro: {rubro}")
-                    return {
-                        "completada": True,
-                        "rubro": rubro,
-                        "datos": {
-                            "business_name": lead.get("business_name", ""),
-                            "linkedin_personal":
-                            lead.get("linkedin_personal", ""),
-                            "noticias_empresa":
-                            lead.get("noticias_empresa", ""),
-                            "desafios_rubro": lead.get("desafios_rubro", [])
-                        }
-                    }
-
-                elif status == "fallida":
-                    logger.warning(
-                        f"[BACKGROUND] Investigación falló para {phone}")
-                    return {"completada": False, "rubro": "tu empresa"}
-
-            # Esperar 5 segundos
-            await asyncio.sleep(5)
-            elapsed += 5
-
-        logger.warning(
-            f"[BACKGROUND] Timeout esperando investigación ({phone})")
-        return {"completada": False, "rubro": "tu empresa"}
-
-    except Exception as e:
-        logger.error(f"[BACKGROUND] Error esperando: {e}")
-        return {"completada": False, "rubro": "tu empresa"}
 
 
 async def process_message(user_message: str,
@@ -421,56 +223,64 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
     """
     try:
         # ═══════════════════════════════════════════════════════════════════
-        # EXTRAER DATOS WEB (CON BACKGROUND)
+        # MENSAJE DE ESPERA ÚNICO para tools de investigación
+        # ═══════════════════════════════════════════════════════════════════
+        if tool_name in [
+                "extraer_datos_web_cliente", "buscar_redes_personales",
+                "investigar_desafios_empresa"
+        ]:
+            if not context.get("wait_message_sent", False):
+                from services.whatsapp import send_whatsapp_message
+                phone = context.get("phone_whatsapp", "")
+                if phone:
+                    try:
+                        await send_whatsapp_message(
+                            phone, "Dame un momento por favor 🔍")
+                        context["wait_message_sent"] = True
+                        logger.info(f"✓ Mensaje de espera enviado a {phone}")
+                    except Exception as e:
+                        logger.warning(
+                            f"Error enviando mensaje de espera: {e}")
+
+        # ═══════════════════════════════════════════════════════════════════
+        # EXTRAER DATOS WEB
         # ═══════════════════════════════════════════════════════════════════
         if tool_name == "extraer_datos_web_cliente":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
-
             website = arguments.get("website", "")
-            phone = context.get("phone_whatsapp", "")
-
             if not website:
                 logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"error": "No se proporcionó URL"}
+                return {"error": "No se proporcionó website"}
+            
+            result = await extract_web_data(website)
+            
+            # NO enviar mensaje de éxito aquí - GPT mostrará 
+            # el reporte completo
 
-            # 1. Enviar ÚNICO mensaje de espera
-            from services.whatsapp import send_whatsapp_message
-            await send_whatsapp_message(
-                phone, "Perfecto! Dame un minuto para preparar todo...")
-            logger.info(f"[TOOL] ✓ Mensaje de espera enviado")
-
-            # 2. Lanzar investigación en background (NO esperar)
-            nombre_usuario = arguments.get("nombre_persona", "")
-            ubicacion = context.get("country_detected", "Argentina")
-
-            asyncio.create_task(
-                iniciar_investigacion_background(phone=phone,
-                                                 nombre=nombre_usuario,
-                                                 web=website,
-                                                 ubicacion=ubicacion))
-            logger.info(f"[TOOL] ✓ Investigación: {nombre_usuario}, {website}")
-
-            # 3. ESPERAR 50 SEGUNDOS (temporizador real)
-            logger.info(f"[TOOL] Esperando 50 segundos...")
-            await asyncio.sleep(50)
-
-            # 4. Enviar mensaje de transición
-            await send_whatsapp_message(
-                phone, "Mientras termino de preparar todo, te hago unas "
-                "preguntas rápidas.")
-            logger.info(f"[TOOL] ✓ Mensaje de transición enviado")
-
-            # 5. Esperar 10 segundos más
-            await asyncio.sleep(10)
+            # Guardar datos importantes en context
+            # NO sobrescribir city/province que vienen del número
+            if result:
+                context["linkedin_empresa"] = result.get(
+                    "linkedin_empresa", "")
+                context["facebook_empresa"] = result.get(
+                    "facebook_empresa", "")
+                context["instagram_empresa"] = result.get(
+                    "instagram_empresa", "")
+                # Ubicación de la WEB en campos separados
+                context["city_web"] = result.get("city", "")
+                context["province_web"] = result.get("province", "")
+                context["email_principal"] = result.get("email_principal", "")
+                context["business_activity"] = result.get(
+                    "business_activity", "")
+                context["business_name"] = result.get("business_name", "")
+                context["business_model"] = result.get("business_model", "")
+                logger.info(f"[CONTEXT] Datos guardados: "
+                            f"LinkedIn={context.get('linkedin_empresa')}, "
+                            f"Rubro={context.get('business_activity')}, "
+                            f"Modelo={context.get('business_model')}")
 
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-
-            # 6. Retornar señal para empezar preguntas
-            return {
-                "status": "ready",
-                "website": website,
-                "message": "Listo para preguntas de cualificación"
-            }
+            return result or {"error": "No se pudo extraer datos"}
 
         # ═══════════════════════════════════════════════════════════════════
         # BUSCAR REDES PERSONALES
@@ -497,7 +307,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
 
             # Obtener email del contexto
             email_contacto = context.get("email_principal", "")
-
+            
             result = await research_person_and_company(
                 nombre_persona=nombre,
                 empresa=empresa,
@@ -509,7 +319,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 province=province,
                 country=country,
                 email_contacto=email_contacto)
-
+            
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return result or {"error": "No se pudieron encontrar redes"}
 
@@ -536,7 +346,8 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             if phone:
                 await send_progress_message(
                     phone,
-                    "📊 Investigando desafíos típicos de tu industria...")
+                    "📊 Investigando desafíos típicos de tu industria..."
+                )
 
             result = await investigar_desafios_empresa(
                 rubro=rubro,
@@ -602,65 +413,50 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                                   or lead_data.get("emoji", ""))
 
             # Agregar challenges_detected del context si existe
-            if context.get("challenges_detected"
-                           ) and not lead_data.get("challenges_detected"):
+            if context.get("challenges_detected") and not lead_data.get("challenges_detected"):
                 lead_data["challenges_detected"] = ", ".join(
                     context["challenges_detected"][:3])
-
+            
             # Agregar business_model del context si no viene en arguments
-            if context.get(
-                    "business_model") and not lead_data.get("business_model"):
+            if context.get("business_model") and not lead_data.get("business_model"):
                 lead_data["business_model"] = context.get("business_model")
-                logger.info(f"[GUARDAR] business_model del context: "
-                            f"{lead_data['business_model']}")
-
+                logger.info(
+                    f"[GUARDAR] business_model del context: "
+                    f"{lead_data['business_model']}"
+                )
+            
             # Si aún no hay business_model, intentar inferirlo
             if not lead_data.get("business_model") or \
                lead_data.get("business_model") in ["", "No encontrado", "No proporcionado"]:
                 activity = lead_data.get("business_activity", "").lower()
                 if activity:
-                    if any(x in activity
-                           for x in ['software', 'saas', 'plataforma', 'app']):
+                    if any(x in activity for x in ['software', 'saas', 'plataforma', 'app']):
                         lead_data["business_model"] = "SaaS"
-                    elif any(x in activity for x in
-                             ['tienda', 'venta', 'retail', 'comercio']):
+                    elif any(x in activity for x in ['tienda', 'venta', 'retail', 'comercio']):
                         lead_data["business_model"] = "Retail"
-                    elif any(x in activity for x in
-                             ['mayorista', 'distribuidor', 'distribución']):
+                    elif any(x in activity for x in ['mayorista', 'distribuidor', 'distribución']):
                         lead_data["business_model"] = "Mayorista"
-                    elif any(x in activity for x in
-                             ['servicio', 'consultor', 'asesor', 'agencia']):
+                    elif any(x in activity for x in ['servicio', 'consultor', 'asesor', 'agencia']):
                         lead_data["business_model"] = "Servicios profesionales"
-                    elif any(
-                            x in activity for x in
-                        ['fabricación', 'manufactura', 'fábrica', 'industria'
-                         ]):
+                    elif any(x in activity for x in ['fabricación', 'manufactura', 'fábrica', 'industria']):
                         lead_data["business_model"] = "Fabricante"
-                    elif any(x in activity for x in
-                             ['agro', 'campo', 'agrícola', 'ganadería']):
+                    elif any(x in activity for x in ['agro', 'campo', 'agrícola', 'ganadería']):
                         lead_data["business_model"] = "Agroindustria"
-                    elif any(
-                            x in activity
-                            for x in ['construcción', 'inmobiliaria', 'obra']):
-                        lead_data[
-                            "business_model"] = "Construcción/Inmobiliaria"
-                    elif any(x in activity for x in
-                             ['salud', 'médico', 'clínica', 'hospital']):
+                    elif any(x in activity for x in ['construcción', 'inmobiliaria', 'obra']):
+                        lead_data["business_model"] = "Construcción/Inmobiliaria"
+                    elif any(x in activity for x in ['salud', 'médico', 'clínica', 'hospital']):
                         lead_data["business_model"] = "Salud"
-                    elif any(x in activity for x in [
-                            'educación', 'escuela', 'universidad',
-                            'capacitación'
-                    ]):
+                    elif any(x in activity for x in ['educación', 'escuela', 'universidad', 'capacitación']):
                         lead_data["business_model"] = "Educación"
-                    elif any(x in activity for x in
-                             ['restaurant', 'gastronom', 'comida', 'bar']):
+                    elif any(x in activity for x in ['restaurant', 'gastronom', 'comida', 'bar']):
                         lead_data["business_model"] = "Gastronomía"
                     else:
                         lead_data["business_model"] = "B2B"  # Default
-
+                    
                     logger.info(
                         f"[GUARDAR] business_model inferido de '{activity}': "
-                        f"{lead_data['business_model']}")
+                        f"{lead_data['business_model']}"
+                    )
 
             try:
                 save_result = save_lead(lead_data)
@@ -713,20 +509,23 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     logger.info(
                         f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
                     return {
-                        "found":
-                        True,
-                        "booking_uid":
-                        booking_uid,
-                        "booking_status":
-                        get_lead_field(lead, "booking_status", ""),
-                        "booking_start_time":
-                        get_lead_field(lead, "booking_start_time", ""),
-                        "booking_cancel_link":
-                        get_lead_field(lead, "booking_cancel_link", ""),
-                        "booking_reschedule_link":
-                        get_lead_field(lead, "booking_reschedule_link", ""),
-                        "booking_zoom_url":
-                        get_lead_field(lead, "booking_zoom_url", "")
+                        "found": True,
+                        "booking_uid": booking_uid,
+                        "booking_status": get_lead_field(
+                            lead, "booking_status", ""
+                        ),
+                        "booking_start_time": get_lead_field(
+                            lead, "booking_start_time", ""
+                        ),
+                        "booking_cancel_link": get_lead_field(
+                            lead, "booking_cancel_link", ""
+                        ),
+                        "booking_reschedule_link": get_lead_field(
+                            lead, "booking_reschedule_link", ""
+                        ),
+                        "booking_zoom_url": get_lead_field(
+                            lead, "booking_zoom_url", ""
+                        )
                     }
                 else:
                     logger.info(
@@ -793,207 +592,6 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
 
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
             return {"summary": summary}
-
-        # ═══════════════════════════════════════════════════════════════════
-        # VERIFICAR INVESTIGACIÓN COMPLETA
-        # ═══════════════════════════════════════════════════════════════════
-        elif tool_name == "verificar_investigacion_completa":
-            logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
-
-            phone = context.get("phone_whatsapp", "")
-
-            try:
-                db = get_database()
-                if db is None:
-                    logger.info(
-                        f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                    return {"completada": False, "datos": {}, "desafios": []}
-
-                collection = db["leads_fortia"]
-                lead = collection.find_one({"phone_whatsapp": phone})
-
-                if not lead:
-                    logger.info(
-                        f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                    return {"completada": False, "datos": {}, "desafios": []}
-
-                status = lead.get("investigacion_status", "")
-
-                # Si NO completó, esperar
-                if status != "completada":
-                    logger.info("[TOOL] Investigación no completada, "
-                                "esperando...")
-
-                    from services.whatsapp import send_whatsapp_message
-                    await send_whatsapp_message(
-                        phone, "Dejame chequear un par de cosas antes "
-                        "de la última pregunta...")
-
-                    resultado = await esperar_investigacion_completa(
-                        phone, 180)
-
-                    lead = collection.find_one({"phone_whatsapp": phone})
-                    if not lead:
-                        logger.info(f"[TOOL] ══════ COMPLETADO: "
-                                    f"{tool_name} ══════")
-                        return {
-                            "completada": False,
-                            "datos": {},
-                            "desafios": []
-                        }
-
-                # ═══════════════════════════════════════════════════
-                # LEER TODOS LOS DATOS DE MONGODB
-                # ═══════════════════════════════════════════════════
-
-                # datos_web_background tiene TODO lo extraído
-                dwb = lead.get("datos_web_background", {})
-
-                # Helper para obtener con fallback
-                def get_val(campo, default="No encontrado"):
-                    # Primero de lead, luego de datos_web_background
-                    val = lead.get(campo)
-                    if val in [None, "", "null", "No encontrado"]:
-                        val = dwb.get(campo)
-                    if val in [None, "", "null", "No encontrado"]:
-                        return default
-                    return val
-
-                # Construir objeto con TODOS los datos
-                datos = {
-                    # ═══════════════════════════════════════════
-                    # EMPRESA
-                    # ═══════════════════════════════════════════
-                    "business_name":
-                    get_val("business_name"),
-                    "business_activity":
-                    get_val("business_activity"),
-                    "business_model":
-                    get_val("business_model"),
-                    "business_description":
-                    get_val("business_description"),
-                    "services":
-                    get_val("services"),
-                    "services_text":
-                    get_val("services_text"),
-
-                    # ═══════════════════════════════════════════
-                    # TU PERFIL (persona que escribe)
-                    # ═══════════════════════════════════════════
-                    "name":
-                    lead.get("name", "No encontrado"),
-                    "cargo_detectado":
-                    get_val("cargo_detectado"),
-                    "linkedin_personal":
-                    lead.get("linkedin_personal", "No encontrado"),
-                    "linkedin_personal_confianza":
-                    lead.get("linkedin_personal_confianza", 0),
-
-                    # ═══════════════════════════════════════════
-                    # UBICACIÓN
-                    # ═══════════════════════════════════════════
-                    "address":
-                    get_val("address"),
-                    "city":
-                    get_val("city"),
-                    "province":
-                    get_val("province"),
-                    "country":
-                    lead.get("country_detected", get_val("country")),
-                    "timezone":
-                    lead.get("timezone_detected", "No encontrado"),
-                    "utc_offset":
-                    lead.get("utc_offset", "No encontrado"),
-                    "google_maps_url":
-                    get_val("google_maps_url"),
-
-                    # ═══════════════════════════════════════════
-                    # CONTACTO
-                    # ═══════════════════════════════════════════
-                    "phone_empresa":
-                    get_val("phone_empresa"),
-                    "phones_adicionales":
-                    get_val("phones_adicionales", []),
-                    "whatsapp_empresa":
-                    get_val("whatsapp_empresa"),
-                    "email_empresa":
-                    get_val("email_principal"),
-                    "emails_adicionales":
-                    get_val("emails_adicionales", []),
-                    "horarios":
-                    get_val("horarios"),
-
-                    # ═══════════════════════════════════════════
-                    # REDES EMPRESA
-                    # ═══════════════════════════════════════════
-                    "website":
-                    lead.get("website") or dwb.get("url", "No encontrado"),
-                    "linkedin_empresa":
-                    get_val("linkedin_empresa"),
-                    "instagram_empresa":
-                    get_val("instagram_empresa"),
-                    "facebook_empresa":
-                    get_val("facebook_empresa"),
-                    "youtube":
-                    get_val("youtube"),
-                    "twitter":
-                    get_val("twitter"),
-
-                    # ═══════════════════════════════════════════
-                    # NOTICIAS
-                    # ═══════════════════════════════════════════
-                    "noticias_empresa":
-                    lead.get("noticias_empresa",
-                             "No se encontraron noticias recientes"),
-                }
-
-                # Construir ubicación completa para mostrar
-                ubicacion_parts = []
-                if datos["address"] != "No encontrado":
-                    ubicacion_parts.append(datos["address"])
-                if datos["city"] != "No encontrado":
-                    ubicacion_parts.append(datos["city"])
-                if datos["province"] != "No encontrado":
-                    ubicacion_parts.append(datos["province"])
-                if datos["country"] != "No encontrado":
-                    ubicacion_parts.append(datos["country"])
-                datos["ubicacion_completa"] = ", ".join(
-                    ubicacion_parts) if ubicacion_parts else "No encontrado"
-
-                # Obtener desafíos
-                desafios = lead.get("desafios_rubro", [])
-                if not desafios:
-                    desafios = []
-                desafios = desafios[:5]
-
-                # Logs para debug
-                logger.info(f"[TOOL] Empresa: {datos['business_name']}")
-                logger.info(f"[TOOL] Rubro: {datos['business_activity']}")
-                logger.info(f"[TOOL] Modelo: {datos['business_model']}")
-                logger.info(f"[TOOL] Tel: {datos['phone_empresa']}")
-                logger.info(f"[TOOL] WA: {datos['whatsapp_empresa']}")
-                logger.info(f"[TOOL] Email: {datos['email_empresa']}")
-                logger.info(f"[TOOL] Dirección: {datos['address']}")
-                logger.info(f"[TOOL] LinkedIn personal: "
-                            f"{datos['linkedin_personal']}")
-                logger.info(f"[TOOL] Instagram: {datos['instagram_empresa']}")
-                logger.info(f"[TOOL] Facebook: {datos['facebook_empresa']}")
-                logger.info(f"[TOOL] YouTube: {datos['youtube']}")
-                logger.info(f"[TOOL] Desafíos: {len(desafios)}")
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-
-                return {
-                    "completada": True,
-                    "datos": datos,
-                    "desafios": desafios
-                }
-
-            except Exception as e:
-                logger.error(f"[TOOL] Error: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-                logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-                return {"completada": False, "datos": {}, "desafios": []}
 
         # ═══════════════════════════════════════════════════════════════════
         # TOOL NO RECONOCIDA
