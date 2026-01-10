@@ -475,7 +475,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
         # MENSAJE DE ESPERA ÚNICO para tools de investigación
         # ═══════════════════════════════════════════════════════════════════
         if tool_name in [
-                "buscar_redes_personales",
+                "extraer_datos_web_cliente", "buscar_redes_personales",
                 "investigar_desafios_empresa"
         ]:
             if not context.get("wait_message_sent", False):
