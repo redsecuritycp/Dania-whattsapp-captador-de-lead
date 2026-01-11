@@ -1,6 +1,6 @@
 """
 Agente de OpenAI con function calling para DANIA/Fortia
-Versión 2.2 - TIER AUTOMÁTICO (Python calcula, no GPT)
+Versión 2.0 - Incluye tool de investigación de desafíos
 """
 import logging
 import json
@@ -340,9 +340,9 @@ async def esperar_investigacion_completa(phone: str,
         return {"completada": False, "rubro": "", "datos": {}}
 
 
-# ═════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════
 # MENSAJES DE PROGRESO
-# ═════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════
 
 
 async def send_progress_message(phone: str, message: str) -> None:
@@ -386,8 +386,7 @@ async def process_message(user_message: str,
     try:
         if not client:
             logger.error("Cliente OpenAI no disponible")
-            return ("Hubo un error de configuración. "
-                    "Por favor intentá más tarde.")
+            return "Hubo un error de configuración. Por favor intentá más tarde."
 
         # Guardar mensaje del usuario en historial
         try:
@@ -450,19 +449,16 @@ UTC: {utc_offset}
                     max_tokens=2000)
             except Exception as e:
                 logger.error(f"Error llamando a OpenAI: {e}", exc_info=True)
-                return ("Hubo un error procesando tu mensaje. "
-                        "Por favor intentá de nuevo.")
+                return "Hubo un error procesando tu mensaje. Por favor intentá de nuevo."
 
             if response is None:
                 logger.error("Respuesta de OpenAI es None")
-                return ("Hubo un error procesando tu mensaje. "
-                        "Por favor intentá de nuevo.")
+                return "Hubo un error procesando tu mensaje. Por favor intentá de nuevo."
 
             choices = getattr(response, 'choices', None)
             if not choices or len(choices) == 0:
                 logger.error("Respuesta de OpenAI sin choices")
-                return ("Hubo un error procesando tu mensaje. "
-                        "Por favor intentá de nuevo.")
+                return "Hubo un error procesando tu mensaje. Por favor intentá de nuevo."
 
             choice = choices[0]
             message = choice.message
@@ -522,13 +518,11 @@ UTC: {utc_offset}
 
         logger.warning(
             f"Límite de iteraciones alcanzado para {phone_whatsapp}")
-        return ("Disculpá, hubo un problema procesando tu mensaje. "
-                "¿Podés intentar de nuevo?")
+        return "Disculpá, hubo un problema procesando tu mensaje. ¿Podés intentar de nuevo?"
 
     except Exception as e:
         logger.error(f"Error en process_message: {e}", exc_info=True)
-        return ("Disculpá, hubo un error. "
-                "¿Podés intentar de nuevo en unos segundos?")
+        return "Disculpá, hubo un error. ¿Podés intentar de nuevo en unos segundos?"
 
 
 async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
@@ -599,8 +593,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             # 4. ENVIAR MENSAJE DE TRANSICIÓN
             await send_whatsapp_message(
                 phone,
-                "Mientras termino de preparar todo, "
-                "te hago unas preguntas rápidas."
+                "Mientras termino de preparar todo, te hago unas preguntas rápidas."
             )
             logger.info(f"[TOOL] ✓ Mensaje 2 enviado")
 
@@ -674,8 +667,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                 phone, max_wait_seconds=180)
 
             logger.info(
-                f"[TOOL] Completada: {resultado['completada']}, "
-                f"Rubro: {resultado['rubro']}"
+                f"[TOOL] Completada: {resultado['completada']}, Rubro: {resultado['rubro']}"
             )
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
 
@@ -744,7 +736,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
             return {"content": "No se encontraron resultados"}
 
         # ═══════════════════════════════════════════════════════════════════
-        # GUARDAR LEAD MONGODB - CON CÁLCULO AUTOMÁTICO DE TIER
+        # GUARDAR LEAD MONGODB
         # ═══════════════════════════════════════════════════════════════════
         elif tool_name == "guardar_lead_mongodb":
             logger.info(f"[TOOL] ══════ INICIANDO: {tool_name} ══════")
@@ -784,8 +776,7 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
 
             # Si aún no hay business_model, intentar inferirlo
             if not lead_data.get("business_model") or \
-               lead_data.get("business_model") in [
-                   "", "No encontrado", "No proporcionado"]:
+               lead_data.get("business_model") in ["", "No encontrado", "No proporcionado"]:
                 activity = lead_data.get("business_activity", "").lower()
                 if activity:
                     if any(x in activity
@@ -831,38 +822,6 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                         f"[GUARDAR] business_model inferido de '{activity}': "
                         f"{lead_data['business_model']}")
 
-            # ═══════════════════════════════════════════════════════════
-            # CALCULAR TIER CON PYTHON (NO GPT)
-            # ═══════════════════════════════════════════════════════════
-            logger.info("[GUARDAR] Calculando qualification_tier con Python")
-
-            tier_result = calcular_qualification_tier(
-                team_size=lead_data.get("team_size", ""),
-                country=lead_data.get("country_detected", ""),
-                business_activity=lead_data.get("business_activity", ""),
-                business_description=lead_data.get("business_description", ""),
-                linkedin_empresa=lead_data.get("linkedin_empresa", ""),
-                instagram_empresa=lead_data.get("instagram_empresa", ""),
-                facebook_empresa=lead_data.get("facebook_empresa", ""),
-                instagram_followers=lead_data.get("instagram_followers", 0),
-                linkedin_followers=lead_data.get("linkedin_followers", 0),
-                main_challenge=lead_data.get("main_challenge", ""),
-                ai_knowledge=lead_data.get("ai_knowledge", "")
-            )
-
-            # Sobrescribir el tier que GPT pudiera haber enviado
-            lead_data["qualification_tier"] = tier_result["tier"]
-            lead_data["tier_reason"] = tier_result["reason"]
-            lead_data["tier_facturacion_estimada"] = tier_result.get(
-                "facturacion_estimada", 0)
-            lead_data["tier_indicadores"] = tier_result.get(
-                "indicadores_cumplidos", 0)
-
-            logger.info(
-                f"[GUARDAR] Tier calculado: {tier_result['tier']} - "
-                f"{tier_result['reason']}"
-            )
-
             try:
                 save_result = save_lead(lead_data)
             except Exception as e:
@@ -878,16 +837,11 @@ async def execute_tool(tool_name: str, arguments: dict, context: dict) -> dict:
                     logger.error(f"Error enviando notificación: {e}")
 
             logger.info(f"[TOOL] ══════ COMPLETADO: {tool_name} ══════")
-
-            # Retornar el tier para que GPT lo use en la derivación
             return {
                 "operation_status":
                 "success" if save_result.get("success") else "error",
                 "message": save_result.get("message", ""),
-                "email_sent": email_result.get("success", False),
-                "qualification_tier": tier_result["tier"],
-                "tier_reason": tier_result["reason"],
-                "recommended_url": tier_result.get("recommended_url", "")
+                "email_sent": email_result.get("success", False)
             }
 
         # ═══════════════════════════════════════════════════════════════════
