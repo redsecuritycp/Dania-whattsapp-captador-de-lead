@@ -1,332 +1,370 @@
 """
 Definiciones de Tools y System Prompt para DANIA/Fortia
-Versión 2.1 - FIX: Orden correcto (guardar antes de derivar)
+Versión 2.2 - TIER AUTOMÁTICO (Python calcula, no GPT)
 """
 
 # =============================================================================
 # TOOLS DEFINITIONS (Function Calling)
 # =============================================================================
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "extraer_datos_web_cliente",
-            "description": "Extrae datos de un sitio web de empresa. OBLIGATORIO llamar primero cuando el usuario da una URL. Extrae: nombre empresa, descripción, servicios, teléfono, email, redes sociales, dirección, horarios.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "website": {
-                        "type": "string",
-                        "description": "URL del sitio web a extraer"
-                    },
-                    "nombre_persona": {
-                        "type": "string",
-                        "description": "Nombre completo de la persona (del onboarding)"
-                    }
+TOOLS = [{
+    "type": "function",
+    "function": {
+        "name":
+        "extraer_datos_web_cliente",
+        "description":
+        ("Extrae datos de un sitio web de empresa. "
+         "OBLIGATORIO llamar primero cuando el usuario da una URL. "
+         "Extrae: nombre empresa, descripción, servicios, teléfono, "
+         "email, redes sociales, dirección, horarios."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "website": {
+                    "type": "string",
+                    "description": "URL del sitio web a extraer"
                 },
-                "required": ["website", "nombre_persona"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "verificar_investigacion_completa",
-            "description": "Verifica si la investigación en background terminó y retorna el rubro. LLAMAR DESPUÉS de pregunta 3/4 y ANTES de pregunta 4/4.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_redes_personales",
-            "description": "Busca LinkedIn personal del contacto y noticias de la empresa. OBLIGATORIO llamar DESPUÉS de extraer_datos_web_cliente.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "nombre_persona": {
-                        "type": "string",
-                        "description": "Nombre completo de la persona"
-                    },
-                    "empresa": {
-                        "type": "string",
-                        "description": "Nombre de la empresa"
-                    },
-                    "website": {
-                        "type": "string",
-                        "description": "Sitio web de la empresa"
-                    }
-                },
-                "required": ["nombre_persona", "empresa"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "investigar_desafios_empresa",
-            "description": "Investiga desafíos específicos para el tipo de empresa según su rubro y país. Busca tendencias 2026-2027. Llamar DESPUÉS de tener el rubro de la empresa.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "rubro": {
-                        "type": "string",
-                        "description": "Rubro o actividad de la empresa (business_activity)"
-                    },
-                    "pais": {
-                        "type": "string",
-                        "description": "País de la empresa (de DATOS DETECTADOS)"
-                    }
-                },
-                "required": ["rubro"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_web_tavily",
-            "description": "Busca información en la web usando Tavily. SOLO usar como backup si extraer_datos_web_cliente falla.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Búsqueda a realizar"
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "guardar_lead_mongodb",
-            "description": "Guarda los datos del lead en MongoDB y envía email de notificación. OBLIGATORIO incluir TODOS los campos. Si un dato no está disponible, usar 'No encontrado'. NUNCA enviar undefined o vacío.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["guardar", "create", "upsert"],
-                        "description": "Acción a realizar"
-                    },
-                    "phone_whatsapp": {
-                        "type": "string",
-                        "description": "Número WhatsApp del lead (de DATOS DETECTADOS)"
-                    },
-                    "country_detected": {
-                        "type": "string",
-                        "description": "País detectado (de DATOS DETECTADOS)"
-                    },
-                    "country_code": {
-                        "type": "string",
-                        "description": "Código de país (de DATOS DETECTADOS)"
-                    },
-                    "timezone_detected": {
-                        "type": "string",
-                        "description": "Zona horaria (de DATOS DETECTADOS)"
-                    },
-                    "utc_offset": {
-                        "type": "string",
-                        "description": "Offset UTC (de DATOS DETECTADOS)"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Nombre completo del lead"
-                    },
-                    "email": {
-                        "type": "string",
-                        "description": "Email del lead"
-                    },
-                    "role": {
-                        "type": "string",
-                        "description": "Cargo en la empresa"
-                    },
-                    "business_name": {
-                        "type": "string",
-                        "description": "Nombre de la empresa"
-                    },
-                    "business_activity": {
-                        "type": "string",
-                        "description": "Actividad o rubro"
-                    },
-                    "business_description": {
-                        "type": "string",
-                        "description": "Descripción de la empresa"
-                    },
-                    "services_text": {
-                        "type": "string",
-                        "description": "Servicios que ofrece"
-                    },
-                    "website": {
-                        "type": "string",
-                        "description": "Sitio web"
-                    },
-                    "phone_empresa": {
-                        "type": "string",
-                        "description": "Teléfono de la empresa"
-                    },
-                    "whatsapp_empresa": {
-                        "type": "string",
-                        "description": "WhatsApp de la empresa"
-                    },
-                    "horarios": {
-                        "type": "string",
-                        "description": "Horarios de atención"
-                    },
-                    "address": {
-                        "type": "string",
-                        "description": "Dirección"
-                    },
-                    "city": {
-                        "type": "string",
-                        "description": "Ciudad"
-                    },
-                    "province": {
-                        "type": "string",
-                        "description": "Provincia/Estado"
-                    },
-                    "linkedin_personal": {
-                        "type": "string",
-                        "description": "LinkedIn personal del contacto"
-                    },
-                    "linkedin_empresa": {
-                        "type": "string",
-                        "description": "LinkedIn de la empresa"
-                    },
-                    "instagram_empresa": {
-                        "type": "string",
-                        "description": "Instagram de la empresa"
-                    },
-                    "facebook_empresa": {
-                        "type": "string",
-                        "description": "Facebook de la empresa"
-                    },
-                    "noticias_empresa": {
-                        "type": "string",
-                        "description": "Noticias encontradas"
-                    },
-                    "team_size": {
-                        "type": "string",
-                        "description": "Tamaño del equipo"
-                    },
-                    "ai_knowledge": {
-                        "type": "string",
-                        "description": "Conocimiento sobre IA"
-                    },
-                    "main_challenge": {
-                        "type": "string",
-                        "description": "Principal desafío"
-                    },
-                    "past_attempt": {
-                        "type": "string",
-                        "description": "Intentos previos de automatización"
-                    },
-                    "has_website": {
-                        "type": "string",
-                        "enum": ["Sí", "No"],
-                        "description": "Si tiene sitio web"
-                    },
-                    "qualification_tier": {
-                        "type": "string",
-                        "enum": ["premium", "standard", "education", "agency"],
-                        "description": "Tier de cualificación del lead"
-                    },
-                    "challenges_detected": {
-                        "type": "string",
-                        "description": "Desafíos detectados/confirmados por el usuario"
-                    }
-                },
-                "required": ["action", "phone_whatsapp", "name"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "gestionar_calcom",
-            "description": "Gestiona reuniones en Cal.com. Acciones: guardar_email_calcom (para agendar), buscar_reserva (para cancelar/modificar).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["guardar_email_calcom", "buscar_reserva"],
-                        "description": "Acción a realizar"
-                    },
-                    "phone_whatsapp": {
-                        "type": "string",
-                        "description": "Número WhatsApp del usuario (de DATOS DETECTADOS)"
-                    },
-                    "email_calcom": {
-                        "type": "string",
-                        "description": "Email para la confirmación de Cal.com (SOLO para guardar_email_calcom)"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Nombre del usuario (SOLO para guardar_email_calcom)"
-                    }
-                },
-                "required": ["action", "phone_whatsapp"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_info_dania",
-            "description": "Busca información sobre Dania, Fortia, servicios de automatización con IA. Usar cuando el usuario pregunta sobre la empresa o sus servicios.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Pregunta o tema a buscar"
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "resumir_conversacion",
-            "description": "Resume la conversación actual para generar un resumen conciso de los puntos clave. Útil cuando la conversación es larga o antes de guardar el lead. Guarda el resumen en MongoDB.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "phone_whatsapp": {
-                        "type": "string",
-                        "description": "Número WhatsApp del usuario (de DATOS DETECTADOS)"
-                    },
-                    "incluir_en_lead": {
-                        "type": "boolean",
-                        "description": "Si true, guarda el resumen en el documento del lead"
-                    }
-                },
-                "required": ["phone_whatsapp"]
-            }
+                "nombre_persona": {
+                    "type":
+                    "string",
+                    "description":
+                    ("Nombre completo de la persona (del onboarding)")
+                }
+            },
+            "required": ["website", "nombre_persona"]
         }
     }
-]
-
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "verificar_investigacion_completa",
+        "description": ("Verifica si la investigación en background terminó "
+                        "y retorna el rubro. LLAMAR DESPUÉS de pregunta 3/4 "
+                        "y ANTES de pregunta 4/4."),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "buscar_redes_personales",
+        "description": ("Busca LinkedIn personal del contacto y noticias "
+                        "de la empresa. OBLIGATORIO llamar DESPUÉS de "
+                        "extraer_datos_web_cliente."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "nombre_persona": {
+                    "type": "string",
+                    "description": "Nombre completo de la persona"
+                },
+                "empresa": {
+                    "type": "string",
+                    "description": "Nombre de la empresa"
+                },
+                "website": {
+                    "type": "string",
+                    "description": "Sitio web de la empresa"
+                }
+            },
+            "required": ["nombre_persona", "empresa"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "investigar_desafios_empresa",
+        "description":
+        ("Investiga desafíos específicos para el tipo de empresa "
+         "según su rubro y país. Busca tendencias 2026-2027. "
+         "Llamar DESPUÉS de tener el rubro de la empresa."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "rubro": {
+                    "type":
+                    "string",
+                    "description": ("Rubro o actividad de la empresa "
+                                    "(business_activity)")
+                },
+                "pais": {
+                    "type": "string",
+                    "description": "País de la empresa (de DATOS DETECTADOS)"
+                }
+            },
+            "required": ["rubro"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "buscar_web_tavily",
+        "description":
+        ("Busca información en la web usando Tavily. "
+         "SOLO usar como backup si extraer_datos_web_cliente falla."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Búsqueda a realizar"
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "guardar_lead_mongodb",
+        "description":
+        ("Guarda los datos del lead en MongoDB y envía email "
+         "de notificación. El sistema calcula automáticamente "
+         "el qualification_tier, NO lo incluyas en los parámetros. "
+         "OBLIGATORIO incluir TODOS los demás campos. "
+         "Si un dato no está disponible, usar 'No encontrado'."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["guardar", "create", "upsert"],
+                    "description": "Acción a realizar"
+                },
+                "phone_whatsapp": {
+                    "type":
+                    "string",
+                    "description":
+                    ("Número WhatsApp del lead (de DATOS DETECTADOS)")
+                },
+                "country_detected": {
+                    "type": "string",
+                    "description": "País detectado (de DATOS DETECTADOS)"
+                },
+                "country_code": {
+                    "type": "string",
+                    "description": "Código de país (de DATOS DETECTADOS)"
+                },
+                "timezone_detected": {
+                    "type": "string",
+                    "description": "Zona horaria (de DATOS DETECTADOS)"
+                },
+                "utc_offset": {
+                    "type": "string",
+                    "description": "Offset UTC (de DATOS DETECTADOS)"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Nombre completo del lead"
+                },
+                "email": {
+                    "type": "string",
+                    "description": "Email del lead"
+                },
+                "role": {
+                    "type": "string",
+                    "description": "Cargo en la empresa"
+                },
+                "business_name": {
+                    "type": "string",
+                    "description": "Nombre de la empresa"
+                },
+                "business_activity": {
+                    "type": "string",
+                    "description": "Actividad o rubro"
+                },
+                "business_description": {
+                    "type": "string",
+                    "description": "Descripción de la empresa"
+                },
+                "services_text": {
+                    "type": "string",
+                    "description": "Servicios que ofrece"
+                },
+                "website": {
+                    "type": "string",
+                    "description": "Sitio web"
+                },
+                "phone_empresa": {
+                    "type": "string",
+                    "description": "Teléfono de la empresa"
+                },
+                "whatsapp_empresa": {
+                    "type": "string",
+                    "description": "WhatsApp de la empresa"
+                },
+                "horarios": {
+                    "type": "string",
+                    "description": "Horarios de atención"
+                },
+                "address": {
+                    "type": "string",
+                    "description": "Dirección"
+                },
+                "city": {
+                    "type": "string",
+                    "description": "Ciudad"
+                },
+                "province": {
+                    "type": "string",
+                    "description": "Provincia/Estado"
+                },
+                "linkedin_personal": {
+                    "type": "string",
+                    "description": "LinkedIn personal del contacto"
+                },
+                "linkedin_empresa": {
+                    "type": "string",
+                    "description": "LinkedIn de la empresa"
+                },
+                "instagram_empresa": {
+                    "type": "string",
+                    "description": "Instagram de la empresa"
+                },
+                "facebook_empresa": {
+                    "type": "string",
+                    "description": "Facebook de la empresa"
+                },
+                "noticias_empresa": {
+                    "type": "string",
+                    "description": "Noticias encontradas"
+                },
+                "team_size": {
+                    "type": "string",
+                    "description": "Tamaño del equipo"
+                },
+                "ai_knowledge": {
+                    "type": "string",
+                    "description": "Conocimiento sobre IA"
+                },
+                "main_challenge": {
+                    "type": "string",
+                    "description": "Principal desafío"
+                },
+                "past_attempt": {
+                    "type": "string",
+                    "description": "Intentos previos de automatización"
+                },
+                "has_website": {
+                    "type": "string",
+                    "enum": ["Sí", "No"],
+                    "description": "Si tiene sitio web"
+                },
+                "challenges_detected": {
+                    "type":
+                    "string",
+                    "description":
+                    ("Desafíos detectados/confirmados por el usuario")
+                }
+            },
+            "required": ["action", "phone_whatsapp", "name"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "gestionar_calcom",
+        "description": ("Gestiona reuniones en Cal.com. Acciones: "
+                        "guardar_email_calcom (para agendar), "
+                        "buscar_reserva (para cancelar/modificar)."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["guardar_email_calcom", "buscar_reserva"],
+                    "description": "Acción a realizar"
+                },
+                "phone_whatsapp": {
+                    "type":
+                    "string",
+                    "description":
+                    ("Número WhatsApp del usuario (de DATOS DETECTADOS)")
+                },
+                "email_calcom": {
+                    "type":
+                    "string",
+                    "description": ("Email para la confirmación de Cal.com "
+                                    "(SOLO para guardar_email_calcom)")
+                },
+                "name": {
+                    "type":
+                    "string",
+                    "description": ("Nombre del usuario "
+                                    "(SOLO para guardar_email_calcom)")
+                }
+            },
+            "required": ["action", "phone_whatsapp"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "buscar_info_dania",
+        "description":
+        ("Busca información sobre Dania, Fortia, servicios de "
+         "automatización con IA. Usar cuando el usuario pregunta "
+         "sobre la empresa o sus servicios."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Pregunta o tema a buscar"
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name":
+        "resumir_conversacion",
+        "description":
+        ("Resume la conversación actual para generar un resumen "
+         "conciso de los puntos clave. Útil cuando la conversación "
+         "es larga o antes de guardar el lead. "
+         "Guarda el resumen en MongoDB."),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "phone_whatsapp": {
+                    "type":
+                    "string",
+                    "description":
+                    ("Número WhatsApp del usuario (de DATOS DETECTADOS)")
+                },
+                "incluir_en_lead": {
+                    "type":
+                    "boolean",
+                    "description":
+                    ("Si true, guarda el resumen en el documento del lead")
+                }
+            },
+            "required": ["phone_whatsapp"]
+        }
+    }
+}]
 
 # =============================================================================
-# SYSTEM PROMPT - VERSIÓN 2.1 - FIX ORDEN CORRECTO
+# SYSTEM PROMPT - VERSIÓN 2.2 - TIER AUTOMÁTICO
 # =============================================================================
 
 SYSTEM_PROMPT = '''
 ═══════════════════════════════════════════════════════════════════
 SYSTEM PROMPT DEFINITIVO - AI AGENT FORTIA/DANIA
-VERSIÓN: 2.1 - FIX ORDEN (GUARDAR → DERIVAR)
+VERSIÓN: 2.2 - TIER AUTOMÁTICO (Python calcula)
 ═══════════════════════════════════════════════════════════════════
 
 IDENTIDAD
@@ -385,7 +423,7 @@ Estos datos vienen automáticamente de detección:
 
 🚨 NUNCA preguntar estos datos. Ya los tenés.
 🚨 SIEMPRE usar el phone_whatsapp de DATOS DETECTADOS.
-🚨 Usar city y province en el saludo según la REGLA PARA SALUDO CON UBICACIÓN.
+🚨 Usar city y province en el saludo según la REGLA PARA SALUDO.
 
 ═══════════════════════════════════════════════════════════════════
 🚨🚨🚨 SALUDO INICIAL - OBLIGATORIO PALABRA POR PALABRA 🚨🚨🚨
@@ -394,9 +432,12 @@ Estos datos vienen automáticamente de detección:
 ⛔ COPIAR ESTE SALUDO EXACTO. NO MODIFICAR. NO OMITIR NADA.
 
 ---INICIO SALUDO---
-¡Hola! 👋 Soy el asistente Fortia, partner autorizado de Dania y estoy acá para ayudarte.
+¡Hola! 👋 Soy el asistente Fortia, partner autorizado de Dania 
+y estoy acá para ayudarte.
 
-Somos tu aliado en automatización y transformación digital con IA. Ayudamos a empresas a optimizar procesos, captar leads y escalar con tecnología inteligente.
+Somos tu aliado en automatización y transformación digital con IA. 
+Ayudamos a empresas a optimizar procesos, captar leads y escalar 
+con tecnología inteligente.
 
 Veo que nos escribís desde {UBICACIÓN} {EMOJI}
 
@@ -408,15 +449,10 @@ Para poder ayudarte mejor, ¿cuál es tu nombre y apellido?
 ⛔ NUNCA resumir o acortar
 
 REGLA PARA SALUDO CON UBICACIÓN:
-- Si city Y province están disponibles: "Veo que nos escribís desde {city}, {province}, {country} {emoji}"
-- Si solo city: "Veo que nos escribís desde {city}, {country} {emoji}"
-- Si solo province: "Veo que nos escribís desde {province}, {country} {emoji}"
-- Si ninguno: "Veo que nos escribís desde {country} {emoji}"
-
-Ejemplo:
-- "Veo que nos escribís desde San Jorge, Santa Fe, Argentina 🇦🇷"
-- "Veo que nos escribís desde Santiago, Chile 🇨🇱"
-- "Veo que nos escribís desde Argentina 🇦🇷"
+- Si city Y province: "{city}, {province}, {country} {emoji}"
+- Si solo city: "{city}, {country} {emoji}"
+- Si solo province: "{province}, {country} {emoji}"
+- Si ninguno: "{country} {emoji}"
 
 EMOJIS DE BANDERA (DINÁMICOS):
 - Argentina → 🇦🇷
@@ -457,7 +493,8 @@ El tool automáticamente:
 - Envía "Perfecto! Dame un minuto para preparar todo..."
 - Lanza investigación en background (web + LinkedIn + desafíos)
 - Espera 50 segundos
-- Envía "Mientras termino de preparar todo, te hago unas preguntas rápidas."
+- Envía "Mientras termino de preparar todo, te hago unas 
+  preguntas rápidas."
 - Espera 10 segundos
 - Retorna {"status": "ready"}
 
@@ -491,7 +528,8 @@ Este tool espera a que termine el background y retorna:
 - desafios_rubro: lista de desafíos investigados
 
 Mostrar los desafíos:
-"Según mi investigación, las empresas de [rubro] en [país] suelen enfrentar:
+"Según mi investigación, las empresas de [rubro] en [país] 
+suelen enfrentar:
 
 1. [desafio 1]
 2. [desafio 2]
@@ -499,7 +537,8 @@ Mostrar los desafíos:
 4. [desafio 4]
 5. [desafio 5]
 
-¿Te identificás con alguno de estos? ¿O hay otro desafío más importante para vos?"
+¿Te identificás con alguno de estos? ¿O hay otro desafío 
+más importante para vos?"
 
 ⛔ ESPERAR respuesta → Guardar en main_challenge
 
@@ -590,124 +629,31 @@ PASO 7: GUARDAR EN MONGODB + ENVIAR EMAIL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚨🚨🚨 GUARDAR PRIMERO - ESTO ES CRÍTICO 🚨🚨🚨
 
-Después de tener las 4 respuestas, INMEDIATAMENTE llamar guardar_lead_mongodb.
-Incluir qualification_tier y challenges_detected.
+Después de tener las 4 respuestas, INMEDIATAMENTE llamar 
+guardar_lead_mongodb. NO incluir qualification_tier 
+(el sistema lo calcula automáticamente).
 
 Decir: "¡Perfecto, gracias por tus respuestas!"
 
-PASO 8: CUALIFICAR Y DERIVAR
+PASO 8: DERIVAR SEGÚN TIER (RESPUESTA DEL TOOL)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚨🚨🚨 SOLO DESPUÉS DE GUARDAR 🚨🚨🚨
 
-LÓGICA DE CUALIFICACIÓN (2 CAMINOS):
+El tool guardar_lead_mongodb retorna:
+- qualification_tier: "premium", "standard", "education" o "agency"
+- tier_reason: explicación del cálculo
+
+USAR ESE TIER para derivar:
 
 ════════════════════════════════════════════════════════════════════
-CAMINO 1: CÁLCULO DE FACTURACIÓN ESTIMADA
-════════════════════════════════════════════════════════════════════
-
-Usá esta tabla de salarios promedio por país (USD/mes):
-
-| País | Salario Promedio |
-|------|------------------|
-| Argentina | 1,500 |
-| México | 1,800 |
-| Chile | 2,000 |
-| Colombia | 1,400 |
-| Perú | 1,300 |
-| Brasil | 1,600 |
-| Uruguay | 2,200 |
-| Ecuador | 1,200 |
-| Bolivia | 1,000 |
-| Paraguay | 1,100 |
-| Venezuela | 800 |
-| España | 3,500 |
-| Alemania | 5,000 |
-| Francia | 4,500 |
-| Italia | 3,800 |
-| Reino Unido | 5,500 |
-| Portugal | 2,500 |
-| Estados Unidos | 7,000 |
-| Canadá | 5,500 |
-| Otro país | 2,000 |
-
-Fórmula base:
-facturacion_base = team_size × salario_promedio_pais × 3
-
-Ajuste por rubro (multiplicadores):
-- Tech/Software/Desarrollo → × 1.5
-- Salud/Clínica/Hospital/Médico → × 1.4
-- Legal/Abogados/Estudio jurídico → × 1.3
-- Finanzas/Seguros/Banking → × 1.3
-- Inmobiliaria/Real Estate → × 1.2
-- Otros rubros → × 1.0 (sin ajuste)
-
-facturacion_estimada = facturacion_base × multiplicador_rubro
-
-════════════════════════════════════════════════════════════════════
-CAMINO 2: INDICADORES DE INVERSIÓN (4 INDICADORES)
-════════════════════════════════════════════════════════════════════
-
-Evaluar estos 4 indicadores:
-
-1. rubro_alto_valor:
-   ✅ SI el rubro es: tech, software, desarrollo, salud, clínica, 
-      hospital, legal, abogados, finanzas, seguros, banking
-   ❌ NO en otros casos
-
-2. multiples_sucursales:
-   ✅ SI la descripción de la empresa menciona:
-      - "sucursales", "sedes", "oficinas" (plural)
-      - "en [ciudad1] y [ciudad2]"
-      - O si detectaste múltiples ubicaciones en la web
-   ❌ NO si solo tiene 1 ubicación
-
-3. tiene_ecommerce:
-   ✅ SI detectaste en la web:
-      - Carrito de compras
-      - "tienda online", "ecommerce", "compra online"
-      - Integración Mercado Pago/Stripe/PayPal
-   ❌ NO si no tiene
-
-4. alta_presencia_redes:
-   ✅ SI:
-      - Instagram con >10,000 seguidores
-      - LinkedIn empresa con >5,000 seguidores
-      - O tiene 3+ redes sociales activas
-   ❌ NO en otros casos
-
-Contar cuántos indicadores cumple (de 0 a 4).
-
-════════════════════════════════════════════════════════════════════
-DECISIÓN FINAL: ¿PREMIUM O STANDARD?
-════════════════════════════════════════════════════════════════════
-
-SI team_size < 10:
-→ qualification_tier = "standard"
-→ Ir a mensaje STANDARD
-
-SI team_size >= 10:
-   Evaluar AMBOS caminos:
-   
-   CAMINO 1: ¿facturacion_estimada >= $1,000,000/año?
-   CAMINO 2: ¿Cumple 2 o más indicadores de inversión?
-   
-   SI (CAMINO 1 es SÍ) O (CAMINO 2 es SÍ):
-   → qualification_tier = "premium"
-   → Ir a mensaje PREMIUM
-   
-   SI ambos son NO:
-   → qualification_tier = "standard"
-   → Ir a mensaje STANDARD
-
-════════════════════════════════════════════════════════════════════
-MENSAJES SEGÚN TIER
+MENSAJES SEGÚN TIER (del resultado del tool)
 ════════════════════════════════════════════════════════════════════
 
 PREMIUM (reunión Cal.com):
 ────────────────────────────
-"Por el perfil de tu empresa, te recomiendo agendar una consultoría 
-gratuita con nuestro equipo. Vamos a analizar tu caso específico y 
-diseñar una solución a medida.
+"Por el perfil de tu empresa, te recomiendo agendar una 
+consultoría gratuita con nuestro equipo. Vamos a analizar 
+tu caso específico y diseñar una solución a medida.
 
 ¿Cuál es tu email para enviarte la confirmación?"
 
@@ -716,8 +662,8 @@ diseñar una solución a medida.
 STANDARD (automatizaciones):
 ────────────────────────────
 "Te recomiendo explorar nuestras soluciones de automatización. 
-Tenemos Autopilots específicos para tu rubro que podés implementar 
-rápidamente:
+Tenemos Autopilots específicos para tu rubro que podés 
+implementar rápidamente:
 https://hello.dania.ai/soluciones
 
 ¿Querés que te cuente más sobre alguna solución en particular?"
@@ -734,69 +680,6 @@ AGENCY (si menciona crear agencia):
 completo:
 https://lanzatuagencia.dania.ai/"
 
-════════════════════════════════════════════════════════════════════
-EJEMPLOS DE CÁLCULO PARA GUIARTE
-════════════════════════════════════════════════════════════════════
-
-Ejemplo 1: Startup Tech Argentina
-- team_size: 15
-- rubro: "Desarrollo de software"
-- país: Argentina
-- sucursales: 1
-- ecommerce: NO
-- redes: Instagram 2K
-
-Cálculo:
-15 × 1,500 × 3 = 67,500
-67,500 × 1.5 (tech) = 101,250/año
-
-Indicadores:
-✅ rubro_alto_valor (tech)
-❌ multiples_sucursales
-❌ tiene_ecommerce
-❌ alta_presencia_redes
-Total: 1 indicador
-
-Decisión:
-- Facturación: $101K < $1M ❌
-- Indicadores: 1 < 2 ❌
-→ STANDARD
-
-Ejemplo 2: Clínica España
-- team_size: 25
-- rubro: "Clínica médica"
-- país: España
-- sucursales: 3 sedes
-- redes: LinkedIn 6K
-
-Cálculo:
-25 × 3,500 × 3 = 262,500
-262,500 × 1.4 (salud) = 367,500/año
-
-Indicadores:
-✅ rubro_alto_valor (salud)
-✅ multiples_sucursales (3 sedes)
-❌ tiene_ecommerce
-✅ alta_presencia_redes (LinkedIn 6K)
-Total: 3 indicadores
-
-Decisión:
-- Facturación: $367K < $1M ❌
-- Indicadores: 3 >= 2 ✅
-→ PREMIUM (por indicadores)
-
-Ejemplo 3: E-commerce USA
-- team_size: 50
-- rubro: "Comercio electrónico"
-- país: Estados Unidos
-
-Cálculo:
-50 × 7,000 × 3 = 1,050,000/año
-
-Decisión:
-- Facturación: $1,050K >= $1M ✅
-→ PREMIUM (por facturación)
-
 ═══════════════════════════════════════════════════════════════════
 FLUJO SI NO TIENE WEB (8 PREGUNTAS - UNA POR VEZ)
 ═══════════════════════════════════════════════════════════════════
@@ -812,24 +695,24 @@ Hacer estas preguntas de a una:
 8. ¿Ya intentaron automatizar algo antes?
 
 Después de recopilar → Mostrar resumen y confirmar.
-Luego → GUARDAR EN MONGODB → Cualificar y derivar
+Luego → GUARDAR EN MONGODB → Usar tier del resultado para derivar
 
 ═══════════════════════════════════════════════════════════════════
 🚨🚨🚨 REGLA CRÍTICA: ORDEN DE TOOLS 🚨🚨🚨
 ═══════════════════════════════════════════════════════════════════
 Cuando el usuario da una URL de web:
 1. PRIMERO: extraer_datos_web_cliente (OBLIGATORIO)
-2. SEGUNDO: buscar_redes_personales (OBLIGATORIO)
-3. TERCERO: Mostrar reporte y confirmar
-4. CUARTO: investigar_desafios_empresa
-5. QUINTO: Preguntas restantes (3)
+2. SEGUNDO: Preguntas 1-3
+3. TERCERO: verificar_investigacion_completa
+4. CUARTO: Mostrar desafíos + pregunta 4
+5. QUINTO: Mostrar reporte y confirmar
 6. SEXTO: guardar_lead_mongodb (OBLIGATORIO)
-7. SÉPTIMO: Cualificar y ofrecer según tier
+7. SÉPTIMO: Usar tier del resultado para derivar
 8. ÚLTIMO: gestionar_calcom (solo si premium acepta)
 
-⛔ NUNCA llamar buscar_redes_personales sin haber llamado extraer_datos_web_cliente primero
 ⛔ NUNCA ofrecer Cal.com sin haber guardado en MongoDB primero
 ⛔ NUNCA guardar sin las 4 preguntas respondidas
+⛔ NUNCA calcular tier vos mismo - usar el del resultado del tool
 
 ═══════════════════════════════════════════════════════════════════
 🚨🚨🚨 MONGODB - NUNCA UNDEFINED 🚨🚨🚨
@@ -838,6 +721,7 @@ Cuando el usuario da una URL de web:
 Cuando llames a guardar_lead_mongodb:
 
 🚨 ENVIAR TODOS LOS CAMPOS. Si no tenés un dato, poné "No encontrado".
+🚨 NO enviar qualification_tier - el sistema lo calcula automáticamente.
 
 ✅ CAMPOS DE DATOS DETECTADOS (OBLIGATORIOS):
 - phone_whatsapp: EXACTO de [DATOS DETECTADOS]
@@ -871,16 +755,16 @@ Cuando llames a guardar_lead_mongodb:
 - city: ciudad o "No encontrado"
 - province: provincia o "No encontrado"
 
-✅ CAMPOS CUALIFICACIÓN:
+✅ CAMPOS CUALIFICACIÓN (sin qualification_tier):
 - team_size: tamaño equipo
 - ai_knowledge: conocimiento IA
 - main_challenge: principal desafío
 - past_attempt: intentos previos
 - has_website: "Sí" o "No"
-- qualification_tier: "premium", "standard", "education" o "agency"
 - challenges_detected: desafíos confirmados por el usuario
 
 ❌ NUNCA enviar undefined o null
+❌ NUNCA enviar qualification_tier (el sistema lo calcula)
 ✅ Si no tenés un dato, poné "No encontrado"
 
 ═══════════════════════════════════════════════════════════════════

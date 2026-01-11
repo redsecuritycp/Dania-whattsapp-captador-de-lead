@@ -3,7 +3,7 @@ Servicio de investigación de desafíos empresariales para DANIA/Fortia
 Busca desafíos REALES usando Tavily + GPT (2026-2027)
 NO usa listas hardcodeadas - investiga de verdad
 
-Incluye: Sistema de Cualificación con cálculo de facturación estimada
+VERSIÓN 2.2 - calcular_qualification_tier() COMPLETA
 """
 import os
 import re
@@ -18,402 +18,83 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 HTTP_TIMEOUT = 30.0
 
 # ═══════════════════════════════════════════════════════════════════
-# TABLA DE SALARIOS PROMEDIO POR PAÍS (USD/mes)
-# Fuente: Datos de mercado 2024-2025, ajustados para 2026
+# TABLA DE SALARIOS POR PAÍS (USD/mes)
 # ═══════════════════════════════════════════════════════════════════
-
 SALARIOS_POR_PAIS = {
-    # LATINOAMÉRICA
-    "Argentina": 1500,
-    "México": 1800,
-    "Chile": 2000,
-    "Colombia": 1400,
-    "Perú": 1300,
-    "Brasil": 1600,
-    "Uruguay": 2200,
-    "Ecuador": 1200,
-    "Bolivia": 1000,
-    "Paraguay": 1100,
-    "Venezuela": 800,
-    "Costa Rica": 1700,
-    "Panamá": 1900,
-    "Guatemala": 1000,
-    "El Salvador": 900,
-    "Honduras": 800,
-    "Nicaragua": 700,
-    "Cuba": 600,
-    "República Dominicana": 1100,
-    "Puerto Rico": 3500,
-
-    # EUROPA OCCIDENTAL
-    "España": 3500,
-    "Alemania": 5000,
-    "Francia": 4500,
-    "Italia": 3800,
-    "Reino Unido": 5500,
-    "Portugal": 2500,
-    "Países Bajos": 5200,
-    "Bélgica": 4800,
-    "Austria": 5000,
-    "Suiza": 7500,
-    "Irlanda": 5500,
-    "Luxemburgo": 6500,
-
-    # EUROPA NÓRDICA
-    "Suecia": 5500,
-    "Noruega": 6500,
-    "Dinamarca": 6000,
-    "Finlandia": 5000,
-
-    # EUROPA DEL ESTE
-    "Polonia": 2500,
-    "República Checa": 2800,
-    "Hungría": 2200,
-    "Rumania": 2000,
-    "Bulgaria": 1800,
-    "Croacia": 2200,
-    "Eslovaquia": 2400,
-    "Eslovenia": 3000,
-    "Estonia": 2800,
-    "Letonia": 2400,
-    "Lituania": 2500,
-
-    # EUROPA MEDITERRÁNEA
-    "Grecia": 2500,
-    "Chipre": 3000,
-    "Malta": 3200,
-
-    # NORTEAMÉRICA
-    "Estados Unidos": 7000,
-
-    # DEFAULT
-    "Desconocido": 2000,
+    "argentina": 1500,
+    "méxico": 1800,
+    "mexico": 1800,
+    "chile": 2000,
+    "colombia": 1400,
+    "perú": 1300,
+    "peru": 1300,
+    "brasil": 1600,
+    "brazil": 1600,
+    "uruguay": 2200,
+    "ecuador": 1200,
+    "bolivia": 1000,
+    "paraguay": 1100,
+    "venezuela": 800,
+    "españa": 3500,
+    "spain": 3500,
+    "alemania": 5000,
+    "germany": 5000,
+    "francia": 4500,
+    "france": 4500,
+    "italia": 3800,
+    "italy": 3800,
+    "reino unido": 5500,
+    "united kingdom": 5500,
+    "uk": 5500,
+    "portugal": 2500,
+    "estados unidos": 7000,
+    "united states": 7000,
+    "usa": 7000,
+    "canadá": 5500,
+    "canada": 5500,
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# MULTIPLICADORES POR RUBRO/INDUSTRIA
+# RUBROS DE ALTO VALOR (multiplicadores y detección)
 # ═══════════════════════════════════════════════════════════════════
-
-MULTIPLICADORES_RUBRO = {
-    # ALTO VALOR (1.5x)
+RUBROS_ALTO_VALOR = {
     "tech": 1.5,
     "software": 1.5,
     "desarrollo": 1.5,
     "tecnología": 1.5,
-    "it": 1.5,
     "saas": 1.5,
-    "startup": 1.5,
-    "fintech": 1.5,
-
-    # SALUD (1.4x)
+    "it": 1.5,
+    "sistemas": 1.5,
+    "programación": 1.5,
     "salud": 1.4,
     "clínica": 1.4,
+    "clinica": 1.4,
     "hospital": 1.4,
     "médico": 1.4,
+    "medico": 1.4,
+    "medicina": 1.4,
+    "odontología": 1.4,
+    "odontologia": 1.4,
     "dental": 1.4,
-    "farmacia": 1.4,
-    "laboratorio": 1.4,
-    "healthcare": 1.4,
-
-    # LEGAL/FINANZAS (1.3x)
     "legal": 1.3,
+    "abogado": 1.3,
     "abogados": 1.3,
     "estudio jurídico": 1.3,
+    "estudio juridico": 1.3,
+    "derecho": 1.3,
     "finanzas": 1.3,
+    "financiero": 1.3,
     "seguros": 1.3,
     "banking": 1.3,
     "banco": 1.3,
-    "contable": 1.3,
-    "contabilidad": 1.3,
     "inversiones": 1.3,
-
-    # INMOBILIARIA (1.2x)
     "inmobiliaria": 1.2,
     "real estate": 1.2,
     "bienes raíces": 1.2,
+    "bienes raices": 1.2,
     "construcción": 1.2,
-    "arquitectura": 1.2,
-
-    # COMERCIO/RETAIL (1.1x)
-    "ecommerce": 1.1,
-    "comercio electrónico": 1.1,
-    "retail": 1.1,
-    "tienda": 1.1,
-
-    # DEFAULT (1.0x)
-    "default": 1.0
+    "construccion": 1.2,
 }
-
-# ═══════════════════════════════════════════════════════════════════
-# FUNCIONES DE CUALIFICACIÓN
-# ═══════════════════════════════════════════════════════════════════
-
-
-def _obtener_salario_pais(pais: str) -> int:
-    """Obtiene el salario promedio del país."""
-    if not pais:
-        return SALARIOS_POR_PAIS.get("Desconocido", 2000)
-
-    # Buscar coincidencia exacta
-    if pais in SALARIOS_POR_PAIS:
-        return SALARIOS_POR_PAIS[pais]
-
-    # Buscar coincidencia parcial (case insensitive)
-    pais_lower = pais.lower().strip()
-    for key, value in SALARIOS_POR_PAIS.items():
-        if key.lower() == pais_lower:
-            return value
-
-    return SALARIOS_POR_PAIS.get("Desconocido", 2000)
-
-
-def _obtener_multiplicador_rubro(rubro: str) -> float:
-    """Obtiene el multiplicador según el rubro de la empresa."""
-    if not rubro:
-        return 1.0
-
-    rubro_lower = rubro.lower().strip()
-
-    # Buscar coincidencia en keywords
-    for keyword, mult in MULTIPLICADORES_RUBRO.items():
-        if keyword in rubro_lower:
-            return mult
-
-    return 1.0
-
-
-def _evaluar_indicadores_inversion(rubro: str, business_description: str,
-                                   social_metrics: dict) -> Dict:
-    """
-    Evalúa los 4 indicadores de inversión.
-    Retorna dict con cada indicador y total.
-    """
-    indicadores = {
-        "rubro_alto_valor": False,
-        "multiples_sucursales": False,
-        "tiene_ecommerce": False,
-        "alta_presencia_redes": False,
-        "total": 0
-    }
-
-    rubro_lower = (rubro or "").lower()
-    desc_lower = (business_description or "").lower()
-
-    # 1. RUBRO ALTO VALOR
-    rubros_alto_valor = [
-        "tech", "software", "desarrollo", "tecnología", "salud", "clínica",
-        "hospital", "médico", "legal", "abogados", "finanzas", "seguros",
-        "banking"
-    ]
-    for r in rubros_alto_valor:
-        if r in rubro_lower:
-            indicadores["rubro_alto_valor"] = True
-            break
-
-    # 2. MÚLTIPLES SUCURSALES
-    keywords_sucursales = [
-        "sucursales", "sedes", "oficinas en", "locales", "ubicaciones",
-        "presencia en", "branches"
-    ]
-    for kw in keywords_sucursales:
-        if kw in desc_lower:
-            indicadores["multiples_sucursales"] = True
-            break
-
-    # 3. TIENE E-COMMERCE
-    keywords_ecommerce = [
-        "ecommerce", "e-commerce", "tienda online", "comercio electrónico",
-        "compra online", "mercado pago", "stripe", "paypal", "carrito"
-    ]
-    for kw in keywords_ecommerce:
-        if kw in desc_lower:
-            indicadores["tiene_ecommerce"] = True
-            break
-
-    # 4. ALTA PRESENCIA EN REDES
-    social_metrics = social_metrics or {}
-    ig = social_metrics.get("instagram_followers", 0)
-    fb = social_metrics.get("facebook_followers", 0)
-    li = social_metrics.get("linkedin_followers", 0)
-    tw = social_metrics.get("twitter_followers", 0)
-    yt = social_metrics.get("youtube_subscribers", 0)
-
-    # >10K en Instagram O >5K en LinkedIn
-    if ig > 10000 or li > 5000:
-        indicadores["alta_presencia_redes"] = True
-    else:
-        # O tiene 3+ redes activas (>1000 cada una)
-        redes_activas = sum([
-            1 if ig > 1000 else 0, 1 if fb > 1000 else 0,
-            1 if li > 1000 else 0, 1 if tw > 1000 else 0, 1 if yt > 1000 else 0
-        ])
-        if redes_activas >= 3:
-            indicadores["alta_presencia_redes"] = True
-
-    # Contar total
-    indicadores["total"] = sum([
-        indicadores["rubro_alto_valor"], indicadores["multiples_sucursales"],
-        indicadores["tiene_ecommerce"], indicadores["alta_presencia_redes"]
-    ])
-
-    return indicadores
-
-
-async def calcular_qualification_tier(team_size: str,
-                                      rubro: str,
-                                      social_metrics: dict = None,
-                                      country: str = "",
-                                      business_description: str = "") -> Dict:
-    """
-    Calcula el tier de cualificación usando DOS caminos:
-
-    CAMINO 1: Facturación estimada
-    - facturacion = team_size × salario_pais × 3 × multiplicador_rubro
-    - Si facturacion >= $1,000,000/año → PREMIUM
-
-    CAMINO 2: Indicadores de inversión (4 indicadores)
-    - rubro_alto_valor
-    - multiples_sucursales  
-    - tiene_ecommerce
-    - alta_presencia_redes
-    - Si cumple >= 2 indicadores → PREMIUM
-
-    DECISIÓN:
-    - team_size < 10 → STANDARD (sin evaluar más)
-    - team_size >= 10 → Evaluar ambos caminos
-      - Si CAMINO 1 es SÍ O CAMINO 2 es SÍ → PREMIUM
-      - Si ambos son NO → STANDARD
-    """
-    logger.info(f"[QUALIFICATION] ══════ Calculando tier ══════")
-    logger.info(f"[QUALIFICATION] Team: {team_size}, Rubro: {rubro}, "
-                f"País: {country}")
-
-    result = {
-        "tier": "standard",
-        "reason": "",
-        "estimated_revenue": 0,
-        "revenue_threshold_met": False,
-        "indicators": {},
-        "indicators_met": False,
-        "estimated_potential": "medio",
-        "recommended_product": "DAN Autopilots",
-        "recommended_url": "https://hello.dania.ai/soluciones",
-        "calculation_details": {}
-    }
-
-    # Parsear team_size a número
-    team_num = 0
-    try:
-        nums = re.findall(r'\d+', str(team_size))
-        if nums:
-            team_num = int(nums[0])
-    except:
-        team_num = 0
-
-    logger.info(f"[QUALIFICATION] Team size parseado: {team_num}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # REGLA: team_size < 10 → STANDARD (sin más análisis)
-    # ═══════════════════════════════════════════════════════════════
-    if team_num < 10:
-        result["reason"] = f"Equipo pequeño ({team_num} personas)"
-        result["estimated_potential"] = "medio"
-        logger.info(f"[QUALIFICATION] → STANDARD (team < 10)")
-        return result
-
-    # ═══════════════════════════════════════════════════════════════
-    # CAMINO 1: CÁLCULO DE FACTURACIÓN ESTIMADA
-    # ═══════════════════════════════════════════════════════════════
-    salario = _obtener_salario_pais(country)
-    multiplicador = _obtener_multiplicador_rubro(rubro)
-
-    facturacion_mensual = team_num * salario * 3
-    facturacion_anual = facturacion_mensual * 12
-    facturacion_ajustada = facturacion_anual * multiplicador
-
-    result["calculation_details"] = {
-        "team_size": team_num,
-        "salario_pais": salario,
-        "pais": country,
-        "multiplicador_rubro": multiplicador,
-        "rubro": rubro,
-        "facturacion_mensual_base": facturacion_mensual,
-        "facturacion_anual_base": facturacion_anual,
-        "facturacion_anual_ajustada": facturacion_ajustada
-    }
-
-    result["estimated_revenue"] = facturacion_ajustada
-
-    # ¿Cumple umbral de $1M/año?
-    UMBRAL_PREMIUM = 1_000_000
-    if facturacion_ajustada >= UMBRAL_PREMIUM:
-        result["revenue_threshold_met"] = True
-
-    logger.info(f"[QUALIFICATION] Facturación estimada: "
-                f"${facturacion_ajustada:,.0f}/año "
-                f"(umbral: ${UMBRAL_PREMIUM:,})")
-
-    # ═══════════════════════════════════════════════════════════════
-    # CAMINO 2: INDICADORES DE INVERSIÓN
-    # ═══════════════════════════════════════════════════════════════
-    indicadores = _evaluar_indicadores_inversion(
-        rubro=rubro,
-        business_description=business_description,
-        social_metrics=social_metrics or {})
-
-    result["indicators"] = indicadores
-
-    # ¿Cumple >= 2 indicadores?
-    if indicadores["total"] >= 2:
-        result["indicators_met"] = True
-
-    logger.info(f"[QUALIFICATION] Indicadores: {indicadores['total']}/4 "
-                f"(mínimo: 2)")
-    logger.info(f"[QUALIFICATION] - Rubro alto valor: "
-                f"{indicadores['rubro_alto_valor']}")
-    logger.info(f"[QUALIFICATION] - Múltiples sucursales: "
-                f"{indicadores['multiples_sucursales']}")
-    logger.info(f"[QUALIFICATION] - E-commerce: "
-                f"{indicadores['tiene_ecommerce']}")
-    logger.info(f"[QUALIFICATION] - Alta presencia redes: "
-                f"{indicadores['alta_presencia_redes']}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # DECISIÓN FINAL
-    # ═══════════════════════════════════════════════════════════════
-    if result["revenue_threshold_met"] or result["indicators_met"]:
-        result["tier"] = "premium"
-        result["estimated_potential"] = "alto"
-        result["recommended_product"] = "Consultoría Personalizada"
-        result["recommended_url"] = "Cal.com"
-
-        # Determinar razón
-        if result["revenue_threshold_met"] and result["indicators_met"]:
-            result["reason"] = (
-                f"Facturación estimada ${facturacion_ajustada:,.0f}/año "
-                f"+ {indicadores['total']} indicadores de inversión")
-        elif result["revenue_threshold_met"]:
-            result["reason"] = (
-                f"Facturación estimada ${facturacion_ajustada:,.0f}/año "
-                f"(≥$1M)")
-        else:
-            result["reason"] = (
-                f"{indicadores['total']} indicadores de inversión "
-                f"(≥2 requeridos)")
-
-        logger.info(f"[QUALIFICATION] → PREMIUM: {result['reason']}")
-    else:
-        result["reason"] = (
-            f"Facturación ${facturacion_ajustada:,.0f}/año (<$1M) "
-            f"+ {indicadores['total']} indicadores (<2)")
-        logger.info(f"[QUALIFICATION] → STANDARD: {result['reason']}")
-
-    return result
-
-
-# ═══════════════════════════════════════════════════════════════════
-# FUNCIONES DE INVESTIGACIÓN DE DESAFÍOS (sin cambios)
-# ═══════════════════════════════════════════════════════════════════
 
 
 async def investigar_desafios_empresa(rubro: str,
@@ -425,9 +106,9 @@ async def investigar_desafios_empresa(rubro: str,
     Busca artículos de 2026-2027 y extrae desafíos específicos con IA.
     NO inventa ni usa listas hardcodeadas.
     """
-    logger.info(f"[CHALLENGES] ══════ Investigando desafíos ══════")
-    logger.info(f"[CHALLENGES] Rubro: {rubro}, País: {pais}, "
-                f"Team: {team_size}")
+    logger.info(f"[CHALLENGES] ========== Investigando desafíos ==========")
+    logger.info(
+        f"[CHALLENGES] Rubro: {rubro}, País: {pais}, Team: {team_size}")
 
     results = {
         "desafios": [],
@@ -457,8 +138,8 @@ async def investigar_desafios_empresa(rubro: str,
             results["success"] = True
             results["desafios_texto"] = _formatear_desafios(
                 desafios, rubro, pais)
-            logger.info(f"[CHALLENGES] ✓ {len(desafios)} desafíos REALES "
-                        f"encontrados")
+            logger.info(
+                f"[CHALLENGES] ✓ {len(desafios)} desafíos REALES encontrados")
             return results
 
     # Si no encontró específicos, usar genéricos universales
@@ -481,7 +162,7 @@ async def _buscar_articulos_tavily(rubro: str, pais: str) -> tuple:
 
     rubro_limpio = rubro.lower().strip()
 
-    # Queries específicos para 2026-2027
+    # Queries específicos para 2026-2027 (fecha actual dic 2025)
     queries = [
         f"desafíos {rubro_limpio} {pais} 2026 2027 tendencias",
         f"retos empresas {rubro_limpio} {pais} 2026 problemas",
@@ -584,9 +265,10 @@ Responde SOLO con los 5 desafíos, uno por línea:"""
                     "messages": [{
                         "role":
                         "system",
-                        "content": ("Eres un analista de negocios experto. "
-                                    "Extraes información PRECISA del "
-                                    "contenido. NUNCA inventas datos.")
+                        "content":
+                        ("Eres un analista de negocios experto. "
+                         "Extraes información PRECISA del contenido. "
+                         "NUNCA inventas datos.")
                     }, {
                         "role": "user",
                         "content": prompt
@@ -599,11 +281,10 @@ Responde SOLO con los 5 desafíos, uno por línea:"""
 
             if response.status_code == 200:
                 data = response.json()
-                texto = (data["choices"][0]["message"]["content"].strip())
+                texto = data["choices"][0]["message"]["content"].strip()
 
                 # Si GPT dice que no hay info específica
-                if (texto.upper() == "NONE"
-                        or "no encuentro" in texto.lower()):
+                if texto.upper() == "NONE" or "no encuentro" in texto.lower():
                     logger.info(
                         "[CHALLENGES] GPT: No hay desafíos específicos")
                     return []
@@ -641,6 +322,234 @@ def _formatear_desafios(desafios: List[str], rubro: str, pais: str) -> str:
               "¿O hay otro desafío más importante para vos?")
 
     return texto
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CALCULAR QUALIFICATION TIER - VERSIÓN COMPLETA
+# ═══════════════════════════════════════════════════════════════════
+def calcular_qualification_tier(team_size: str,
+                                country: str,
+                                business_activity: str = "",
+                                business_description: str = "",
+                                linkedin_empresa: str = "",
+                                instagram_empresa: str = "",
+                                facebook_empresa: str = "",
+                                instagram_followers: int = 0,
+                                linkedin_followers: int = 0,
+                                main_challenge: str = "",
+                                ai_knowledge: str = "") -> Dict:
+    """
+    Calcula el tier de cualificación usando la lógica completa:
+
+    1. Si team_size < 10 → STANDARD
+    2. Si team_size >= 10:
+       - CAMINO 1: facturación >= $1M/año → PREMIUM
+       - CAMINO 2: 2+ indicadores de inversión → PREMIUM
+       - Sino → STANDARD
+
+    Casos especiales:
+    - Menciona formación/educación → EDUCATION
+    - Menciona crear agencia → AGENCY
+
+    Returns:
+        {
+            "tier": "premium" | "standard" | "education" | "agency",
+            "reason": str,
+            "facturacion_estimada": float,
+            "indicadores_cumplidos": int,
+            "detalle_indicadores": dict,
+            "recommended_url": str
+        }
+    """
+    logger.info("[TIER] ══════ Calculando qualification_tier ══════")
+
+    result = {
+        "tier": "standard",
+        "reason": "",
+        "facturacion_estimada": 0,
+        "indicadores_cumplidos": 0,
+        "detalle_indicadores": {},
+        "recommended_url": "https://hello.dania.ai/soluciones"
+    }
+
+    # ═══════════════════════════════════════════════════════════════
+    # CASOS ESPECIALES: EDUCATION y AGENCY
+    # ═══════════════════════════════════════════════════════════════
+    challenge_lower = (main_challenge or "").lower()
+    knowledge_lower = (ai_knowledge or "").lower()
+    activity_lower = (business_activity or "").lower()
+
+    # Detectar si quiere EDUCACIÓN
+    education_keywords = [
+        "formación", "formacion", "capacitación", "capacitacion", "aprender",
+        "curso", "estudiar", "educar", "enseñar", "training", "learning"
+    ]
+    if any(kw in challenge_lower for kw in education_keywords) or \
+       any(kw in knowledge_lower for kw in education_keywords):
+        logger.info("[TIER] → EDUCATION (menciona formación)")
+        return {
+            "tier": "education",
+            "reason": "Interés en formación/capacitación",
+            "facturacion_estimada": 0,
+            "indicadores_cumplidos": 0,
+            "detalle_indicadores": {},
+            "recommended_url":
+            "https://dania.university/programas/integrador-ia"
+        }
+
+    # Detectar si quiere AGENCIA
+    agency_keywords = [
+        "crear agencia", "lanzar agencia", "mi propia agencia",
+        "montar agencia", "abrir agencia", "emprender agencia",
+        "negocio de ia", "negocio de automatización"
+    ]
+    combined_text = f"{challenge_lower} {knowledge_lower} {activity_lower}"
+    if any(kw in combined_text for kw in agency_keywords):
+        logger.info("[TIER] → AGENCY (quiere crear agencia)")
+        return {
+            "tier": "agency",
+            "reason": "Interés en crear agencia de IA",
+            "facturacion_estimada": 0,
+            "indicadores_cumplidos": 0,
+            "detalle_indicadores": {},
+            "recommended_url": "https://lanzatuagencia.dania.ai/"
+        }
+
+    # ═══════════════════════════════════════════════════════════════
+    # EXTRAER NÚMERO DE TEAM_SIZE
+    # ═══════════════════════════════════════════════════════════════
+    team_num = 0
+    try:
+        nums = re.findall(r'\d+', str(team_size))
+        if nums:
+            team_num = int(nums[0])
+    except Exception:
+        team_num = 0
+
+    logger.info(f"[TIER] team_size extraído: {team_num}")
+
+    # Si team_size < 10 → STANDARD directamente
+    if team_num < 10:
+        result["reason"] = f"Equipo pequeño ({team_num} personas)"
+        logger.info(f"[TIER] → STANDARD (team < 10)")
+        return result
+
+    # ═══════════════════════════════════════════════════════════════
+    # CAMINO 1: CÁLCULO DE FACTURACIÓN ESTIMADA
+    # ═══════════════════════════════════════════════════════════════
+    country_lower = (country or "").lower().strip()
+    salario = SALARIOS_POR_PAIS.get(country_lower, 2000)  # Default 2000
+
+    # Facturación base
+    facturacion_base = team_num * salario * 3
+
+    # Multiplicador por rubro
+    multiplicador = 1.0
+    for rubro_key, mult in RUBROS_ALTO_VALOR.items():
+        if rubro_key in activity_lower:
+            multiplicador = mult
+            break
+
+    facturacion_estimada = facturacion_base * multiplicador
+    result["facturacion_estimada"] = facturacion_estimada
+
+    logger.info(
+        f"[TIER] Facturación: {team_num} × ${salario} × 3 × {multiplicador} "
+        f"= ${facturacion_estimada:,.0f}/año")
+
+    # ═══════════════════════════════════════════════════════════════
+    # CAMINO 2: INDICADORES DE INVERSIÓN (4 indicadores)
+    # ═══════════════════════════════════════════════════════════════
+    indicadores = {
+        "rubro_alto_valor": False,
+        "multiples_sucursales": False,
+        "tiene_ecommerce": False,
+        "alta_presencia_redes": False
+    }
+
+    # 1. Rubro alto valor
+    for rubro_key in RUBROS_ALTO_VALOR.keys():
+        if rubro_key in activity_lower:
+            indicadores["rubro_alto_valor"] = True
+            break
+
+    # 2. Múltiples sucursales
+    description_lower = (business_description or "").lower()
+    sucursales_keywords = [
+        "sucursales", "sedes", "oficinas en", "ubicaciones", "locales en",
+        "puntos de venta", "branches"
+    ]
+    if any(kw in description_lower for kw in sucursales_keywords):
+        indicadores["multiples_sucursales"] = True
+
+    # 3. Tiene ecommerce
+    ecommerce_keywords = [
+        "ecommerce", "e-commerce", "tienda online", "tienda virtual",
+        "compra online", "carrito", "mercado pago", "stripe", "paypal",
+        "shopify", "woocommerce", "magento"
+    ]
+    if any(kw in description_lower for kw in ecommerce_keywords):
+        indicadores["tiene_ecommerce"] = True
+
+    # 4. Alta presencia en redes
+    redes_activas = 0
+    if linkedin_empresa and linkedin_empresa != "No encontrado":
+        redes_activas += 1
+    if instagram_empresa and instagram_empresa != "No encontrado":
+        redes_activas += 1
+    if facebook_empresa and facebook_empresa != "No encontrado":
+        redes_activas += 1
+
+    # Check followers
+    if instagram_followers > 10000:
+        indicadores["alta_presencia_redes"] = True
+    elif linkedin_followers > 5000:
+        indicadores["alta_presencia_redes"] = True
+    elif redes_activas >= 3:
+        indicadores["alta_presencia_redes"] = True
+
+    # Contar indicadores cumplidos
+    indicadores_cumplidos = sum(indicadores.values())
+    result["indicadores_cumplidos"] = indicadores_cumplidos
+    result["detalle_indicadores"] = indicadores
+
+    logger.info(f"[TIER] Indicadores: {indicadores}")
+    logger.info(f"[TIER] Total indicadores: {indicadores_cumplidos}/4")
+
+    # ═══════════════════════════════════════════════════════════════
+    # DECISIÓN FINAL
+    # ═══════════════════════════════════════════════════════════════
+    es_premium = False
+    razones = []
+
+    # Camino 1: Facturación >= $1M
+    if facturacion_estimada >= 1000000:
+        es_premium = True
+        razones.append(
+            f"facturación estimada ${facturacion_estimada:,.0f}/año")
+
+    # Camino 2: 2+ indicadores
+    if indicadores_cumplidos >= 2:
+        es_premium = True
+        indicadores_activos = [k for k, v in indicadores.items() if v]
+        razones.append(
+            f"{indicadores_cumplidos} indicadores ({', '.join(indicadores_activos)})"
+        )
+
+    if es_premium:
+        result["tier"] = "premium"
+        result["reason"] = " + ".join(razones)
+        result["recommended_url"] = "Cal.com"
+        logger.info(f"[TIER] → PREMIUM: {result['reason']}")
+    else:
+        result["tier"] = "standard"
+        result["reason"] = (
+            f"Equipo de {team_num}, facturación ~${facturacion_estimada:,.0f}, "
+            f"{indicadores_cumplidos} indicadores")
+        logger.info(f"[TIER] → STANDARD: {result['reason']}")
+
+    logger.info("[TIER] ══════ Cálculo completado ══════")
+    return result
 
 
 def _get_desafios_genericos() -> List[str]:
