@@ -3,7 +3,7 @@ Servicio de investigación de desafíos empresariales para DANIA/Fortia
 Busca desafíos REALES usando Tavily + GPT (2026-2027)
 NO usa listas hardcodeadas - investiga de verdad
 
-VERSIÓN 2.2 - calcular_qualification_tier() COMPLETA
+VERSIÓN 2.3 - Desafíos reales + genéricos combinados
 """
 import os
 import re
@@ -104,7 +104,8 @@ async def investigar_desafios_empresa(rubro: str,
     """
     Investiga desafíos REALES del sector usando Tavily + GPT.
     Busca artículos de 2026-2027 y extrae desafíos específicos con IA.
-    NO inventa ni usa listas hardcodeadas.
+
+    VERSIÓN 2.3: Siempre incluye genéricos (solos o combinados).
     """
     logger.info(f"[CHALLENGES] ========== Investigando desafíos ==========")
     logger.info(
@@ -124,29 +125,32 @@ async def investigar_desafios_empresa(rubro: str,
             "¿Cuál es el principal desafío que enfrenta tu empresa hoy?")
         return results
 
+    # Obtener genéricos siempre (se usarán solos o combinados)
+    genericos = _get_desafios_genericos()
+
     # Paso 1: Buscar artículos reales con Tavily
     contenido_articulos, fuentes = await _buscar_articulos_tavily(rubro, pais)
     results["fuentes"] = fuentes
 
     if contenido_articulos:
         # Paso 2: Extraer desafíos con GPT (análisis real)
-        desafios = await _extraer_desafios_con_gpt(contenido_articulos, rubro,
-                                                   pais)
+        desafios_reales = await _extraer_desafios_con_gpt(
+            contenido_articulos, rubro, pais)
 
-        if desafios:
-            results["desafios"] = desafios
+        if desafios_reales:
+            # NUEVO: Combinar reales + genéricos
+            results["desafios"] = desafios_reales[:5] + genericos[:3]
             results["success"] = True
-            results["desafios_texto"] = _formatear_desafios(
-                desafios, rubro, pais)
-            logger.info(
-                f"[CHALLENGES] ✓ {len(desafios)} desafíos REALES encontrados")
+            results["desafios_texto"] = _formatear_desafios_combinados(
+                desafios_reales, genericos, rubro, pais)
+            logger.info(f"[CHALLENGES] ✓ {len(desafios_reales)} reales + "
+                        f"3 genéricos combinados")
             return results
 
-    # Si no encontró específicos, usar genéricos universales
+    # Si no encontró específicos, usar solo genéricos universales
     logger.warning("[CHALLENGES] No se encontraron desafíos específicos")
-    results["desafios"] = _get_desafios_genericos()
-    results["desafios_texto"] = _formatear_desafios_genericos(
-        results["desafios"])
+    results["desafios"] = genericos
+    results["desafios_texto"] = _formatear_desafios_genericos(genericos)
 
     return results
 
@@ -307,21 +311,59 @@ Responde SOLO con los 5 desafíos, uno por línea:"""
     return []
 
 
-def _formatear_desafios(desafios: List[str], rubro: str, pais: str) -> str:
-    """Formatea los desafíos para mostrar al usuario."""
-    if not desafios:
-        return ""
+def _formatear_desafios_combinados(desafios_reales: List[str],
+                                   desafios_genericos: List[str], rubro: str,
+                                   pais: str) -> str:
+    """
+    Formatea desafíos reales + genéricos combinados.
+    Máximo 5 reales + 3 genéricos = 8 total.
+    """
+    # Limitar cantidades
+    reales = desafios_reales[:5]
+    genericos = desafios_genericos[:3]
 
-    texto = (f"Según mi investigación, las empresas de {rubro} "
-             f"en {pais} están enfrentando:\n\n")
+    texto = f"🔍 *Desafíos actuales en {rubro} ({pais}):*\n\n"
+
+    for i, desafio in enumerate(reales, 1):
+        texto += f"{i}. {desafio}\n"
+
+    # Agregar genéricos como sección adicional
+    texto += "\n📌 *Desafíos comunes adicionales:*\n\n"
+
+    start_num = len(reales) + 1
+    for i, desafio in enumerate(genericos, start_num):
+        texto += f"{i}. {desafio}\n"
+
+    texto += "\n¿Cuál de estos es más relevante para tu negocio?"
+
+    return texto
+
+
+def _formatear_desafios_genericos(desafios: List[str]) -> str:
+    """Formatea desafíos genéricos cuando NO hay específicos."""
+    texto = "🔍 *Desafíos comunes en tu industria:*\n\n"
 
     for i, desafio in enumerate(desafios, 1):
         texto += f"{i}. {desafio}\n"
 
-    texto += ("\n¿Te identificás con alguno de estos? "
-              "¿O hay otro desafío más importante para vos?")
+    texto += ("\n¿Te identificás con alguno? "
+              "¿O hay otro más importante para vos?")
 
     return texto
+
+
+def _get_desafios_genericos() -> List[str]:
+    """
+    Desafíos universales que aplican a cualquier empresa.
+    Se muestran SIEMPRE (solos o junto a los específicos).
+    """
+    return [
+        "Captar nuevos clientes de forma constante",
+        "Reducir tareas manuales y repetitivas",
+        "Mejorar seguimiento de leads y oportunidades",
+        "Optimizar tiempos de respuesta al cliente",
+        "Escalar operaciones sin aumentar costos"
+    ]
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -550,31 +592,3 @@ def calcular_qualification_tier(team_size: str,
 
     logger.info("[TIER] ══════ Cálculo completado ══════")
     return result
-
-
-def _get_desafios_genericos() -> List[str]:
-    """
-    Desafíos universales que aplican a cualquier empresa.
-    Se usan SOLO cuando no se encuentran desafíos específicos.
-    """
-    return [
-        "Captación de nuevos clientes de forma constante",
-        "Procesos manuales que consumen tiempo del equipo",
-        "Seguimiento inconsistente de leads y oportunidades",
-        "Presencia digital que no genera resultados",
-        "Falta de automatización en tareas repetitivas"
-    ]
-
-
-def _formatear_desafios_genericos(desafios: List[str]) -> str:
-    """Formatea desafíos genéricos (sin mencionar rubro ni país)."""
-    texto = ("Investigando desafíos típicos de tu industria...\n\n"
-             "Muchas empresas enfrentan estos desafíos:\n\n")
-
-    for i, desafio in enumerate(desafios, 1):
-        texto += f"{i}. {desafio}\n"
-
-    texto += ("\n¿Te identificás con alguno? "
-              "¿O hay otro más importante para vos?")
-
-    return texto
