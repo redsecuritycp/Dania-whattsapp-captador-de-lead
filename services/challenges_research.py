@@ -3,7 +3,7 @@ Servicio de investigación de desafíos empresariales para DANIA/Fortia
 Busca desafíos REALES usando Tavily + GPT (2026-2027)
 NO usa listas hardcodeadas - investiga de verdad
 
-VERSIÓN 2.3 - Desafíos reales + genéricos combinados
+VERSIÓN 2.4 - Prompt mejorado para adaptación flexible
 """
 import os
 import re
@@ -105,7 +105,7 @@ async def investigar_desafios_empresa(rubro: str,
     Investiga desafíos REALES del sector usando Tavily + GPT.
     Busca artículos de 2026-2027 y extrae desafíos específicos con IA.
 
-    VERSIÓN 2.3: Siempre incluye genéricos (solos o combinados).
+    VERSIÓN 2.4: Prompt mejorado para adaptación flexible.
     """
     logger.info(f"[CHALLENGES] ========== Investigando desafíos ==========")
     logger.info(
@@ -224,36 +224,44 @@ async def _buscar_articulos_tavily(rubro: str, pais: str) -> tuple:
 async def _extraer_desafios_con_gpt(contenido: str, rubro: str,
                                     pais: str) -> List[str]:
     """
-    Usa GPT para extraer desafíos ESPECÍFICOS del contenido real.
-    NO inventa - solo extrae lo que está en el contenido.
+    Usa GPT para ADAPTAR desafíos del contenido al sector específico.
+    Más flexible - puede adaptar desafíos relacionados.
     """
     if not OPENAI_API_KEY or not contenido:
         return []
 
-    prompt = f"""Analiza el siguiente contenido sobre el sector 
-"{rubro}" en {pais}.
+    # PROMPT MEJORADO - Más flexible
+    prompt = f"""Sos un analista de negocios experto. Analiza el siguiente 
+contenido sobre empresas en el sector: "{rubro}" ({pais}).
 
-CONTENIDO DE ARTÍCULOS REALES:
+CONTENIDO DE INVESTIGACIÓN:
 {contenido[:8000]}
 
 ---
 
-Tu tarea: Extraer exactamente 5 desafíos ESPECÍFICOS y REALES 
-que enfrentan las empresas de este sector SEGÚN EL CONTENIDO.
+TU TAREA: Identificar y ADAPTAR 5 desafíos específicos que enfrentan 
+las empresas de "{rubro}" basándote en el contenido.
 
-REGLAS ESTRICTAS:
-- SOLO desafíos que APAREZCAN en el contenido
-- NO inventar ni agregar desafíos genéricos
-- Específicos del sector "{rubro}" (no genéricos)
-- Relevantes para 2026-2027
-- En español
-- Máximo 15 palabras cada uno
-- Sin numeración ni bullets en tu respuesta
+INSTRUCCIONES:
+1. Lee el contenido y detecta desafíos, problemas, retos o tendencias
+2. ADAPTA esos desafíos al sector específico "{rubro}"
+3. Si el contenido habla de sectores relacionados (ej: distribución, 
+   mayoristas, logística) → adaptalos a "{rubro}"
+4. Sé específico pero flexible
+5. Responde en español
+6. Máximo 15 palabras por desafío
+7. Sin numeración ni bullets
 
-Si el contenido no tiene desafíos específicos del sector, 
-responde exactamente: NONE
+EJEMPLOS:
+- Contenido dice: "logística compleja" → Adaptas: "Gestión eficiente 
+  de rutas de distribución"
+- Contenido dice: "gestión de inventario" → Adaptas: "Control de stock 
+  de productos en múltiples depósitos"
 
-Responde SOLO con los 5 desafíos, uno por línea:"""
+Si el contenido NO tiene ninguna información relacionada con negocios, 
+retos o desafíos, responde: NONE
+
+Responde SOLO los 5 desafíos, uno por línea:"""
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -270,15 +278,16 @@ Responde SOLO con los 5 desafíos, uno por línea:"""
                         "role":
                         "system",
                         "content":
-                        ("Eres un analista de negocios experto. "
-                         "Extraes información PRECISA del contenido. "
-                         "NUNCA inventas datos.")
+                        ("Eres un analista de negocios experto en "
+                         "adaptación de insights. Tomas información "
+                         "de fuentes y la adaptas al contexto específico "
+                         "del cliente. Eres PRÁCTICO y FLEXIBLE.")
                     }, {
                         "role": "user",
                         "content": prompt
                     }],
                     "temperature":
-                    0.2,
+                    0.3,
                     "max_tokens":
                     500
                 })
@@ -287,8 +296,9 @@ Responde SOLO con los 5 desafíos, uno por línea:"""
                 data = response.json()
                 texto = data["choices"][0]["message"]["content"].strip()
 
-                # Si GPT dice que no hay info específica
-                if texto.upper() == "NONE" or "no encuentro" in texto.lower():
+                # Si GPT dice que no hay info
+                if texto.upper() == "NONE" or "no encuentro" in texto.lower(
+                ) or "no hay" in texto.lower():
                     logger.info(
                         "[CHALLENGES] GPT: No hay desafíos específicos")
                     return []
@@ -298,7 +308,7 @@ Responde SOLO con los 5 desafíos, uno por línea:"""
                 for linea in texto.split("\n"):
                     linea = linea.strip()
                     # Quitar numeración si existe
-                    linea = linea.lstrip("0123456789.-•) ")
+                    linea = re.sub(r'^[\d\.\-\•\)\s]+', '', linea)
                     if linea and len(linea) > 10 and len(linea) < 200:
                         desafios.append(linea)
 
@@ -322,26 +332,26 @@ def _formatear_desafios_combinados(desafios_reales: List[str],
     reales = desafios_reales[:5]
     genericos = desafios_genericos[:3]
 
-    texto = f"🔍 *Desafíos actuales en {rubro} ({pais}):*\n\n"
+    texto = f"Según mi investigación, las empresas de {rubro} en {pais} suelen enfrentar:\n\n"
 
-    for i, desafio in enumerate(reales, 1):
-        texto += f"{i}. {desafio}\n"
+    # Numeración continua
+    num = 1
+    for desafio in reales:
+        texto += f"{num}. {desafio}\n"
+        num += 1
 
-    # Agregar genéricos como sección adicional
-    texto += "\n📌 *Desafíos comunes adicionales:*\n\n"
+    for desafio in genericos:
+        texto += f"{num}. {desafio}\n"
+        num += 1
 
-    start_num = len(reales) + 1
-    for i, desafio in enumerate(genericos, start_num):
-        texto += f"{i}. {desafio}\n"
-
-    texto += "\n¿Cuál de estos es más relevante para tu negocio?"
+    texto += "\n¿Te identificás con alguno de estos? ¿O hay otro desafío más importante para vos?"
 
     return texto
 
 
 def _formatear_desafios_genericos(desafios: List[str]) -> str:
     """Formatea desafíos genéricos cuando NO hay específicos."""
-    texto = "🔍 *Desafíos comunes en tu industria:*\n\n"
+    texto = "Según mi investigación, las empresas suelen enfrentar:\n\n"
 
     for i, desafio in enumerate(desafios, 1):
         texto += f"{i}. {desafio}\n"
