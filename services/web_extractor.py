@@ -210,6 +210,206 @@ async def search_with_tavily(query: str) -> dict:
         return {}
 
 
+def extract_schema_org(html_content: str) -> dict:
+    """
+    Extrae datos estructurados de JSON-LD (Schema.org).
+    Busca LocalBusiness, Organization, WebSite, etc.
+    """
+    import json
+    import re
+    
+    result = {
+        "business_name": "",
+        "business_description": "",
+        "phone": "",
+        "email": "",
+        "address": "",
+        "city": "",
+        "province": "",
+        "country": "",
+        "linkedin": "",
+        "instagram": "",
+        "facebook": "",
+        "twitter": "",
+        "youtube": "",
+        "website": "",
+        "logo": "",
+        "opening_hours": ""
+    }
+    
+    if not html_content:
+        return result
+    
+    # Buscar todos los bloques JSON-LD
+    jsonld_pattern = r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>'
+    matches = re.findall(jsonld_pattern, html_content, re.DOTALL | re.IGNORECASE)
+    
+    for match in matches:
+        try:
+            data = json.loads(match.strip())
+            
+            # Puede ser un objeto o una lista
+            items = data if isinstance(data, list) else [data]
+            
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                
+                item_type = item.get("@type", "")
+                if isinstance(item_type, list):
+                    item_type = item_type[0] if item_type else ""
+                
+                # Extraer según tipo
+                if item_type in ["LocalBusiness", "Organization", 
+                                 "Corporation", "Store", "Restaurant",
+                                 "ProfessionalService", "MedicalBusiness",
+                                 "LegalService", "FinancialService"]:
+                    
+                    if not result["business_name"]:
+                        result["business_name"] = item.get("name", "")
+                    
+                    if not result["business_description"]:
+                        result["business_description"] = item.get("description", "")
+                    
+                    # Teléfono
+                    if not result["phone"]:
+                        phone = item.get("telephone", "")
+                        if isinstance(phone, list):
+                            phone = phone[0] if phone else ""
+                        result["phone"] = str(phone)
+                    
+                    # Email
+                    if not result["email"]:
+                        result["email"] = item.get("email", "")
+                    
+                    # Dirección
+                    address = item.get("address", {})
+                    if isinstance(address, dict):
+                        if not result["address"]:
+                            street = address.get("streetAddress", "")
+                            result["address"] = street
+                        if not result["city"]:
+                            result["city"] = address.get("addressLocality", "")
+                        if not result["province"]:
+                            result["province"] = address.get("addressRegion", "")
+                        if not result["country"]:
+                            result["country"] = address.get("addressCountry", "")
+                    elif isinstance(address, str):
+                        if not result["address"]:
+                            result["address"] = address
+                    
+                    # Redes sociales desde sameAs
+                    same_as = item.get("sameAs", [])
+                    if isinstance(same_as, str):
+                        same_as = [same_as]
+                    
+                    for url in same_as:
+                        url_lower = url.lower()
+                        if "linkedin.com" in url_lower and not result["linkedin"]:
+                            result["linkedin"] = url
+                        elif "instagram.com" in url_lower and not result["instagram"]:
+                            result["instagram"] = url
+                        elif "facebook.com" in url_lower and not result["facebook"]:
+                            result["facebook"] = url
+                        elif "twitter.com" in url_lower or "x.com" in url_lower:
+                            if not result["twitter"]:
+                                result["twitter"] = url
+                        elif "youtube.com" in url_lower and not result["youtube"]:
+                            result["youtube"] = url
+                    
+                    # Logo
+                    if not result["logo"]:
+                        logo = item.get("logo", "")
+                        if isinstance(logo, dict):
+                            logo = logo.get("url", "")
+                        result["logo"] = logo
+                    
+                    # Horarios
+                    if not result["opening_hours"]:
+                        hours = item.get("openingHours", "")
+                        if isinstance(hours, list):
+                            hours = ", ".join(hours)
+                        result["opening_hours"] = hours
+                    
+                    # Website
+                    if not result["website"]:
+                        result["website"] = item.get("url", "")
+                
+                # ContactPoint
+                contact = item.get("contactPoint", {})
+                if isinstance(contact, list):
+                    contact = contact[0] if contact else {}
+                if isinstance(contact, dict):
+                    if not result["phone"]:
+                        result["phone"] = contact.get("telephone", "")
+                    if not result["email"]:
+                        result["email"] = contact.get("email", "")
+                
+        except (json.JSONDecodeError, Exception) as e:
+            continue
+    
+    logger.info(f"[SCHEMA.ORG] Extraído: name={result['business_name'][:30] if result['business_name'] else 'N/A'}, phone={result['phone'][:15] if result['phone'] else 'N/A'}")
+    
+    return result
+
+
+def validate_extracted_data(data: dict) -> dict:
+    """
+    Valida y limpia datos extraídos.
+    Elimina valores inválidos y normaliza formatos.
+    """
+    import re
+    
+    validated = {}
+    
+    for key, value in data.items():
+        if value is None:
+            validated[key] = ""
+            continue
+        
+        if isinstance(value, str):
+            # Limpiar strings
+            clean = value.strip()
+            
+            # Validar emails
+            if key in ["email", "email_principal"]:
+                if clean and "@" in clean and "." in clean:
+                    # Regex básico de email
+                    if re.match(r'^[^@]+@[^@]+\.[^@]+$', clean):
+                        validated[key] = clean
+                    else:
+                        validated[key] = ""
+                else:
+                    validated[key] = ""
+            
+            # Validar teléfonos
+            elif key in ["phone", "phone_empresa", "whatsapp_empresa"]:
+                # Solo dígitos y + inicial
+                digits = re.sub(r'[^\d+]', '', clean)
+                if len(digits) >= 8:
+                    validated[key] = digits
+                else:
+                    validated[key] = ""
+            
+            # Validar URLs
+            elif key in ["linkedin", "instagram", "facebook", "twitter", 
+                        "youtube", "website", "linkedin_empresa", 
+                        "instagram_empresa", "facebook_empresa"]:
+                if clean.startswith(("http://", "https://")):
+                    validated[key] = clean
+                elif clean and "." in clean:
+                    validated[key] = "https://" + clean
+                else:
+                    validated[key] = ""
+            
+            else:
+                validated[key] = clean
+        else:
+            validated[key] = value
+    
+    return validated
+
+
 def extract_with_regex(all_content: str) -> dict:
     """
     Extracción con regex - Extractor v8 de n8n.
@@ -1510,6 +1710,13 @@ def merge_results(gpt_data: dict,
     """
     resultado = gpt_data.copy() if gpt_data else {}
 
+    # Extraer Schema.org primero (más confiable)
+    schema_data = {}
+    if all_content:
+        schema_data = extract_schema_org(all_content)
+        if schema_data.get("business_name"):
+            logger.info(f"[MERGE] Schema.org encontrado: {schema_data['business_name'][:30]}")
+
     # Descripción - solo de GPT (sin fuentes externas)
     desc_gpt = resultado.get('business_description', '')
     if not desc_gpt or desc_gpt == 'No encontrado' or len(desc_gpt) < 50:
@@ -1848,6 +2055,38 @@ def merge_results(gpt_data: dict,
     else:
         resultado['services_text'] = 'No encontrado'
 
+    # Usar Schema.org como fallback cuando campos estén vacíos
+    if schema_data:
+        # Mapeo de campos Schema.org a campos del resultado
+        schema_map = {
+            'business_name': 'business_name',
+            'business_description': 'business_description',
+            'phone': 'phone_empresa',
+            'email': 'email_principal',
+            'address': 'address',
+            'city': 'city',
+            'province': 'province',
+            'country': 'country',
+            'linkedin': 'linkedin_empresa',
+            'instagram': 'instagram_empresa',
+            'facebook': 'facebook_empresa',
+            'twitter': 'twitter',
+            'youtube': 'youtube',
+            'website': 'website',
+            'opening_hours': 'horarios'
+        }
+        
+        for schema_key, result_key in schema_map.items():
+            schema_val = schema_data.get(schema_key, '')
+            result_val = resultado.get(result_key, '')
+            
+            if schema_val and schema_val != '':
+                if not result_val or result_val == 'No encontrado' or result_val == '':
+                    resultado[result_key] = schema_val
+                    logger.info(f"[MERGE] Schema.org → {result_key}: {schema_val[:50]}")
+
+    # Validar datos finales
+    resultado = validate_extracted_data(resultado)
     return resultado
 
 
