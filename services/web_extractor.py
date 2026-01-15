@@ -728,39 +728,88 @@ def extract_with_regex(all_content: str) -> dict:
     # 4. REDES SOCIALES
     # ═══════════════════════════════════════════════════════════════════
 
-    # Instagram
-    ig_match = re.search(
+    # Instagram - múltiples patrones
+    ig_patterns = [
+        # Patrón en href (más confiable)
+        r'href=["\'](?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9._]+)["\']',
+        # URL directa
         r'(?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9._]+)',
-        all_content, re.IGNORECASE)
-    if ig_match and ig_match.group(1) not in [
-            'p', 'reel', 'stories', 'explore'
-    ]:
-        regex_extract[
-            'instagram'] = f"https://instagram.com/{ig_match.group(1)}"
+    ]
+    ig_excluir = ['p', 'reel', 'stories', 'explore', 'accounts', 'direct']
+    
+    for pattern in ig_patterns:
+        ig_match = re.search(pattern, all_content, re.IGNORECASE)
+        if ig_match and ig_match.group(1).lower() not in ig_excluir:
+            regex_extract['instagram'] = (
+                f"https://instagram.com/{ig_match.group(1)}"
+            )
+            logger.info(
+                f"[REGEX] Instagram encontrado: "
+                f"{regex_extract['instagram']}"
+            )
+            break
 
-    # Facebook
-    fb_match = re.search(
-        r'(?:https?://)?(?:www\.)?facebook\.com/([a-zA-Z0-9.]+)', all_content,
-        re.IGNORECASE)
-    if fb_match and fb_match.group(1) not in [
-            'sharer', 'share', 'dialog', 'plugins'
-    ]:
-        regex_extract['facebook'] = f"https://facebook.com/{fb_match.group(1)}"
+    # Facebook - múltiples patrones
+    fb_patterns = [
+        # Patrón en href (más confiable)
+        r'href=["\'](?:https?://)?(?:www\.)?facebook\.com/([a-zA-Z0-9.]+)["\']',
+        # URL directa  
+        r'(?:https?://)?(?:www\.)?facebook\.com/([a-zA-Z0-9.]+)',
+    ]
+    fb_excluir = ['sharer', 'share', 'dialog', 'plugins', 'tr', 'flx']
+    
+    for pattern in fb_patterns:
+        fb_match = re.search(pattern, all_content, re.IGNORECASE)
+        if fb_match and fb_match.group(1).lower() not in fb_excluir:
+            regex_extract['facebook'] = (
+                f"https://facebook.com/{fb_match.group(1)}"
+            )
+            logger.info(
+                f"[REGEX] Facebook encontrado: "
+                f"{regex_extract['facebook']}"
+            )
+            break
 
-    # LinkedIn empresa
-    li_match = re.search(
+    # LinkedIn empresa - múltiples patrones
+    li_patterns = [
+        # Patrón en href (más confiable)
+        r'href=["\'](?:https?://)?(?:www\.)?linkedin\.com/company/([a-zA-Z0-9_-]+)["\']',
+        # URL directa
         r'(?:https?://)?(?:www\.)?linkedin\.com/company/([a-zA-Z0-9_-]+)',
-        all_content, re.IGNORECASE)
-    if li_match:
-        regex_extract[
-            'linkedin'] = f"https://linkedin.com/company/{li_match.group(1)}"
+    ]
+    
+    for pattern in li_patterns:
+        li_match = re.search(pattern, all_content, re.IGNORECASE)
+        if li_match:
+            regex_extract['linkedin'] = (
+                f"https://linkedin.com/company/{li_match.group(1)}"
+            )
+            logger.info(
+                f"[REGEX] LinkedIn empresa encontrado: "
+                f"{regex_extract['linkedin']}"
+            )
+            break
 
-    # Twitter/X
-    tw_match = re.search(
+    # Twitter/X - múltiples patrones
+    tw_patterns = [
+        # Patrón en href (más confiable)
+        r'href=["\'](?:https?://)?(?:www\.)?(?:twitter|x)\.com/([a-zA-Z0-9_]+)["\']',
+        # URL directa
         r'(?:https?://)?(?:www\.)?(?:twitter|x)\.com/([a-zA-Z0-9_]+)',
-        all_content, re.IGNORECASE)
-    if tw_match and tw_match.group(1) not in ['share', 'intent', 'home']:
-        regex_extract['twitter'] = f"https://twitter.com/{tw_match.group(1)}"
+    ]
+    tw_excluir = ['share', 'intent', 'home', 'search', 'hashtag', 'i']
+    
+    for pattern in tw_patterns:
+        tw_match = re.search(pattern, all_content, re.IGNORECASE)
+        if tw_match and tw_match.group(1).lower() not in tw_excluir:
+            regex_extract['twitter'] = (
+                f"https://twitter.com/{tw_match.group(1)}"
+            )
+            logger.info(
+                f"[REGEX] Twitter encontrado: "
+                f"{regex_extract['twitter']}"
+            )
+            break
 
     # YouTube - múltiples formatos de URL
     regex_extract['youtube'] = ''
@@ -915,15 +964,48 @@ def extract_with_regex(all_content: str) -> dict:
         r'(?:\s*,?\s*\d{5})?',
     ]
 
+    # Palabras que indican que NO es una dirección real
+    # (productos, categorías de e-commerce, etc.)
+    PALABRAS_EXCLUIR_DIRECCION = [
+        # Productos de seguridad/CCTV
+        'mp', 'dvr', 'nvr', 'cámara', 'camara', 'camera',
+        'hdmi', 'utp', 'kit', 'disco', 'fuente', 'cable',
+        'balun', 'ptz', 'ip', 'turbo', 'colorvu', 'hikvision',
+        'ezviz', 'domo', 'bullet', 'sensor', 'alarma',
+        # Tecnología general
+        'usb', 'wifi', 'router', 'switch', 'hub', 'gbps',
+        'led', 'lcd', 'hd', '4k', '1080p', '720p',
+        # Otros productos
+        'batería', 'bateria', 'cargador', 'adaptador',
+        'memoria', 'tarjeta', 'sd', 'ssd', 'hdd',
+        # Categorías
+        'categoría', 'categoria', 'producto', 'artículo',
+        'modelo', 'referencia', 'código', 'codigo', 'sku',
+    ]
+
     for pattern in direccion_patterns:
         match = re.search(pattern, all_content, re.IGNORECASE)
         if match and len(match.group(0)) > 10:
             direccion = match.group(0).strip()
             # Limpiar espacios múltiples
             direccion = re.sub(r'\s+', ' ', direccion)
-            regex_extract['address'] = direccion
-            logger.info(f"[REGEX] Dirección encontrada: {direccion}")
-            break
+            
+            # VALIDAR que no sea un producto/categoría
+            direccion_lower = direccion.lower()
+            es_producto = False
+            for palabra in PALABRAS_EXCLUIR_DIRECCION:
+                if palabra in direccion_lower:
+                    es_producto = True
+                    logger.debug(
+                        f"[REGEX] Dirección descartada (producto): "
+                        f"{direccion} (contiene '{palabra}')"
+                    )
+                    break
+            
+            if not es_producto:
+                regex_extract['address'] = direccion
+                logger.info(f"[REGEX] Dirección encontrada: {direccion}")
+                break
 
     # ═══════════════════════════════════════════════════════════════════
     # 7B. PROVINCIAS/ESTADOS - Solo para VALIDACIÓN, no para detección

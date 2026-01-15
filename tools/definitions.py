@@ -7,317 +7,330 @@ Versión 2.1 - FIX: Orden correcto (guardar antes de derivar)
 # TOOLS DEFINITIONS (Function Calling)
 # =============================================================================
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "extraer_datos_web_cliente",
-            "description": "Extrae datos de un sitio web de empresa. OBLIGATORIO llamar primero cuando el usuario da una URL. Extrae: nombre empresa, descripción, servicios, teléfono, email, redes sociales, dirección, horarios.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "website": {
-                        "type": "string",
-                        "description": "URL del sitio web a extraer"
-                    },
-                    "nombre_persona": {
-                        "type": "string",
-                        "description": "Nombre completo de la persona (del onboarding)"
-                    }
+TOOLS = [{
+    "type": "function",
+    "function": {
+        "name": "extraer_datos_web_cliente",
+        "description":
+        "Extrae datos de un sitio web de empresa. OBLIGATORIO llamar primero cuando el usuario da una URL. Extrae: nombre empresa, descripción, servicios, teléfono, email, redes sociales, dirección, horarios.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "website": {
+                    "type": "string",
+                    "description": "URL del sitio web a extraer"
                 },
-                "required": ["website", "nombre_persona"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "verificar_investigacion_completa",
-            "description": "Verifica si la investigación en background terminó y retorna el rubro. LLAMAR DESPUÉS de pregunta 3/4 y ANTES de pregunta 4/4.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_redes_personales",
-            "description": "Busca LinkedIn personal del contacto y noticias de la empresa. OBLIGATORIO llamar DESPUÉS de extraer_datos_web_cliente.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "nombre_persona": {
-                        "type": "string",
-                        "description": "Nombre completo de la persona"
-                    },
-                    "empresa": {
-                        "type": "string",
-                        "description": "Nombre de la empresa"
-                    },
-                    "website": {
-                        "type": "string",
-                        "description": "Sitio web de la empresa"
-                    }
-                },
-                "required": ["nombre_persona", "empresa"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "investigar_desafios_empresa",
-            "description": "Investiga desafíos específicos para el tipo de empresa según su rubro y país. Busca tendencias 2026-2027. Llamar DESPUÉS de tener el rubro de la empresa.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "rubro": {
-                        "type": "string",
-                        "description": "Rubro o actividad de la empresa (business_activity)"
-                    },
-                    "pais": {
-                        "type": "string",
-                        "description": "País de la empresa (de DATOS DETECTADOS)"
-                    }
-                },
-                "required": ["rubro"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_web_tavily",
-            "description": "Busca información en la web usando Tavily. SOLO usar como backup si extraer_datos_web_cliente falla.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Búsqueda a realizar"
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "guardar_lead_mongodb",
-            "description": "Guarda los datos del lead en MongoDB y envía email de notificación. OBLIGATORIO incluir TODOS los campos. Si un dato no está disponible, usar 'No encontrado'. NUNCA enviar undefined o vacío.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["guardar", "create", "upsert"],
-                        "description": "Acción a realizar"
-                    },
-                    "phone_whatsapp": {
-                        "type": "string",
-                        "description": "Número WhatsApp del lead (de DATOS DETECTADOS)"
-                    },
-                    "country_detected": {
-                        "type": "string",
-                        "description": "País detectado (de DATOS DETECTADOS)"
-                    },
-                    "country_code": {
-                        "type": "string",
-                        "description": "Código de país (de DATOS DETECTADOS)"
-                    },
-                    "timezone_detected": {
-                        "type": "string",
-                        "description": "Zona horaria (de DATOS DETECTADOS)"
-                    },
-                    "utc_offset": {
-                        "type": "string",
-                        "description": "Offset UTC (de DATOS DETECTADOS)"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Nombre completo del lead"
-                    },
-                    "email": {
-                        "type": "string",
-                        "description": "Email del lead"
-                    },
-                    "role": {
-                        "type": "string",
-                        "description": "Cargo en la empresa"
-                    },
-                    "business_name": {
-                        "type": "string",
-                        "description": "Nombre de la empresa"
-                    },
-                    "business_activity": {
-                        "type": "string",
-                        "description": "Actividad o rubro"
-                    },
-                    "business_description": {
-                        "type": "string",
-                        "description": "Descripción de la empresa"
-                    },
-                    "services_text": {
-                        "type": "string",
-                        "description": "Servicios que ofrece"
-                    },
-                    "website": {
-                        "type": "string",
-                        "description": "Sitio web"
-                    },
-                    "phone_empresa": {
-                        "type": "string",
-                        "description": "Teléfono de la empresa"
-                    },
-                    "whatsapp_empresa": {
-                        "type": "string",
-                        "description": "WhatsApp de la empresa"
-                    },
-                    "horarios": {
-                        "type": "string",
-                        "description": "Horarios de atención"
-                    },
-                    "address": {
-                        "type": "string",
-                        "description": "Dirección"
-                    },
-                    "city": {
-                        "type": "string",
-                        "description": "Ciudad"
-                    },
-                    "province": {
-                        "type": "string",
-                        "description": "Provincia/Estado"
-                    },
-                    "linkedin_personal": {
-                        "type": "string",
-                        "description": "LinkedIn personal del contacto"
-                    },
-                    "linkedin_empresa": {
-                        "type": "string",
-                        "description": "LinkedIn de la empresa"
-                    },
-                    "instagram_empresa": {
-                        "type": "string",
-                        "description": "Instagram de la empresa"
-                    },
-                    "facebook_empresa": {
-                        "type": "string",
-                        "description": "Facebook de la empresa"
-                    },
-                    "noticias_empresa": {
-                        "type": "string",
-                        "description": "Noticias encontradas"
-                    },
-                    "team_size": {
-                        "type": "string",
-                        "description": "Tamaño del equipo"
-                    },
-                    "ai_knowledge": {
-                        "type": "string",
-                        "description": "Conocimiento sobre IA"
-                    },
-                    "main_challenge": {
-                        "type": "string",
-                        "description": "Principal desafío"
-                    },
-                    "past_attempt": {
-                        "type": "string",
-                        "description": "Intentos previos de automatización"
-                    },
-                    "has_website": {
-                        "type": "string",
-                        "enum": ["Sí", "No"],
-                        "description": "Si tiene sitio web"
-                    },
-                    "qualification_tier": {
-                        "type": "string",
-                        "enum": ["premium", "standard", "education", "agency"],
-                        "description": "Tier de cualificación del lead"
-                    },
-                    "challenges_detected": {
-                        "type": "string",
-                        "description": "Desafíos detectados/confirmados por el usuario"
-                    }
-                },
-                "required": ["action", "phone_whatsapp", "name"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "gestionar_calcom",
-            "description": "Gestiona reuniones en Cal.com. Acciones: guardar_email_calcom (para agendar), buscar_reserva (para cancelar/modificar).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["guardar_email_calcom", "buscar_reserva"],
-                        "description": "Acción a realizar"
-                    },
-                    "phone_whatsapp": {
-                        "type": "string",
-                        "description": "Número WhatsApp del usuario (de DATOS DETECTADOS)"
-                    },
-                    "email_calcom": {
-                        "type": "string",
-                        "description": "Email para la confirmación de Cal.com (SOLO para guardar_email_calcom)"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Nombre del usuario (SOLO para guardar_email_calcom)"
-                    }
-                },
-                "required": ["action", "phone_whatsapp"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_info_dania",
-            "description": "Busca información sobre Dania, Fortia, servicios de automatización con IA. Usar cuando el usuario pregunta sobre la empresa o sus servicios.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Pregunta o tema a buscar"
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "resumir_conversacion",
-            "description": "Resume la conversación actual para generar un resumen conciso de los puntos clave. Útil cuando la conversación es larga o antes de guardar el lead. Guarda el resumen en MongoDB.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "phone_whatsapp": {
-                        "type": "string",
-                        "description": "Número WhatsApp del usuario (de DATOS DETECTADOS)"
-                    },
-                    "incluir_en_lead": {
-                        "type": "boolean",
-                        "description": "Si true, guarda el resumen en el documento del lead"
-                    }
-                },
-                "required": ["phone_whatsapp"]
-            }
+                "nombre_persona": {
+                    "type": "string",
+                    "description":
+                    "Nombre completo de la persona (del onboarding)"
+                }
+            },
+            "required": ["website", "nombre_persona"]
         }
     }
-]
-
+}, {
+    "type": "function",
+    "function": {
+        "name": "verificar_investigacion_completa",
+        "description":
+        "Verifica si la investigación en background terminó y retorna el rubro. LLAMAR DESPUÉS de pregunta 3/4 y ANTES de pregunta 4/4.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "buscar_redes_personales",
+        "description":
+        "Busca LinkedIn personal del contacto y noticias de la empresa. OBLIGATORIO llamar DESPUÉS de extraer_datos_web_cliente.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "nombre_persona": {
+                    "type": "string",
+                    "description": "Nombre completo de la persona"
+                },
+                "empresa": {
+                    "type": "string",
+                    "description": "Nombre de la empresa"
+                },
+                "website": {
+                    "type": "string",
+                    "description": "Sitio web de la empresa"
+                }
+            },
+            "required": ["nombre_persona", "empresa"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "investigar_desafios_empresa",
+        "description":
+        "Investiga desafíos específicos para el tipo de empresa según su rubro y país. Busca tendencias 2026-2027. Llamar DESPUÉS de tener el rubro de la empresa.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "rubro": {
+                    "type":
+                    "string",
+                    "description":
+                    "Rubro o actividad de la empresa (business_activity)"
+                },
+                "pais": {
+                    "type": "string",
+                    "description": "País de la empresa (de DATOS DETECTADOS)"
+                }
+            },
+            "required": ["rubro"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "buscar_web_tavily",
+        "description":
+        "Busca información en la web usando Tavily. SOLO usar como backup si extraer_datos_web_cliente falla.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Búsqueda a realizar"
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "guardar_lead_mongodb",
+        "description":
+        "Guarda los datos del lead en MongoDB y envía email de notificación. OBLIGATORIO incluir TODOS los campos. Si un dato no está disponible, usar 'No encontrado'. NUNCA enviar undefined o vacío.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["guardar", "create", "upsert"],
+                    "description": "Acción a realizar"
+                },
+                "phone_whatsapp": {
+                    "type": "string",
+                    "description":
+                    "Número WhatsApp del lead (de DATOS DETECTADOS)"
+                },
+                "country_detected": {
+                    "type": "string",
+                    "description": "País detectado (de DATOS DETECTADOS)"
+                },
+                "country_code": {
+                    "type": "string",
+                    "description": "Código de país (de DATOS DETECTADOS)"
+                },
+                "timezone_detected": {
+                    "type": "string",
+                    "description": "Zona horaria (de DATOS DETECTADOS)"
+                },
+                "utc_offset": {
+                    "type": "string",
+                    "description": "Offset UTC (de DATOS DETECTADOS)"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Nombre completo del lead"
+                },
+                "email": {
+                    "type": "string",
+                    "description": "Email del lead"
+                },
+                "role": {
+                    "type": "string",
+                    "description": "Cargo en la empresa"
+                },
+                "business_name": {
+                    "type": "string",
+                    "description": "Nombre de la empresa"
+                },
+                "business_activity": {
+                    "type": "string",
+                    "description": "Actividad o rubro"
+                },
+                "business_description": {
+                    "type": "string",
+                    "description": "Descripción de la empresa"
+                },
+                "services_text": {
+                    "type": "string",
+                    "description": "Servicios que ofrece"
+                },
+                "website": {
+                    "type": "string",
+                    "description": "Sitio web"
+                },
+                "phone_empresa": {
+                    "type": "string",
+                    "description": "Teléfono de la empresa"
+                },
+                "whatsapp_empresa": {
+                    "type": "string",
+                    "description": "WhatsApp de la empresa"
+                },
+                "horarios": {
+                    "type": "string",
+                    "description": "Horarios de atención"
+                },
+                "address": {
+                    "type": "string",
+                    "description": "Dirección"
+                },
+                "city": {
+                    "type": "string",
+                    "description": "Ciudad"
+                },
+                "province": {
+                    "type": "string",
+                    "description": "Provincia/Estado"
+                },
+                "linkedin_personal": {
+                    "type": "string",
+                    "description": "LinkedIn personal del contacto"
+                },
+                "linkedin_empresa": {
+                    "type": "string",
+                    "description": "LinkedIn de la empresa"
+                },
+                "instagram_empresa": {
+                    "type": "string",
+                    "description": "Instagram de la empresa"
+                },
+                "facebook_empresa": {
+                    "type": "string",
+                    "description": "Facebook de la empresa"
+                },
+                "noticias_empresa": {
+                    "type": "string",
+                    "description": "Noticias encontradas"
+                },
+                "team_size": {
+                    "type": "string",
+                    "description": "Tamaño del equipo"
+                },
+                "ai_knowledge": {
+                    "type": "string",
+                    "description": "Conocimiento sobre IA"
+                },
+                "main_challenge": {
+                    "type": "string",
+                    "description": "Principal desafío"
+                },
+                "past_attempt": {
+                    "type": "string",
+                    "description": "Intentos previos de automatización"
+                },
+                "has_website": {
+                    "type": "string",
+                    "enum": ["Sí", "No"],
+                    "description": "Si tiene sitio web"
+                },
+                "qualification_tier": {
+                    "type": "string",
+                    "enum": ["premium", "standard", "education", "agency"],
+                    "description": "Tier de cualificación del lead"
+                },
+                "challenges_detected": {
+                    "type": "string",
+                    "description":
+                    "Desafíos detectados/confirmados por el usuario"
+                }
+            },
+            "required": ["action", "phone_whatsapp", "name"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "gestionar_calcom",
+        "description":
+        "Gestiona reuniones en Cal.com. Acciones: guardar_email_calcom (para agendar), buscar_reserva (para cancelar/modificar).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["guardar_email_calcom", "buscar_reserva"],
+                    "description": "Acción a realizar"
+                },
+                "phone_whatsapp": {
+                    "type":
+                    "string",
+                    "description":
+                    "Número WhatsApp del usuario (de DATOS DETECTADOS)"
+                },
+                "email_calcom": {
+                    "type":
+                    "string",
+                    "description":
+                    "Email para la confirmación de Cal.com (SOLO para guardar_email_calcom)"
+                },
+                "name": {
+                    "type":
+                    "string",
+                    "description":
+                    "Nombre del usuario (SOLO para guardar_email_calcom)"
+                }
+            },
+            "required": ["action", "phone_whatsapp"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "buscar_info_dania",
+        "description":
+        "Busca información sobre Dania, Fortia, servicios de automatización con IA. Usar cuando el usuario pregunta sobre la empresa o sus servicios.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Pregunta o tema a buscar"
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "resumir_conversacion",
+        "description":
+        "Resume la conversación actual para generar un resumen conciso de los puntos clave. Útil cuando la conversación es larga o antes de guardar el lead. Guarda el resumen en MongoDB.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "phone_whatsapp": {
+                    "type":
+                    "string",
+                    "description":
+                    "Número WhatsApp del usuario (de DATOS DETECTADOS)"
+                },
+                "incluir_en_lead": {
+                    "type":
+                    "boolean",
+                    "description":
+                    "Si true, guarda el resumen en el documento del lead"
+                }
+            },
+            "required": ["phone_whatsapp"]
+        }
+    }
+}]
 
 # =============================================================================
 # SYSTEM PROMPT - VERSIÓN 2.1 - FIX ORDEN CORRECTO
@@ -490,14 +503,16 @@ Este tool espera a que termine el background y retorna:
 - datos: toda la info extraída (web, LinkedIn, etc.)
 - desafios_rubro: lista de desafíos investigados
 
-Mostrar los desafíos:
+Mostrar TODOS los desafíos de desafios_rubro (normalmente 8):
 "Según mi investigación, las empresas de [rubro] en [país] suelen enfrentar:
 
-1. [desafio 1]
-2. [desafio 2]
-3. [desafio 3]
-4. [desafio 4]
-5. [desafio 5]
+[LISTAR TODOS los desafíos de desafios_rubro, numerados]
+
+🚨 IMPORTANTE: La lista desafios_rubro tiene ~8 desafíos:
+- Los primeros 5 son específicos del rubro/industria
+- Los últimos 3 son genéricos universales (captar clientes, reducir 
+  tareas manuales, mejorar seguimiento)
+- Mostrar TODOS, no solo 5
 
 ¿Te identificás con alguno de estos? ¿O hay otro desafío más importante para vos?"
 
@@ -687,14 +702,14 @@ SI team_size < 10:
 
 SI team_size >= 10:
    Evaluar AMBOS caminos:
-   
+
    CAMINO 1: ¿facturacion_estimada >= $1,000,000/año?
    CAMINO 2: ¿Cumple 2 o más indicadores de inversión?
-   
+
    SI (CAMINO 1 es SÍ) O (CAMINO 2 es SÍ):
    → qualification_tier = "premium"
    → Ir a mensaje PREMIUM
-   
+
    SI ambos son NO:
    → qualification_tier = "standard"
    → Ir a mensaje STANDARD

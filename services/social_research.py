@@ -1547,6 +1547,218 @@ def calcular_peso_linkedin(url: str,
 
     peso += min(puntos_ubicacion, 10)
 
+    # ═══════════════════════════════════════════════════════════════════
+    # PENALIZACIÓN: LinkedIn de país diferente al del lead
+    # Subdominios como py.linkedin.com, pe.linkedin.com, mx.linkedin.com
+    # indican que el perfil está registrado en otro país
+    # ═══════════════════════════════════════════════════════════════════
+    # Diccionario COMPLETO de subdominios LinkedIn → país
+    # Cubre todos los países donde LinkedIn tiene subdominio local
+    SUBDOMINIO_A_PAIS = {
+        # América Latina
+        'ar': 'argentina',
+        'bo': 'bolivia',
+        'br': 'brasil',
+        'cl': 'chile',
+        'co': 'colombia',
+        'cr': 'costa rica',
+        'cu': 'cuba',
+        'do': 'dominicana',
+        'ec': 'ecuador',
+        'sv': 'el salvador',
+        'gt': 'guatemala',
+        'hn': 'honduras',
+        'mx': 'mexico',
+        'ni': 'nicaragua',
+        'pa': 'panama',
+        'py': 'paraguay',
+        'pe': 'peru',
+        'pr': 'puerto rico',
+        'uy': 'uruguay',
+        've': 'venezuela',
+        # América del Norte
+        'us': 'estados unidos',
+        'ca': 'canada',
+        # Europa Occidental
+        'es': 'españa',
+        'pt': 'portugal',
+        'fr': 'francia',
+        'it': 'italia',
+        'de': 'alemania',
+        'at': 'austria',
+        'ch': 'suiza',
+        'be': 'belgica',
+        'nl': 'holanda',
+        'lu': 'luxemburgo',
+        'uk': 'reino unido',
+        'ie': 'irlanda',
+        'dk': 'dinamarca',
+        'se': 'suecia',
+        'no': 'noruega',
+        'fi': 'finlandia',
+        'is': 'islandia',
+        # Europa del Sur
+        'gr': 'grecia',
+        'mt': 'malta',
+        'cy': 'chipre',
+        # Europa del Este
+        'pl': 'polonia',
+        'cz': 'republica checa',
+        'sk': 'eslovaquia',
+        'hu': 'hungria',
+        'ro': 'rumania',
+        'bg': 'bulgaria',
+        'hr': 'croacia',
+        'si': 'eslovenia',
+        'rs': 'serbia',
+        'ba': 'bosnia',
+        'me': 'montenegro',
+        'mk': 'macedonia',
+        'al': 'albania',
+        'xk': 'kosovo',
+        'ua': 'ucrania',
+        'by': 'bielorrusia',
+        'md': 'moldavia',
+        'ee': 'estonia',
+        'lv': 'letonia',
+        'lt': 'lituania',
+        'ru': 'rusia',
+        # Asia
+        'cn': 'china',
+        'jp': 'japon',
+        'kr': 'corea del sur',
+        'kp': 'corea del norte',
+        'tw': 'taiwan',
+        'hk': 'hong kong',
+        'mo': 'macao',
+        'mn': 'mongolia',
+        'in': 'india',
+        'pk': 'pakistan',
+        'bd': 'bangladesh',
+        'lk': 'sri lanka',
+        'np': 'nepal',
+        'bt': 'butan',
+        'mm': 'myanmar',
+        'th': 'tailandia',
+        'vn': 'vietnam',
+        'kh': 'camboya',
+        'la': 'laos',
+        'my': 'malasia',
+        'sg': 'singapur',
+        'id': 'indonesia',
+        'ph': 'filipinas',
+        'bn': 'brunei',
+        'tl': 'timor oriental',
+        # Asia Central y Medio Oriente
+        'kz': 'kazajstan',
+        'uz': 'uzbekistan',
+        'tm': 'turkmenistan',
+        'kg': 'kirguistan',
+        'tj': 'tayikistan',
+        'af': 'afganistan',
+        'ir': 'iran',
+        'iq': 'irak',
+        'sa': 'arabia saudita',
+        'ae': 'emiratos arabes',
+        'qa': 'qatar',
+        'kw': 'kuwait',
+        'bh': 'bahrein',
+        'om': 'oman',
+        'ye': 'yemen',
+        'jo': 'jordania',
+        'lb': 'libano',
+        'sy': 'siria',
+        'il': 'israel',
+        'ps': 'palestina',
+        'tr': 'turquia',
+        'ge': 'georgia',
+        'am': 'armenia',
+        'az': 'azerbaiyan',
+        # África
+        'za': 'sudafrica',
+        'eg': 'egipto',
+        'ma': 'marruecos',
+        'dz': 'argelia',
+        'tn': 'tunez',
+        'ly': 'libia',
+        'ng': 'nigeria',
+        'gh': 'ghana',
+        'ke': 'kenia',
+        'tz': 'tanzania',
+        'ug': 'uganda',
+        'rw': 'ruanda',
+        'et': 'etiopia',
+        'sd': 'sudan',
+        'ao': 'angola',
+        'mz': 'mozambique',
+        'zw': 'zimbabwe',
+        'bw': 'botsuana',
+        'na': 'namibia',
+        'zm': 'zambia',
+        'mw': 'malawi',
+        'mg': 'madagascar',
+        'mu': 'mauricio',
+        'sn': 'senegal',
+        'ci': 'costa de marfil',
+        'cm': 'camerun',
+        'cd': 'congo',
+        'cg': 'congo brazzaville',
+        'ga': 'gabon',
+        # Oceanía
+        'au': 'australia',
+        'nz': 'nueva zelanda',
+        'fj': 'fiyi',
+        'pg': 'papua nueva guinea',
+        # Caribe
+        'jm': 'jamaica',
+        'tt': 'trinidad y tobago',
+        'bb': 'barbados',
+        'bs': 'bahamas',
+        'ht': 'haiti',
+        'gy': 'guyana',
+        'sr': 'surinam',
+        'bz': 'belice',
+    }
+    
+    # Detectar subdominio del LinkedIn
+    subdominio_linkedin = None
+    url_lower = url.lower()
+    match_subdominio = re.match(
+        r'https?://([a-z]{2})\.linkedin\.com', 
+        url_lower
+    )
+    if match_subdominio:
+        subdominio_linkedin = match_subdominio.group(1)
+    
+    # Si el perfil tiene subdominio de otro país, penalizar
+    if subdominio_linkedin and pais:
+        pais_lower = pais.lower().strip()
+        pais_del_subdominio = SUBDOMINIO_A_PAIS.get(
+            subdominio_linkedin, ''
+        )
+        
+        # Verificar si el país del subdominio NO coincide con el país del lead
+        if pais_del_subdominio and pais_del_subdominio != pais_lower:
+            # Verificar también variantes del país
+            variantes_pais = [pais_lower]
+            if pais_lower == 'argentina':
+                variantes_pais.extend(['ar', 'arg'])
+            elif pais_lower == 'brasil' or pais_lower == 'brazil':
+                variantes_pais.extend(['br', 'bra', 'brasil', 'brazil'])
+            elif pais_lower == 'mexico' or pais_lower == 'méxico':
+                variantes_pais.extend(['mx', 'mex', 'mexico', 'méxico'])
+            elif pais_lower == 'españa' or pais_lower == 'espana':
+                variantes_pais.extend(['es', 'esp', 'españa', 'espana'])
+            
+            if pais_del_subdominio not in variantes_pais:
+                # Penalización fuerte: -30 puntos
+                peso -= 30
+                logger.debug(
+                    f"[LINKEDIN] Penalización -30 por país diferente: "
+                    f"subdominio={subdominio_linkedin} "
+                    f"({pais_del_subdominio}), lead={pais_lower}"
+                )
+
     return peso
 
 
