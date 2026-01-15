@@ -210,6 +210,192 @@ async def search_with_tavily(query: str) -> dict:
         return {}
 
 
+def extract_schema_org(html_content: str) -> dict:
+    """
+    Extrae datos estructurados de Schema.org (JSON-LD).
+    """
+    schema_data = {}
+    
+    if not html_content:
+        return schema_data
+    
+    try:
+        pattern = (r'<script[^>]*type=["\']application/ld\+json["\']'
+                   r'[^>]*>(.*?)</script>')
+        matches = re.findall(pattern, html_content, 
+                             re.DOTALL | re.IGNORECASE)
+        
+        for match in matches:
+            try:
+                data = json.loads(match.strip())
+                items = data if isinstance(data, list) else [data]
+                
+                for item in items:
+                    schema_type = item.get('@type', '')
+                    
+                    tipos_validos = [
+                        'Organization', 'LocalBusiness', 'Corporation',
+                        'Store', 'Restaurant', 'ProfessionalService',
+                        'MedicalBusiness', 'LegalService', 
+                        'FinancialService', 'RealEstateAgent',
+                        'InsuranceAgency'
+                    ]
+                    
+                    if schema_type in tipos_validos:
+                        if (item.get('name') and 
+                                not schema_data.get('business_name')):
+                            schema_data['business_name'] = item['name']
+                        
+                        if (item.get('description') and 
+                                not schema_data.get('business_description')):
+                            desc = item['description'][:500]
+                            schema_data['business_description'] = desc
+                        
+                        if (item.get('telephone') and 
+                                not schema_data.get('phone_empresa')):
+                            schema_data['phone_empresa'] = item['telephone']
+                        
+                        if (item.get('email') and 
+                                not schema_data.get('email_principal')):
+                            schema_data['email_principal'] = item['email']
+                        
+                        address = item.get('address', {})
+                        if isinstance(address, dict):
+                            if (address.get('streetAddress') and 
+                                    not schema_data.get('address')):
+                                schema_data['address'] = \
+                                    address['streetAddress']
+                            if (address.get('addressLocality') and 
+                                    not schema_data.get('city')):
+                                schema_data['city'] = \
+                                    address['addressLocality']
+                            if (address.get('addressRegion') and 
+                                    not schema_data.get('province')):
+                                schema_data['province'] = \
+                                    address['addressRegion']
+                            if (address.get('addressCountry') and 
+                                    not schema_data.get('country')):
+                                country = address['addressCountry']
+                                if isinstance(country, dict):
+                                    country = country.get('name', '')
+                                schema_data['country'] = country
+                        elif isinstance(address, str):
+                            if not schema_data.get('address'):
+                                schema_data['address'] = address
+                        
+                        same_as = item.get('sameAs', [])
+                        if isinstance(same_as, str):
+                            same_as = [same_as]
+                        
+                        for url in same_as:
+                            url_lower = url.lower()
+                            if ('linkedin.com/company' in url_lower and 
+                                    not schema_data.get('linkedin_empresa')):
+                                schema_data['linkedin_empresa'] = url
+                            elif ('instagram.com' in url_lower and 
+                                    not schema_data.get('instagram_empresa')):
+                                schema_data['instagram_empresa'] = url
+                            elif ('facebook.com' in url_lower and 
+                                    not schema_data.get('facebook_empresa')):
+                                schema_data['facebook_empresa'] = url
+                            elif (('twitter.com' in url_lower or 
+                                    'x.com' in url_lower) and 
+                                    not schema_data.get('twitter')):
+                                schema_data['twitter'] = url
+                            elif ('youtube.com' in url_lower and 
+                                    not schema_data.get('youtube')):
+                                schema_data['youtube'] = url
+                
+            except json.JSONDecodeError:
+                continue
+        
+        if schema_data:
+            logger.info(
+                f"[SCHEMA.ORG] ✓ Extraído: {list(schema_data.keys())}")
+        
+    except Exception as e:
+        logger.error(f"[SCHEMA.ORG] Error: {e}")
+    
+    return schema_data
+
+
+def validate_extracted_data(data: dict) -> dict:
+    """
+    Valida y limpia datos extraídos.
+    """
+    resultado = data.copy()
+    
+    address = resultado.get('address', '')
+    if address and address != 'No encontrado':
+        palabras_producto = [
+            'camara', 'cámara', 'dvr', 'nvr', 'ip', 'wifi', 'router',
+            'switch', 'cable', 'sensor', 'alarma', 'detector',
+            'producto', 'servicio', 'pack', 'kit', 'combo',
+            'oferta', 'promo', 'descuento', 'envío', 'gratis',
+            'megapixel', 'mp', 'hd', 'full hd', '4k', '1080p',
+            'hikvision', 'dahua', 'tp-link', 'ubiquiti'
+        ]
+        address_lower = address.lower()
+        
+        es_producto = any(p in address_lower for p in palabras_producto)
+        es_muy_corta = len(address) < 10
+        no_tiene_numero = not re.search(r'\d', address)
+        
+        if es_producto or es_muy_corta or no_tiene_numero:
+            logger.info(
+                f"[VALIDAR] Address descartada: {address}")
+            resultado['address'] = 'No encontrado'
+    
+    province = resultado.get('province', '')
+    if province and province != 'No encontrado':
+        provincias_validas = [
+            'buenos aires', 'caba', 'capital federal', 'córdoba',
+            'cordoba', 'santa fe', 'mendoza', 'tucumán', 'tucuman',
+            'entre ríos', 'entre rios', 'salta', 'misiones', 'chaco',
+            'corrientes', 'santiago del estero', 'san juan', 'jujuy',
+            'río negro', 'rio negro', 'neuquén', 'neuquen', 'formosa',
+            'chubut', 'san luis', 'catamarca', 'la rioja', 'la pampa',
+            'santa cruz', 'tierra del fuego',
+            'ciudad de méxico', 'cdmx', 'jalisco', 'nuevo león',
+            'bogotá', 'antioquia', 'valle del cauca',
+            'santiago', 'región metropolitana', 'valparaíso',
+            'lima', 'arequipa', 'madrid', 'barcelona', 'valencia'
+        ]
+        
+        province_lower = province.lower().strip()
+        es_valida = any(
+            p in province_lower or province_lower in p 
+            for p in provincias_validas
+        )
+        
+        if not es_valida and len(province) > 30:
+            logger.info(f"[VALIDAR] Province descartada: {province}")
+            resultado['province'] = 'No encontrado'
+    
+    email = resultado.get('email_principal', '')
+    if email and email != 'No encontrado':
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            logger.info(f"[VALIDAR] Email descartado: {email}")
+            resultado['email_principal'] = 'No encontrado'
+        
+        emails_falsos = [
+            'example.com', 'test.com', 'domain.com', 
+            'email.com', 'tu-email.com', 'correo.com'
+        ]
+        if any(f in email.lower() for f in emails_falsos):
+            logger.info(f"[VALIDAR] Email placeholder: {email}")
+            resultado['email_principal'] = 'No encontrado'
+    
+    phone = resultado.get('phone_empresa', '')
+    if phone and phone != 'No encontrado':
+        digits = re.sub(r'\D', '', phone)
+        if len(digits) < 7:
+            logger.info(f"[VALIDAR] Teléfono corto: {phone}")
+            resultado['phone_empresa'] = 'No encontrado'
+    
+    return resultado
+
+
 def extract_with_regex(all_content: str) -> dict:
     """
     Extracción con regex - Extractor v8 de n8n.
@@ -1501,7 +1687,7 @@ JSON:"""
 
 def merge_results(gpt_data: dict,
                   regex_data: dict,
-                  tavily_answer: str,
+                  schema_data: dict,
                   website: str = "",
                   all_content: str = "") -> dict:
     """
@@ -1509,6 +1695,29 @@ def merge_results(gpt_data: dict,
     Prioridad: GPT > Regex > Tavily
     """
     resultado = gpt_data.copy() if gpt_data else {}
+
+    # Schema.org - máxima prioridad
+    if schema_data:
+        logger.info(
+            f"[MERGE] Aplicando Schema.org: {list(schema_data.keys())}")
+        
+        campos_schema = [
+            'business_name', 'business_description', 'phone_empresa',
+            'email_principal', 'address', 'city', 'province', 
+            'country', 'linkedin_empresa', 'instagram_empresa',
+            'facebook_empresa', 'twitter', 'youtube'
+        ]
+        
+        for key in campos_schema:
+            schema_val = schema_data.get(key, '')
+            gpt_val = resultado.get(key, '')
+            
+            if schema_val and schema_val != 'No encontrado':
+                if not gpt_val or gpt_val == 'No encontrado':
+                    resultado[key] = schema_val
+                    val_log = schema_val[:50] if len(str(schema_val)) > 50 \
+                        else schema_val
+                    logger.info(f"[MERGE] Schema.org → {key}: {val_log}")
 
     # Descripción - solo de GPT (sin fuentes externas)
     desc_gpt = resultado.get('business_description', '')
@@ -2215,9 +2424,16 @@ async def extract_web_data(website: str, nombre_contacto: str = "") -> dict:
     gpt_data = await extract_with_gpt(all_content, website_clean,
                                       titulo_pagina)
 
-    # 10. Merge de resultados (pasar all_content para extracción por contexto)
-    resultado = merge_results(gpt_data, regex_data, "",
+    # 10A. Schema.org (JSON-LD)
+    logger.info(f"[SCHEMA.ORG] Buscando datos estructurados...")
+    schema_data = extract_schema_org(http_content)
+
+    # 10B. Merge (Schema.org > GPT > Regex)
+    resultado = merge_results(gpt_data, regex_data, schema_data,
                               website_full, all_content)
+
+    # 10C. Validación
+    resultado = validate_extracted_data(resultado)
 
     # ═══════════════════════════════════════════════════════════════
     # 10B. DETECCIÓN DE CARGO desde sección Equipo/Team
